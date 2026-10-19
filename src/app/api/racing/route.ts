@@ -194,7 +194,7 @@ export async function POST(request: Request) {
         const historyItem = { id: raceId, track, place, time: normalizedTime, credits, at: now, verified: true };
         const best = { ...current.best, [track]: Math.min(Number(current.best?.[track] ?? Infinity), normalizedTime) };
         const history = [historyItem, ...(current.history || []).filter(h => h.id !== raceId)].slice(0, 50);
-        const wins = current.wins + (kind === "division" && place === 1 ? 1 : 0);
+        const wins = current.wins + (place === 1 ? 1 : 0);
         let division = current.division;
         if (wins >= (division + 1) * 3 && division < 3) division++;
         else if (history.length >= 4 && wins === 0 && division > 0) division--;
