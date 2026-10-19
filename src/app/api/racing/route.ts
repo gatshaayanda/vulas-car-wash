@@ -50,15 +50,15 @@ export async function GET(request: Request) {
         store.collection("racingResults").orderBy("createdAt", "desc").limit(100).get(),
       ]);
       return NextResponse.json({
-        profiles: profiles.docs.map(d => ({ uid: d.id, racers: Array.isArray(d.data().racers) ? d.data().racers.map((r: Record<string, unknown>) => ({ id: r.id, alias: r.alias, division: r.division, updatedAt: r.updatedAt })) : [] })),
-        results: results.docs.map(d => ({ id: d.id, ...d.data() })),
+        profiles: profiles.docs.map(d => ({ racers: Array.isArray(d.data().racers) ? d.data().racers.map((r: Record<string, unknown>) => ({ id: r.id, alias: r.alias, division: r.division, updatedAt: r.updatedAt })) : [] })),
+        results: results.docs.map(d => { const r = d.data(); return { id: d.id, alias: r.alias, track: r.track, division: r.division, place: r.place, time: r.time, credits: r.credits, createdAt: r.createdAt, verified: r.verified }; }),
       }, { headers: { "Cache-Control": "no-store" } });
     }
     const profile = await store.doc(`racingProfiles/${uid}`).get();
     const feed = await store.collection("racingResults").orderBy("createdAt", "desc").limit(40).get();
     return NextResponse.json({
       racers: profile.exists && Array.isArray(profile.data()?.racers) ? profile.data()!.racers : [],
-      results: feed.docs.map(d => ({ id: d.id, ...d.data() })),
+      results: feed.docs.map(d => { const r = d.data(); return { id: d.id, alias: r.alias, track: r.track, division: r.division, place: r.place, time: r.time, credits: r.credits, createdAt: r.createdAt, verified: r.verified }; }),
       sync: "server",
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return jsonError(error); }
