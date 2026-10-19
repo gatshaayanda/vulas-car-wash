@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
+import { GoogleAuthProvider, linkWithPopup, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { collection, doc, setDoc } from "firebase/firestore";
 import { auth, db, hasFirebaseWebConfig } from "@/lib/firebase/client";
 import { enableVulaPushNotifications } from "@/lib/firebase/vula-notifications";
@@ -20,6 +20,7 @@ export default function Home() {
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [online, setOnline] = useState(true);
   const [userId, setUserId] = useState("");
+  const [isGuest, setIsGuest] = useState(true);\n  const [linkNotice, setLinkNotice] = useState("");
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"site" | "mobile">("site");
@@ -41,9 +42,9 @@ export default function Home() {
     setOnline(navigator.onLine);
     const onOnline = () => { setOnline(true); void syncOfflineRequests(); };
     const onOffline = () => { setOnline(false); setNotice({ kind: "pending", text: "Offline: requests can be saved on this device, but the team cannot see them until they sync." }); };
-    const stopAuth = onAuthStateChanged(auth, user => setUserId(user?.uid ?? ""));
+    const stopAuth = onAuthStateChanged(auth, user => { setUserId(user?.uid ?? ""); setIsGuest(user?.isAnonymous ?? true); });
     const stops = [subscribeServices(setServices, error => setConnectionError(error.message)), subscribeGallery(setGallery, () => {}), subscribeSettings(value => setSettings(value ?? {}), () => {})];
-    window.addEventListener("online", onOnline); window.addEventListener("offline", onOffline);
+    window.addEventListener("online", onOnline); window.addEventListener("offline", onOffline);\n    if (navigator.onLine) void syncOfflineRequests();
     return () => { stopAuth(); stops.forEach(stop => stop()); window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
   }, []);
 
@@ -57,6 +58,19 @@ export default function Home() {
     ];
     return () => stops.forEach(stop => stop());
   }, [userId]);
+
+  async function linkGuestAccount() {
+    const user = auth.currentUser;
+    if (!user || !user.isAnonymous) { setLinkNotice("This session is already linked to a sign-in method."); return; }
+    try {
+      await linkWithPopup(user, new GoogleAuthProvider());
+      setIsGuest(false);
+      setLinkNotice("Your guest session is now linked to Google. Your Vula customer ID and loyalty balance stay with this account on supported devices.");
+    } catch (error) {
+      const code = typeof error === "object" && error !== null && "code" in error ? String((error as {code?:unknown}).code) : "";
+      setLinkNotice(code === "auth/credential-already-in-use" ? "That Google account is already linked to another Firebase account. Staff will need to help reconcile existing loyalty records." : error instanceof Error ? error.message : "We could not link this session. Try again while online.");
+    }
+  }
 
   async function saveReminderChoice() {
     if (!userId || !navigator.onLine) { setReminderNotice("Connect to the internet and submit a request first to save this preference."); return; }
@@ -153,7 +167,7 @@ export default function Home() {
       {tab==="queue"&&<label>Service<select value={serviceId} onChange={e=>setServiceId(e.target.value)}><option value="">General walk-in service</option>{activeServices.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>}
       {tab==="fleet"&&<><label>Number of vehicles<input name="vehicleCount" type="number" min="1" max="10000" defaultValue="2" required/></label><label>Email (optional)<input name="email" type="email" maxLength={254} placeholder="you@company.com"/></label><label>Service needs<input name="fleetNeeds" maxLength={200} placeholder="e.g. regular cleaning"/></label><label>Preferred schedule<input name="preferredSchedule" maxLength={200} placeholder="Days / frequency"/></label><label>Preferred location<input name="preferredLocation" maxLength={200} defaultValue={locationName}/></label></>}
       <label className="full-field">Notes (optional)<textarea name="notes" maxLength={1500} rows={3} placeholder="Anything the team should know?"/></label></div><button className="vula-button primary submit-button" disabled={busy}>{busy?"Sending…":tab==="book"?"Send booking request":tab==="queue"?"Join the queue":"Send fleet enquiry"} ↗</button>{notice&&<p role="status" className={"vula-notice "+notice.kind}>{notice.text}</p>}</form></div></section>
-    <section className="vula-section account-section" id="my-wash"><div className="section-title"><p className="vula-eyebrow">YOUR WASH SPACE</p><h2>My requests & loyalty.</h2><p>Booking updates are shared live when online. Points are maintained by staff using the business's confirmed loyalty policy.</p></div><div className="account-grid"><article className="account-card loyalty-card"><span className="service-category">LOYALTY BALANCE</span><strong className="loyalty-points">{loyaltyPoints}</strong><span>points</span><p>Points are not automatically awarded until Vula confirms the earning rules. Keep this guest session on the same device, or show staff this session ID when asking about points.</p><small className="customer-uid">Guest session ID: {userId || "Created after your first online request"}</small><label className="reminder-toggle"><input type="checkbox" checked={remindersEnabled} onChange={e=>setRemindersEnabled(e.target.checked)}/> Save in-app booking reminder preference</label><button type="button" className="vula-button secondary" onClick={()=>void saveReminderChoice()} disabled={!userId || !online}>Save preference</button><button type="button" className="vula-button primary" onClick={()=>void enablePush()} disabled={!userId || !online}>Enable push reminders</button><p className="reminder-disclaimer">Push alerts require browser permission and the Firebase Web Push key. Confirmed bookings are checked every five minutes; only upcoming confirmed bookings are sent.</p>{reminderNotice&&<p className="vula-notice pending">{reminderNotice}</p>}{pushNotice&&<p className="vula-notice pending">{pushNotice}</p>}</article><article className="account-card"><span className="service-category">MY BOOKINGS</span>{upcomingBookings.length>0&&<div className="upcoming-reminder"><strong>Upcoming in the next 24 hours</strong>{upcomingBookings.map(item=><p key={item.id}>{item.serviceName} · {new Date(item.scheduledFor).toLocaleString()}</p>)}</div>}{myBookings.length?myBookings.slice(0,5).map(item=><div className="customer-booking" key={item.id}><strong>{item.serviceName}</strong><span>{item.status} · {item.scheduledFor||"Time to be agreed"}</span><small>{item.serviceMode==="mobile"?"Mobile request":"At the wash"} · {item.phone}</small></div>):<p className="account-empty">{userId?"No booking requests are linked to this guest session yet.":"Your requests will appear here after you submit your first online request."}</p>}</article></div></section>
+    <section className="vula-section account-section" id="my-wash"><div className="section-title"><p className="vula-eyebrow">YOUR WASH SPACE</p><h2>My requests & loyalty.</h2><p>Booking updates are shared live when online. Points are maintained by staff using the business's confirmed loyalty policy.</p></div><div className="account-grid"><article className="account-card loyalty-card"><span className="service-category">LOYALTY BALANCE</span><strong className="loyalty-points">{loyaltyPoints}</strong><span>points</span><p>Points are not automatically awarded until Vula confirms the earning rules. Keep this guest session on the same device, or show staff this session ID when asking about points.</p><small className="customer-uid">{isGuest?"Guest session ID":"Customer account ID"}: {userId || "Created after your first online request"}</small>{userId&&isGuest&&<button type="button" className="vula-button secondary" onClick={()=>void linkGuestAccount()}>Keep my loyalty with Google</button>}{linkNotice&&<p className="vula-notice pending">{linkNotice}</p>}<label className="reminder-toggle"><input type="checkbox" checked={remindersEnabled} onChange={e=>setRemindersEnabled(e.target.checked)}/> Save in-app booking reminder preference</label><button type="button" className="vula-button secondary" onClick={()=>void saveReminderChoice()} disabled={!userId || !online}>Save preference</button><button type="button" className="vula-button primary" onClick={()=>void enablePush()} disabled={!userId || !online}>Enable push reminders</button><p className="reminder-disclaimer">Push alerts require browser permission and the Firebase Web Push key. Confirmed bookings are checked every five minutes; only upcoming confirmed bookings are sent.</p>{reminderNotice&&<p className="vula-notice pending">{reminderNotice}</p>}{pushNotice&&<p className="vula-notice pending">{pushNotice}</p>}</article><article className="account-card"><span className="service-category">MY BOOKINGS</span>{upcomingBookings.length>0&&<div className="upcoming-reminder"><strong>Upcoming in the next 24 hours</strong>{upcomingBookings.map(item=><p key={item.id}>{item.serviceName} · {new Date(item.scheduledFor).toLocaleString()}</p>)}</div>}{myBookings.length?myBookings.slice(0,5).map(item=><div className="customer-booking" key={item.id}><strong>{item.serviceName}</strong><span>{item.status} · {item.scheduledFor||"Time to be agreed"}</span><small>{item.serviceMode==="mobile"?"Mobile request":"At the wash"} · {item.phone}</small></div>):<p className="account-empty">{userId?"No booking requests are linked to this guest session yet.":"Your requests will appear here after you submit your first online request."}</p>}</article></div></section>
     <section className="vula-section gallery-section" id="gallery"><div className="section-title"><p className="vula-eyebrow">THE RESULTS</p><h2>Care in every detail.</h2><p>Gallery photos are managed by staff. Only published images appear here.</p></div><div className="vula-gallery">{gallery.length?gallery.map(item=><figure key={item.id}><img src={item.imageUrl} alt={item.title} loading="lazy"/><figcaption><strong>{item.title}</strong><span>{item.description}</span></figcaption></figure>):<div className="gallery-empty">Vula's real work photos will appear here when staff publish them.</div>}</div></section>
     <section className="vula-bottom"><p className="vula-eyebrow">READY WHEN YOU ARE</p><h2>Your car called.</h2><p>Let's get it clean. Every booking is confirmed by the team.</p><a href="#request" className="vula-button primary">Book or enquire ↗</a></section>
     <footer className="vula-footer"><a href="#top" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></a><span>{userId ? "Customer session active" : "Guest booking available"} · Shared when synced</span><a href="/admin">Staff sign in</a></footer>
