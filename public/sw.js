@@ -56,7 +56,7 @@ const MEDIA_CACHE = "vula-media-v1";
 const SHELL_CACHE = CACHE_VERSION;
 const STATIC_LIMIT = 100;
 const PUBLIC_PAGE_LIMIT = 12;
-const APP_SHELL = ["/", "/offline", "/iphone-install", "/iphone-install.svg", "/vula-icon.svg", "/vula-icon-180.png", "/vula-icon-192.png", "/vula-icon-512.png", "/manifest.webmanifest"];
+const APP_SHELL = ["/", "/games", "/offline", "/iphone-install", "/iphone-install.svg", "/vula-icon.svg", "/vula-icon-180.png", "/vula-icon-192.png", "/vula-icon-512.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
