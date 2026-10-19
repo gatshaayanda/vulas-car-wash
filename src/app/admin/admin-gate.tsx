@@ -19,8 +19,10 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
   const [word, setWord] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [businessName, setBusinessName] = useState("Vula's Car Wash");
 
   useEffect(() => {
+    const stopSettings = onSnapshot(doc(db, "businessSettings", "main"), snapshot => { const value = snapshot.data()?.businessName; if (typeof value === "string" && value.trim()) setBusinessName(value); });
     let stopAdmin: undefined | (() => void);
     const stopAuth = onAuthStateChanged(auth, next => {
       stopAdmin?.(); stopAdmin = undefined; setUser(next); setChecking(true); setOffline(false);
@@ -31,7 +33,7 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
         if (!allowed) void signOut(auth);
       }, () => { setOffline(true); setChecking(false); });
     });
-    return () => { stopAdmin?.(); stopAuth(); };
+    return () => { stopAdmin?.(); stopAuth(); stopSettings(); };
   }, []);
 
   async function signIn(event: React.FormEvent<HTMLFormElement>) {
@@ -59,5 +61,5 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
   if (checking) return <main className="vula"><section className="vula-section"><p className="vula-eyebrow">STAFF ACCESS</p><h1 style={{fontSize:"clamp(36px,6vw,58px)"}}>Checking access…</h1></section></main>;
   if (user && authorized) return <div className="adminAuthorized"><div className="vula-status"><span className={"status-dot " + (!offline ? "online" : "")}/>{offline ? "Offline · staff data may be stale" : "Staff signed in"} · {user.email || "authorized staff"}<button style={{marginLeft:12}} onClick={() => void signOut(auth)}>Sign out</button></div>{children}</div>;
 
-  return <main className="vula"><div className="vula-status"><span className="status-dot online"/>Vula's Car Wash · Staff access</div><section className="vula-section" style={{maxWidth:620,margin:"40px auto"}}><p className="vula-eyebrow">STAFF ONLY</p><h1 style={{fontSize:"clamp(38px,6vw,62px)"}}>Operations sign in.</h1><p>Use the private staff access word. Do not share it with customers.</p><form className="admin-editor" onSubmit={signIn}><label>Staff access word<input type="password" value={word} onChange={event=>setWord(event.target.value)} required autoComplete="current-password"/></label><button className="vula-button primary" disabled={busy}>{busy ? "Checking…" : "Enter staff workspace"}</button>{error&&<p role="alert" className="vula-notice error">{error}</p>}</form></section></main>;
+  return <main className="vula"><div className="vula-status"><span className="status-dot online"/>{businessName} · Staff access</div><section className="vula-section" style={{maxWidth:620,margin:"40px auto"}}><p className="vula-eyebrow">STAFF ONLY</p><h1 style={{fontSize:"clamp(38px,6vw,62px)"}}>Operations sign in.</h1><p>Use the private staff access word. Do not share it with customers.</p><form className="admin-editor" onSubmit={signIn}><label>Staff access word<input type="password" value={word} onChange={event=>setWord(event.target.value)} required autoComplete="current-password"/></label><button className="vula-button primary" disabled={busy}>{busy ? "Checking…" : "Enter staff workspace"}</button>{error&&<p role="alert" className="vula-notice error">{error}</p>}</form></section></main>;
 }
