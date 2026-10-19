@@ -122,13 +122,13 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
 
     window.addEventListener("online", online);
     window.addEventListener("offline", off);
-    const promptWindow = window as Window & { __iteration13InstallPrompt?: Event; __iteration13PwaListenerReady?: boolean };
+    const promptWindow = window as Window & { __vulaInstallPrompt?: Event; __vulaPwaListenerReady?: boolean };
     // The browser can emit beforeinstallprompt before React hydrates. Adopt the
     // event captured by the tiny beforeInteractive script before listening normally.
-    promptWindow.__iteration13PwaListenerReady = true;
-    const earlyPrompt = promptWindow.__iteration13InstallPrompt;
+    promptWindow.__vulaPwaListenerReady = true;
+    const earlyPrompt = promptWindow.__vulaInstallPrompt;
     if (earlyPrompt) {
-      delete promptWindow.__iteration13InstallPrompt;
+      delete promptWindow.__vulaInstallPrompt;
       onBeforeInstallPrompt(earlyPrompt);
     }
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
@@ -300,7 +300,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
         <div className="plugInstallTop"><span className="plugInstallMark">13</span><span className="plugInstallTag">ITERATION 13 · SERVICE STUDIO</span><button type="button" className="plugInstallClose" aria-label="Close install prompt" onClick={dismissInstall}>×</button></div>
         <div className="plugInstallKicker">YOUR SERVICE STUDIO APP</div>
         <h2 id="vula-install-title">Vula's Car Wash.<br/><em>One tap away.</em></h2>
-        <p id="vula-install-message">Install Vula's Car Wash on your device for quick access to the service menu, your demo requests and the local account view.</p>
+        <p id="vula-install-message">Install Vula's Car Wash on your device for quick access to the service menu, your booking requests and account.</p>
         {installHelpOpen ? (
           <div className="plugInstallSteps" role="status" aria-live="polite">
             {installPlatform === "ios" ? (
@@ -347,7 +347,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
 
   return <>
     {offline && <div className="offlineBanner" role="status" aria-live="polite"><span aria-hidden="true">⚡</span> Offline · The service demo saves orders and admin edits locally on this device. Firebase-backed routes need a connection.</div>}
-    {!offline && reconnecting && <div className="offlineBanner reconnectingBanner" role="status" aria-live="polite"><span aria-hidden="true">↻</span> Reconnected · Vula's Car Wash can reach the network again. Local demo data remains on this device.</div>}
+    {!offline && reconnecting && <div className="offlineBanner reconnectingBanner" role="status" aria-live="polite"><span aria-hidden="true">↻</span> Reconnected · Vula's Car Wash can reach the network again. Saved requests remain on this device until synced.</div>}
     {!environment().standalone && installState !== "embedded" && (
       <button
         type="button"
