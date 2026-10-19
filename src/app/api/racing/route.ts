@@ -139,11 +139,22 @@ export async function POST(request: Request) {
       let response: Record<string, unknown> = {};
       await store.runTransaction(async tx => {
         const existingResult = await tx.get(resultRef);
-        if (existingResult.exists) { response = { ...existingResult.data(), duplicate: true }; return; }
+        if (existingResult.exists) {
+          const existingProfile = await tx.get(profileRef);
+          const savedRacer = ((existingProfile.data()?.racers || []) as Racer[]).find(r => r.id === racerId);
+          const saved = existingResult.data();
+          response = {
+            racer: savedRacer,
+            result: { id: raceId, track: saved.track, place: saved.place, time: saved.time, credits: saved.credits, at: saved.createdAt, verified: saved.verified },
+            duplicate: true,
+            sync: "server",
+          };
+          return;
+        }
         const session = await tx.get(sessionRef);
         if (!session.exists || session.data()?.status !== "started" || session.data()?.racerId !== racerId || session.data()?.track !== track) throw new Error("Race session expired or does not match. Start another race.");
         const serverElapsed = (finishedAt - Number(session.data()?.startedAt || finishedAt)) / 1000;
-        if (!Number.isFinite(serverElapsed) || serverElapsed < 12 || serverElapsed > 240) throw new Error("Race duration failed server validation. Please race again.");
+        if (!Number.isFinite(serverElapsed) || serverElapsed < 35 || serverElapsed > 240) throw new Error("Race duration failed server validation. Please race again.");
         const profile = await tx.get(profileRef);
         if (!profile.exists) throw new Error("Create a racer profile before recording a result.");
         const racers = (profile.data()?.racers || []) as Racer[];
