@@ -47,14 +47,14 @@ export default function Home() {
   }
   async function syncOfflineRequests() {
     if (!navigator.onLine || !hasFirebaseWebConfig) return;
-    let drafts: Array<{ collection: string; data: Record<string, unknown> }> = [];
+    let drafts: Array<{ id?: string; collection: string; data: Record<string, unknown> }> = [];
     try { drafts = JSON.parse(localStorage.getItem(pendingKey) || "[]") as typeof drafts; } catch {}
     if (!drafts.length) return;
     try {
       const user = await ensureUser(); if (!user) return;
       const remaining: typeof drafts = [];
       for (const draft of drafts) {
-        try { await setDoc(doc(collection(db, draft.collection)), { ...draft.data, customerId: user.uid, updatedAt: stamp() }); }
+        try { const id = draft.id || crypto.randomUUID(); await setDoc(doc(db, draft.collection, id), { ...draft.data, customerId: user.uid, updatedAt: stamp() }); }
         catch { remaining.push(draft); }
       }
       localStorage.setItem(pendingKey, JSON.stringify(remaining));
@@ -92,7 +92,7 @@ export default function Home() {
       }
       if (!navigator.onLine || !hasFirebaseWebConfig) {
         const saved = JSON.parse(localStorage.getItem(pendingKey) || "[]") as Array<unknown>;
-        saved.push({ collection: collectionName, data }); localStorage.setItem(pendingKey, JSON.stringify(saved)); formElement.reset();
+        saved.push({ id: crypto.randomUUID(), collection: collectionName, data }); localStorage.setItem(pendingKey, JSON.stringify(saved)); formElement.reset();
         setNotice({ kind: "pending", text: "Saved on this device only. It is not visible to the team or a confirmed booking until it syncs." }); return;
       }
       const user = await ensureUser();
