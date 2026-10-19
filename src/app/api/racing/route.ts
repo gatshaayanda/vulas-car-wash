@@ -45,7 +45,7 @@ export async function GET(request: Request) {
       if (!staff.exists || !["owner", "staff"].includes(String(staff.data()?.role))) {
         return NextResponse.json({ error: "Staff access required." }, { status: 403, headers: { "Cache-Control": "no-store" } });
       }
-      const [profiles, results] = await Promise.all([
+      const [profiles, results, issues] = await Promise.all([
         store.collection("racingProfiles").limit(200).get(),
         store.collection("racingResults").orderBy("createdAt", "desc").limit(100).get(),
       ]);
@@ -70,6 +70,24 @@ export async function POST(request: Request) {
     const store = getFirestore(app);
     const profileRef = store.doc(`racingProfiles/${uid}`);
     const now = new Date().toISOString();
+    if (body.action === "report") {
+      const category = String(body.category || "other");
+      const description = typeof body.description === "string" ? body.description.trim().slice(0, 1000) : "";
+      const racerId = String(body.racerId || "").slice(0, 80);
+      const track = String(body.track || "").slice(0, 120);
+      if (!["bug", "controls", "save-sync", "other"].includes(category) || description.length < 8) {
+        return NextResponse.json({ error: "Choose a report type and describe the issue in at least eight characters." }, { status: 400 });
+      }
+      const profile = await profileRef.get();
+      const racers = (profile.data()?.racers || []) as Racer[];
+      const racer = racers.find(r => r.id === racerId);
+      const reportRef = await store.collection("racingIssues").add({
+        uid, racerId: racer?.id || "", alias: racer?.alias || "Guest racer",
+        track: divisions.some(d => d.tracks.includes(track)) ? track : "",
+        category, description, status: "open", createdAt: now,
+      });
+      return NextResponse.json({ id: reportRef.id, status: "open" }, { headers: { "Cache-Control": "no-store" } });
+    }
     if (body.action === "create") {
       const alias = cleanAlias(body.alias);
       if (alias.length < 2) return NextResponse.json({ error: "Choose a racer alias with at least two characters." }, { status: 400 });
