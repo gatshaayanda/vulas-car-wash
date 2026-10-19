@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { GoogleAuthProvider, linkWithPopup, onAuthStateChanged, signInAnonymously } from "firebase/auth";
-import { collection, doc, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db, hasFirebaseWebConfig } from "@/lib/firebase/client";
 import { enableVulaPushNotifications } from "@/lib/firebase/vula-notifications";
 import { saveReminderPreferences, subscribeCustomerBookings, subscribeGallery, subscribeLoyaltyAccount, subscribeReminderPreferences, subscribeServices, subscribeSettings, type VulaBooking, type VulaGalleryItem, type VulaService } from "@/lib/firebase/vula-data";
@@ -86,6 +86,21 @@ export default function Home() {
     catch (error) { setPushNotice(error instanceof Error ? error.message : "Push reminders could not be enabled."); }
   }
 
+  async function saveCustomerRecord(uid: string, name: string, phone: string, email: string) {
+    const customerRef = doc(db, "customers", uid);
+    const existing = await getDoc(customerRef);
+    const previous = existing.exists() ? existing.data() : {};
+    await setDoc(customerRef, {
+      uid,
+      name: name.trim() || String(previous.name || ""),
+      email: email.trim() || String(previous.email || ""),
+      phone: phone.trim() || String(previous.phone || ""),
+      vehicleRegistrations: Array.isArray(previous.vehicleRegistrations) ? previous.vehicleRegistrations : [],
+      createdAt: typeof previous.createdAt === "string" ? previous.createdAt : stamp(),
+      updatedAt: stamp(),
+    }, { merge: true });
+  }
+
   async function ensureUser() {
     if (auth.currentUser) return auth.currentUser;
     if (!navigator.onLine || !hasFirebaseWebConfig) return null;
@@ -146,7 +161,7 @@ export default function Home() {
       }
       const user = await ensureUser();
       if (!user) throw new Error("Online service is not configured yet. Your request has not been sent.");
-      const writePromise = setDoc(doc(collection(db, collectionName)), { ...data, customerId: user.uid });
+      await saveCustomerRecord(user.uid, customerName, phone, String(form.get("email") || user.email || ""));\n      const writePromise = setDoc(doc(collection(db, collectionName)), { ...data, customerId: user.uid });
       formElement.reset(); setNotice({ kind: "pending", text: "Sending securely to Vula's system…" });
       await writePromise;
       setNotice({ kind: "success", text: "Request received by Vula's system. Staff still need to confirm the booking, mobile coverage or fleet arrangement." });
