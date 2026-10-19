@@ -17,15 +17,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-
       - name: Install Firebase CLI
         run: npm install --global firebase-tools
-
       - name: Write Firebase service account
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
@@ -33,30 +30,10 @@ jobs:
           test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
           umask 077
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
-
-      - name: Deploy Vula Firestore rules
+      - name: Deploy Vula Firestore and Storage rules
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
-        run: |
-          test -n "${{ secrets.FIREBASE_PROJECT_ID }}"
-          firebase deploy --only firestore:rules --project "${{ secrets.FIREBASE_PROJECT_ID }}" --non-interactive
-
-      - name: Check whether Storage rules changed
-        id: storage-changed
-        if: github.event_name == 'push'
-        run: |
-          if git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep -qx 'storage.rules'; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Deploy Vula Storage rules only when explicitly changed
-        if: steps.storage-changed.outputs.changed == 'true'
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
-        run: firebase deploy --only storage --project "${{ secrets.FIREBASE_PROJECT_ID }}" --non-interactive
-
+        run: firebase deploy --only firestore:rules,storage --project vulas-car-wash --non-interactive
       - name: Remove Firebase service account
         if: always()
         run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
