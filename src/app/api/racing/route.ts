@@ -139,8 +139,13 @@ export async function POST(request: Request) {
       }
       const profile = await profileRef.get();
       const racers = (profile.data()?.racers || []) as Racer[];
-      if (!profile.exists || !racers.some(r => r.id === racerId)) {
+      const racer = racers.find(r => r.id === racerId);
+      if (!profile.exists || !racer) {
         return NextResponse.json({ error: "Create or select your racer before starting." }, { status: 400 });
+      }
+      const trackDivision = divisions.findIndex(d => d.tracks.includes(track));
+      if (trackDivision > racer.division) {
+        return NextResponse.json({ error: "This track is locked until you reach its division." }, { status: 403 });
       }
       const raceId = crypto.randomUUID();
       await store.doc(`racingSessions/${uid}_${raceId}`).create({ uid, racerId, track, startedAt: Date.now(), status: "started" });
