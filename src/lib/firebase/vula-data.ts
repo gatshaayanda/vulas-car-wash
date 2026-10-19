@@ -4,7 +4,7 @@ import { collection, doc, onSnapshot, query, setDoc, updateDoc, where } from "fi
 import type { Unsubscribe } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 
-export type VulaService = { id: string; name: string; description?: string; category?: string; price?: number; active: boolean; updatedAt?: string };
+export type VulaService = { id: string; name: string; description?: string; category?: string; price?: number; durationMinutes?: number; active: boolean; updatedAt?: string };
 export type VulaBooking = { id: string; customerId: string; customerName: string; phone: string; vehicleType: string; vehicleRegistration: string; serviceId: string; serviceName: string; serviceMode: "site" | "mobile"; locationId: string; address: string; scheduledFor: string; notes: string; priceQuote?: number; paymentMethod?: string; paymentStatus?: string; status: string; createdAt: string; updatedAt: string };
 export type VulaQueueEntry = { id: string; customerId: string; customerName: string; phone: string; vehicleType: string; vehicleRegistration: string; serviceId: string; serviceName: string; locationId: string; notes: string; status: string; createdAt: string; updatedAt: string };
 export type VulaFleetRequest = { id: string; customerId: string; businessName: string; contactName: string; phone: string; email: string; vehicleCount: number; vehicleTypes: string[]; serviceNeeds: string[]; preferredLocation: string; preferredSchedule: string; notes: string; status: string; createdAt: string; updatedAt: string };
@@ -16,7 +16,7 @@ function subscribeList<T>(path: string, cb: (items: T[]) => void, fail: (error: 
     cb(snapshot.docs.map(item => ({ id: item.id, ...item.data() }) as T));
   }, fail);
 }
-export const subscribeServices = (cb: (items: VulaService[]) => void, fail: (e: Error) => void) => subscribeList<VulaService>("services", cb, fail, true);
+export const subscribeServices = (cb: (items: VulaService[]) => void, fail: (e: Error) => void) => subscribeList<VulaService>("services", cb, fail);
 export const subscribeGallery = (cb: (items: VulaGalleryItem[]) => void, fail: (e: Error) => void) => subscribeList<VulaGalleryItem>("gallery", cb, fail, true);
 export const subscribeBookings = (cb: (items: VulaBooking[]) => void, fail: (e: Error) => void) => subscribeList<VulaBooking>("bookings", cb, fail);
 export const subscribeQueue = (cb: (items: VulaQueueEntry[]) => void, fail: (e: Error) => void) => subscribeList<VulaQueueEntry>("queueEntries", cb, fail);
@@ -41,7 +41,7 @@ export async function saveLoyaltyBalance(uid: string, pointsBalance: number, not
 export function subscribeSettings(cb: (settings: Record<string, unknown> | null) => void, fail: (e: Error) => void): Unsubscribe {
   return onSnapshot(doc(db, "businessSettings", "main"), snap => cb(snap.exists() ? snap.data() : null), fail);
 }
-export async function saveService(data: { id?: string; name: string; description: string; category: string; price?: number; active: boolean }) {
+export async function saveService(data: { id?: string; name: string; description: string; category: string; price?: number; durationMinutes?: number; active: boolean }) {
   const ref = data.id ? doc(db, "services", data.id) : doc(collection(db, "services"));
   await setDoc(ref, { ...data, id: ref.id, updatedAt: new Date().toISOString() }, { merge: true });
 }
