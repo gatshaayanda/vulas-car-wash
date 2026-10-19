@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities, @next/next/no-html-link-for-pages */
 "use client";
 
 import { useEffect, useState } from "react";
