@@ -21,6 +21,23 @@ export const subscribeGallery = (cb: (items: VulaGalleryItem[]) => void, fail: (
 export const subscribeBookings = (cb: (items: VulaBooking[]) => void, fail: (e: Error) => void) => subscribeList<VulaBooking>("bookings", cb, fail);
 export const subscribeQueue = (cb: (items: VulaQueueEntry[]) => void, fail: (e: Error) => void) => subscribeList<VulaQueueEntry>("queueEntries", cb, fail);
 export const subscribeFleet = (cb: (items: VulaFleetRequest[]) => void, fail: (e: Error) => void) => subscribeList<VulaFleetRequest>("fleetRequests", cb, fail);
+export function subscribeCustomerBookings(uid: string, cb: (items: VulaBooking[]) => void, fail: (e: Error) => void): Unsubscribe {
+  return onSnapshot(query(collection(db, "bookings"), where("customerId", "==", uid)), { includeMetadataChanges: true }, snap => {
+    cb(snap.docs.map(item => ({ id: item.id, ...item.data() }) as VulaBooking).sort((a,b) => b.createdAt.localeCompare(a.createdAt)));
+  }, fail);
+}
+export function subscribeLoyaltyAccount(uid: string, cb: (value: Record<string, unknown> | null) => void, fail: (e: Error) => void): Unsubscribe {
+  return onSnapshot(doc(db, "loyaltyAccounts", uid), snap => cb(snap.exists() ? snap.data() : null), fail);
+}
+export function subscribeReminderPreferences(uid: string, cb: (value: Record<string, unknown> | null) => void, fail: (e: Error) => void): Unsubscribe {
+  return onSnapshot(doc(db, "reminderPreferences", uid), snap => cb(snap.exists() ? snap.data() : null), fail);
+}
+export async function saveReminderPreferences(uid: string, enabled: boolean) {
+  await setDoc(doc(db, "reminderPreferences", uid), { enabled, channels: ["in-app"], updatedAt: new Date().toISOString() }, { merge: true });
+}
+export async function saveLoyaltyBalance(uid: string, pointsBalance: number, note: string) {
+  await setDoc(doc(db, "loyaltyAccounts", uid), { uid, pointsBalance: Math.max(0, Math.floor(pointsBalance)), note, updatedAt: new Date().toISOString() }, { merge: true });
+}
 export function subscribeSettings(cb: (settings: Record<string, unknown> | null) => void, fail: (e: Error) => void): Unsubscribe {
   return onSnapshot(doc(db, "businessSettings", "main"), snap => cb(snap.exists() ? snap.data() : null), fail);
 }
