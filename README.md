@@ -29,11 +29,11 @@ Open http://localhost:3000. The public Firebase web configuration is included in
 - `/offline`: honest offline status and sync expectations.
 - `/admin`: staff operations; sign-in is protected by the server-side access word and Firebase Admin custom token.
 
-Firestore collections used by the active app: `admins`, `services`, `gallery`, `businessSettings`, `bookings`, `queueEntries`, `fleetRequests`, `loyaltyAccounts`, `reminderPreferences`, and `notificationTokens`.
+Firestore collections used by the active app: `admins`, `services`, `gallery`, `businessSettings`, `bookings`, `queueEntries`, `fleetRequests`, `loyaltyAccounts`, `reminderPreferences`, and `notificationTokens`. Vula Racing uses the server-only Admin SDK for `racingProfiles`, `racingResults`, and `racingSessions`; browser clients must not access those collections directly.
 
 ## Online and offline behavior
 
-Firestore uses persistent local cache for supported reads. If a customer submits while offline, the app stores the draft in this browser's local storage and retries with a stable request ID when a connection returns. A local draft is **not** visible to staff and is **not** a confirmed booking until the server accepts it. Keep the app/browser data until pending requests have synced.
+Firestore uses persistent local cache for supported reads. If a customer submits while offline, the app stores the draft in this browser's local storage and retries with a stable request ID when a connection returns. A local draft is **not** visible to staff and is **not** a confirmed booking until the server accepts it. Keep the app/browser data until pending requests have synced. Racing career profiles and online race rewards use `/api/racing` with Firebase ID-token verification and server-owned progression; race results played offline remain device-only and are not later submitted as trusted rewards.
 
 Online requests use Firebase Anonymous Auth, so customers can begin without creating an account. Linking a guest session to Google preserves its Firebase UID for loyalty continuity on supported devices. A guest session that is never linked remains tied to that browser/device.
 
