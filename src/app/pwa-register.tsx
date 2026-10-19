@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client";
 
 // Keep embedded-browser install enforcement explicit at the top-level PWA boundary.
