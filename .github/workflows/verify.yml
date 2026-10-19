@@ -1,4 +1,4 @@
-name: Verify Iteration 13
+name: Verify Vula's Car Wash
 
 on:
   workflow_dispatch:
