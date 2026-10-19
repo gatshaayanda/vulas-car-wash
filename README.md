@@ -1,93 +1,80 @@
-# Iteration 13 — Service Studio prototype
+# Vula's Car Wash
 
-**Start every new implementation chat at [START-HERE.md](./START-HERE.md).** It mandates the reading order, implementation/verification workflow, account-adaptation contract and deployment handoff. Then use [AGENTS.md](./AGENTS.md) for rules, [FOUNDATION-BLUEPRINT.md](./FOUNDATION-BLUEPRINT.md) for architecture and invariants, and [CLONING.md](./CLONING.md) for cloning/adaptation. Do not make the product owner repeat these instructions.
+Customer-first PWA for Vula's Car Wash, built from the approved Iteration 13 foundation. The active customer journey supports site bookings, mobile-service requests, walk-in queue entries, fleet enquiries, a staff-managed service catalogue, gallery photos, booking history, loyalty balances, and push-reminder registration.
 
-The Sparkle Legacy chat-widget reference and evidence-led proposal live in [CHAT-WIDGET-RESEARCH.md](./CHAT-WIDGET-RESEARCH.md). These files explain what to preserve, where to edit, what is demo-only, and what needs deliberate project-specific replacement.
+## Run locally
 
-The approved foundation baseline and recovery policy are documented in [GOLDEN-BASELINE.md](./GOLDEN-BASELINE.md). A reusable, mobile-first PWA foundation candidate. The homepage demonstrates a complete service-order journey using browser-local demo data. Firebase configuration, rules and data were intentionally left unchanged.
-## Customer demo
+```bash
+npm ci
+cp .env.example .env.local
+npm run dev
+```
 
-1. Open the homepage and browse the four example services:
-   - Website — P100
-   - App — P200
-   - Monthly support — P50
-   - Phaser games — P500
-2. Select **Request this service**, enter a name and email, choose a requested timeline date (today or later), and optionally describe the project.
-3. Submit the request. It should take you to **My account**, where the request, requested date, starting price and status are shown.
-4. Return to Services to submit another request or filter account requests by the same email.
+Open http://localhost:3000. The public Firebase web configuration is included in `.env.example`. Keep `.env.local`, Firebase Admin service-account JSON, staff access words and reminder secrets out of Git.
 
-The date is a requested timeline, not a confirmed delivery promise. No payment is taken.
+## Environment configuration
 
-## Local admin demo
+- `NEXT_PUBLIC_BASE_URL`: local URL in development; set the actual deployed origin for production.
+- `NEXT_PUBLIC_FIREBASE_*`: web app configuration for the dedicated `vulas-car-wash` Firebase project.
+- `NEXT_PUBLIC_FIREBASE_VAPID_KEY`: Firebase Cloud Messaging Web Push certificate key; required to register browser push notifications.
+- `FIREBASE_ADMIN_KEY`: server-only JSON for a service account from the Vula Firebase project. Required for staff sign-in and scheduled push reminders.
+- `VULA_OPERATIONS_WORD`: private staff sign-in word. Configure as a server environment variable, never as a public variable.
+- `VULA_REMINDER_CRON_SECRET`: bearer secret for the protected reminder endpoint. Use the same value in the server environment and GitHub Actions secret.
+- `UPLOADTHING_TOKEN`: optional; not required for gallery photos, which use Firebase Storage.
 
-Use **Admin demo** at the bottom of the page. From the admin view you can:
+## Customer routes and data
 
-- Add, edit, hide/show and delete services.
-- Change prices, descriptions, image/video URLs and media type.
-- Publish or clear a storefront announcement.
-- Review incoming requests and change their status.
-- See summary counts for requests, statuses, services, customer emails and demo visits.
-- Reset the local sample data for another walkthrough.
+- `/`: service catalogue, booking request, mobile coverage review, walk-in queue, fleet enquiry, gallery, customer booking history, loyalty balance and reminder preferences.
+- `/iphone-install`: iOS Safari Add to Home Screen guidance.
+- `/offline`: honest offline status and sync expectations.
+- `/admin`: staff operations; sign-in is protected by the server-side access word and Firebase Admin custom token.
 
-This is a prototype control surface, not a secure admin boundary. Do not enter real customer data.
+Firestore collections used by the active app: `admins`, `services`, `gallery`, `businessSettings`, `bookings`, `queueEntries`, `fleetRequests`, `loyaltyAccounts`, `reminderPreferences`, and `notificationTokens`.
 
-## Persistence and offline QA
+## Online and offline behavior
 
-- Orders, service edits, announcements and statuses are stored in this browser's `localStorage`; customer and admin views share the same local data on the same browser profile.
-- Data is not shared with other devices, sent to a business, or synchronized to Firebase.
-- Visit the homepage while online first so the service worker can cache the app shell. Then switch the device/browser offline and reload the homepage. Confirm the app shell opens, submit a sample request, and use the bottom **Admin demo** entry to change its status. Return to **My account** and confirm the status is reflected.
-- External preview images/videos may need a connection; if an asset is unavailable, the service card should fall back to its local visual placeholder. Offline success means local demo state persists on this device, not that external media is downloaded.
-- If local storage is blocked or full, the app should show a notice; do not interpret a local save notice as server synchronization.
+Firestore uses persistent local cache for supported reads. If a customer submits while offline, the app stores the draft in this browser's local storage and retries with a stable request ID when a connection returns. A local draft is **not** visible to staff and is **not** a confirmed booking until the server accepts it. Keep the app/browser data until pending requests have synced.
 
-## Installation — protected behavior
+Online requests use Firebase Anonymous Auth, so customers can begin without creating an account. Linking a guest session to Google preserves its Firebase UID for loyalty continuity on supported devices. A guest session that is never linked remains tied to that browser/device.
 
-The existing installation mechanics are intentionally preserved:
+Staff confirm requests manually. The customer app does not claim a slot is confirmed, an online payment has been taken, or mobile coverage is approved merely because a request was submitted. Online payment processing is not connected to a payment gateway yet; customers can request payment instructions and staff can record verified payment status.
 
-- The browser's retained `beforeinstallprompt` event is invoked from the user's explicit branded install action when available.
-- When a native prompt is unavailable, platform-specific guidance is shown instead of a dead button or fake native prompt.
-- Embedded browsers receive a blocking open-in-browser handoff.
-- `/iphone-install` explains Safari Share → Add to Home Screen and includes the walkthrough link.
-- Service-worker caches use an Iteration 13 namespace and provide an update/refresh action.
+## Firebase setup
 
-The duplicate header install CTA has been removed; the persistent branded install action remains the single install entry point. Do not alter install mechanics when changing icon artwork.
+1. In Firebase Authentication, enable Anonymous and Google sign-in (and any other provider the business decides to support).
+2. Publish the current `firestore.rules` in Firestore Rules.
+3. Publish `storage.rules` in Firebase Storage Rules.
+4. Deploy `firestore.indexes.json` so the scheduled booking reminder query is indexed.
+5. In Firebase Cloud Messaging, create a Web Push certificate and configure `NEXT_PUBLIC_FIREBASE_VAPID_KEY`.
+6. Configure `FIREBASE_ADMIN_KEY`, `VULA_OPERATIONS_WORD`, and `VULA_REMINDER_CRON_SECRET` in the production server environment.
+7. Add GitHub Actions secrets `FIREBASE_SERVICE_ACCOUNT_JSON`, `VULA_REMINDER_CRON_SECRET`, and `VULA_PUBLIC_URL` if you want to use the scheduled reminder workflow and manual Firebase rules deployment workflow.
 
-## Interaction feedback
+The manual workflow `.github/workflows/firebase-rules-deploy.yml` deploys Firestore rules, indexes and Storage rules to the dedicated Vula project. It requires a service-account secret and is intentionally not triggered automatically by every rules-file edit.
 
-Action buttons provide visible press/focus feedback. Successful local changes and validation/storage failures use a dismissible, screen-reader-announced toast. A success message is shown only after the browser accepts the localStorage write; it does not imply server synchronization.
+## Business settings that must be confirmed
 
-## Development and verification
+Staff can update the business name, site/location label, address, opening hours, confirmed mobile coverage areas, slot capacity and booking notice from `/admin`. Keep placeholders until Vula confirms the facts. Capacity limits are checked in the staff confirmation UI for matching scheduled slots; requests remain unconfirmed until staff accept them.
 
-```sh
-npm install
-npx tsc --noEmit
+No real payment provider, SMS/email provider, confirmed price list, opening hours, exact address or mobile coverage areas are assumed in code.
+
+## Verification
+
+```bash
 npm run verify:identity
 npm run lint
+npx tsc --noEmit
 npm run build
 ```
 
-The GitHub Actions workflow in `.github/workflows/verify.yml` runs `npm ci`, identity verification, lint and build checks on pushes to `main` and pull requests. A green CI run is evidence of code checks; it does not by itself prove a Vercel deployment or device/offline behavior succeeded.
+GitHub Actions runs the type check, lint, identity/PWA verification and production build on pushes to `main`. Passing CI does not mean Firebase rules were published or a production deployment was verified.
 
-After changing icons, inspect both `public/manifest.webmanifest` and `src/app/manifest.ts`, verify all referenced assets and the manifest actually served by the built app, and test Chrome/Android plus physical iPhone Safari. Firebase configuration and rules are outside this prototype's scope.
+## QA checklist
 
-
-## Guided customer and admin flow
-
-The floating **Need a hand?** guide is optional and scripted. Customers can choose a service, continue into the existing request form or open My account. In Admin demo, it links directly to service management, announcements, incoming requests and the storefront. It does not send chat messages to a server or use an AI model. Its small invitation can be dismissed for the current tab session.
-
-Before cloning/adapting the guide, read [CHAT-WIDGET-RESEARCH.md](./CHAT-WIDGET-RESEARCH.md) and [FOUNDATION-BLUEPRINT.md](./FOUNDATION-BLUEPRINT.md). Keep the main customer journey obvious when the guide is closed.
-
-
-## Customer account workspace
-
-**My account** now demonstrates more than an empty request list:
-- Filter and review request history, requested timeline, starting price and current status.
-- Open a conversation attached to a specific request, send a message and share an image, video or PDF attachment while online.
-- See admin/studio replies in the same thread in the Admin demo on this same browser.
-- Use a project-preparation checklist and save a project note for later in this browser. Account sections use consistent Service Studio styling; optional extras are chosen for the actual product context rather than copied from another client.
-- Continue reading saved local state and sending text messages offline after the app shell has been cached. File uploads require internet and are not queued.
-
-**Important limitation:** this remains a local prototype. Requests, messages, replies, statuses, project checklist progress and notes use this browser's storage. They are not sent to a real admin, emailed, or synchronized to another device. UploadThing files are uploaded remotely while online (images up to 4 MB, PDFs up to 4 MB, videos up to 16 MB), but their message metadata is saved in this browser's local thread. Do not use real customer data.
-
-### Reusing the account in another project
-
-Read the customer account adaptation contract in `AGENTS.md` and the account section in `CLONING.md`. Keep the useful capabilities, but replace the theme/game, wording, account extras, status language, file policy and actions with those that fit the actual project. Inspect its authentication, persistence, admin workflow and security rules. A production account requires verified per-customer data access and staff authorization; the demo's localStorage thread is not a real support inbox.
+- Test customer booking, queue, fleet enquiry, service catalogue and customer booking history while online.
+- Disconnect the device, submit a request, confirm it is labelled device-only/pending, reconnect, and verify it appears once in staff operations.
+- Confirm staff can update booking, queue, fleet, service, gallery, business settings and loyalty balance.
+- Confirm customers cannot read another customer's records or write staff-only collections.
+- Test gallery image upload after Storage rules are published.
+- Enable push reminders after the VAPID key and reminder secrets are configured; confirm only a *confirmed* upcoming booking triggers a reminder.
+- Test install prompt on supported Chromium browsers and Safari Add to Home Screen on iPhone.
+- Test refresh, offline shell, reconnect and installed-app behavior on actual devices.
