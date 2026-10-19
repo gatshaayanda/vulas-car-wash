@@ -28,6 +28,8 @@ export async function runVulaBookingReminders() {
     if (booking.data().reminderSentAt) { skipped++; continue; }
     const uid = String(booking.data().customerId || "");
     if (!uid) { skipped++; continue; }
+    const preferences = await db.collection("reminderPreferences").doc(uid).get();
+    if (!preferences.exists || preferences.data()?.enabled !== true) { skipped++; continue; }
     const tokensSnapshot = await db.collection("notificationTokens").doc(uid).collection("tokens").where("admin", "==", false).get();
     const tokens = tokensSnapshot.docs.map(item => String(item.data().token || "")).filter(Boolean);
     if (!tokens.length) { skipped++; continue; }
