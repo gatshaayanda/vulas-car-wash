@@ -1,4 +1,4 @@
-name: Iteration 13 prototype quality
+name: Vula's Car Wash quality checks
 on:
   push:
     branches: [main]
