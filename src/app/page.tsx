@@ -107,9 +107,12 @@ export default function Home() {
       const common: Record<string, unknown> = { customerName, phone, vehicleType, vehicleRegistration, notes, createdAt: now, updatedAt: now };
       let collectionName: string; let data: Record<string, unknown>;
       if (tab === "book") {
-        const address = String(form.get("address") ?? "").trim(); const scheduledFor = String(form.get("scheduledFor") ?? "");
+        const address = String(form.get("address") ?? "").trim(); const scheduledInput = String(form.get("scheduledFor") ?? "");
         if (mode === "mobile" && !address) throw new Error("Enter the area or address for the mobile coverage check.");
-        if (!scheduledFor) throw new Error("Choose your preferred date and time.");
+        if (!scheduledInput) throw new Error("Choose your preferred date and time.");
+        const scheduledDate = new Date(scheduledInput);
+        if (!Number.isFinite(scheduledDate.getTime()) || scheduledDate.getTime() <= Date.now()) throw new Error("Choose a future date and time.");
+        const scheduledFor = scheduledDate.toISOString();
         collectionName = "bookings";
         data = { ...common, serviceId: serviceId || "general-request", serviceName: activeServices.find(s => s.id === serviceId)?.name || "General car wash request", serviceMode: mode, locationId: mode === "site" ? locationName : "coverage-review", address, scheduledFor, paymentMethod: String(form.get("paymentMethod") || "pay-on-site"), paymentStatus: "unpaid", status: "requested" };
       } else if (tab === "queue") {
