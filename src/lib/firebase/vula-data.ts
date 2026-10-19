@@ -4,7 +4,7 @@ import { collection, deleteDoc, doc, onSnapshot, query, setDoc, updateDoc, where
 import type { Unsubscribe } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 
-export type VulaService = { id: string; name: string; description?: string; category?: string; price?: number; durationMinutes?: number; active: boolean; updatedAt?: string };
+export type VulaService = { id: string; name: string; description?: string; category?: string; price?: number | null; durationMinutes?: number; active: boolean; updatedAt?: string };
 export type VulaBooking = { id: string; customerId: string; customerName: string; phone: string; vehicleType: string; vehicleRegistration: string; serviceId: string; serviceName: string; serviceMode: "site" | "mobile"; locationId: string; address: string; scheduledFor: string; notes: string; priceQuote?: number; paymentMethod?: string; paymentStatus?: string; status: string; createdAt: string; updatedAt: string };
 export type VulaQueueEntry = { id: string; customerId: string; customerName: string; phone: string; vehicleType: string; vehicleRegistration: string; serviceId: string; serviceName: string; locationId: string; notes: string; status: string; createdAt: string; updatedAt: string };
 export type VulaFleetRequest = { id: string; customerId: string; businessName: string; contactName: string; phone: string; email: string; vehicleCount: number; vehicleTypes: string[]; serviceNeeds: string[]; preferredLocation: string; preferredSchedule: string; notes: string; status: string; createdAt: string; updatedAt: string };
@@ -41,9 +41,10 @@ export async function saveLoyaltyBalance(uid: string, pointsBalance: number, not
 export function subscribeSettings(cb: (settings: Record<string, unknown> | null) => void, fail: (e: Error) => void): Unsubscribe {
   return onSnapshot(doc(db, "businessSettings", "main"), snap => cb(snap.exists() ? snap.data() : null), fail);
 }
-export async function saveService(data: { id?: string; name: string; description: string; category: string; price?: number; durationMinutes?: number; active: boolean }) {
+export async function saveService(data: { id?: string; name: string; description: string; category: string; price?: number | null; durationMinutes?: number; active: boolean }) {
   const ref = data.id ? doc(db, "services", data.id) : doc(collection(db, "services"));
-  await setDoc(ref, { ...data, id: ref.id, updatedAt: new Date().toISOString() }, { merge: true });
+  const { price, ...rest } = data;
+  await setDoc(ref, { ...rest, ...(price === undefined ? {} : { price }), id: ref.id, updatedAt: new Date().toISOString() }, { merge: true });
 }
 export async function deleteService(id: string) {
   await deleteDoc(doc(db, "services", id));
