@@ -124,6 +124,16 @@ service cloud.firestore {
       allow read: if owns(uid) || isAdmin();
       allow write: if isAdmin();
     }
+    match /notificationTokens/{uid}/tokens/{tokenId} {
+      allow create, update: if owns(uid)
+        && request.resource.data.keys().hasOnly(['token','admin','updatedAt'])
+        && request.resource.data.token is string
+        && request.resource.data.token.size() > 0
+        && request.resource.data.admin == false
+        && validText(request.resource.data.updatedAt, 40);
+      allow read: if false;
+      allow delete: if owns(uid) || isAdmin();
+    }
     match /reminderPreferences/{uid} {
       allow read: if owns(uid) || isAdmin();
       allow create, update: if owns(uid)
