@@ -24,7 +24,11 @@ export default function Home() {
   const [mode, setMode] = useState<"site" | "mobile">("site");
   const [serviceId, setServiceId] = useState("");
   const [tab, setTab] = useState<"book" | "queue" | "fleet">("book");
-  const [connectionError, setConnectionError] = useState("");\n  const [myBookings, setMyBookings] = useState<VulaBooking[]>([]);\n  const [loyaltyPoints, setLoyaltyPoints] = useState(0);\n  const [remindersEnabled, setRemindersEnabled] = useState(false);\n  const [reminderNotice, setReminderNotice] = useState("");
+  const [connectionError, setConnectionError] = useState("");
+  const [myBookings, setMyBookings] = useState<VulaBooking[]>([]);
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+  const [remindersEnabled, setRemindersEnabled] = useState(false);
+  const [reminderNotice, setReminderNotice] = useState("");
   const mobileCoverage = Array.isArray(settings.mobileCoverage) ? settings.mobileCoverage as string[] : [];
   const businessName = typeof settings.businessName === "string" && settings.businessName.trim() ? settings.businessName : "Vula's Car Wash";
   const locationName = typeof settings.locationName === "string" && settings.locationName.trim() ? settings.locationName : "G-West";
