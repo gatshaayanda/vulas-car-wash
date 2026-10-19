@@ -129,16 +129,21 @@ export async function POST(request: Request) {
     if (body.action === "finish") {
       const racerId = String(body.racerId || "");
       const track = String(body.track || "");
-      const elapsed = Number(body.elapsed);
       const raceId = String(body.raceId || "");
       if (!raceId || raceId.length > 100 || !divisions.some(d => d.tracks.includes(track))) {
         return NextResponse.json({ error: "Race result failed validation. Please race again online." }, { status: 400 });
       }
-      const resultRef = store.doc(`racingResults/${uid}_${raceId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80)}`);\n      const sessionRef = store.doc(`racingSessions/${uid}_${raceId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80)}`);\n      const finishedAt = Date.now();
+      const resultRef = store.doc(`racingResults/${uid}_${raceId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80)}`);
+      const sessionRef = store.doc(`racingSessions/${uid}_${raceId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80)}`);
+      const finishedAt = Date.now();
       let response: Record<string, unknown> = {};
       await store.runTransaction(async tx => {
         const existingResult = await tx.get(resultRef);
         if (existingResult.exists) { response = { ...existingResult.data(), duplicate: true }; return; }
+        const session = await tx.get(sessionRef);
+        if (!session.exists || session.data()?.status !== "started" || session.data()?.racerId !== racerId || session.data()?.track !== track) throw new Error("Race session expired or does not match. Start another race.");
+        const serverElapsed = (finishedAt - Number(session.data()?.startedAt || finishedAt)) / 1000;
+        if (!Number.isFinite(serverElapsed) || serverElapsed < 12 || serverElapsed > 240) throw new Error("Race duration failed server validation. Please race again.");
         const profile = await tx.get(profileRef);
         if (!profile.exists) throw new Error("Create a racer profile before recording a result.");
         const racers = (profile.data()?.racers || []) as Racer[];
@@ -159,7 +164,8 @@ export async function POST(request: Request) {
         else if (history.length >= 4 && wins === 0 && division > 0) division--;
         const updated = { ...current, division, wins, credits: current.credits + credits, best, history, updatedAt: now };
         tx.set(profileRef, { racers: racers.map(r => r.id === racerId ? updated : r), updatedAt: now }, { merge: true });
-        tx.set(resultRef, { uid, racerId, alias: current.alias, track, division: current.division, place, time: normalizedTime, credits, createdAt: now, verified: true });\n        tx.set(sessionRef, { status: "completed", finishedAt, elapsed: normalizedTime }, { merge: true });
+        tx.set(resultRef, { uid, racerId, alias: current.alias, track, division: current.division, place, time: normalizedTime, credits, createdAt: now, verified: true });
+        tx.set(sessionRef, { status: "completed", finishedAt, elapsed: normalizedTime }, { merge: true });\n        tx.set(sessionRef, { status: "completed", finishedAt, elapsed: normalizedTime }, { merge: true });
         response = { racer: updated, result: historyItem, sync: "server" };
       });
       return NextResponse.json(response, { headers: { "Cache-Control": "no-store" } });
