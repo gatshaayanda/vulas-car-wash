@@ -1,68 +1,63 @@
 /* eslint-disable react/no-unescaped-entities */
 "use client";
-import {onAuthStateChanged,signInWithCustomToken,signOut,type User} from "firebase/auth";
-import {doc,onSnapshot} from "firebase/firestore";
-import {useEffect,useState} from "react";
-import {auth,db} from "@/lib/firebase/client";
 
-function hasAdminRole(data:Record<string,unknown>|undefined){
- return ["owner","staff"].includes(String(data?.role??"").toLowerCase());
+import { onAuthStateChanged, signInWithCustomToken, signOut, type User } from "firebase/auth";
+import { doc, onSnapshot } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { auth, db } from "@/lib/firebase/client";
+import "@/app/vula.css";
+
+function hasAdminRole(data: Record<string, unknown> | undefined) {
+  return ["owner", "staff"].includes(String(data?.role ?? "").toLowerCase());
 }
 
-function friendlyAuthError(err:unknown){
- const code=typeof err==="object"&&err!==null&&"code" in err?String((err as {code?:unknown}).code):"";
- if(["auth/invalid-credential","auth/wrong-password","auth/user-not-found","auth/invalid-login-credentials"].includes(code)){
-  return "Sign-in failed. Check your email and password and try again.";
- }
- if(code==="auth/too-many-requests") return "Too many sign-in attempts. Wait a moment and try again.";
- if(code==="auth/network-request-failed") return "We could not reach Firebase. Check your internet connection and try again.";
- return err instanceof Error?err.message:"We could not sign you in. Check your details.";
-}
+export default function AdminGate({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [checking, setChecking] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
+  const [offline, setOffline] = useState(false);
+  const [word, setWord] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-export default function AdminGate({children}:{children:React.ReactNode}){
- const[user,setUser]=useState<User|null>(null),[checking,setChecking]=useState(true),[authorized,setAuthorized]=useState(false),[offline,setOffline]=useState(false),[accessWord,setAccessWord]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false);
+  useEffect(() => {
+    let stopAdmin: undefined | (() => void);
+    const stopAuth = onAuthStateChanged(auth, next => {
+      stopAdmin?.(); stopAdmin = undefined; setUser(next); setChecking(true); setOffline(false);
+      if (!next) { setAuthorized(false); setChecking(false); return; }
+      stopAdmin = onSnapshot(doc(db, "admins", next.uid), snapshot => {
+        const allowed = snapshot.exists() && hasAdminRole(snapshot.data());
+        setAuthorized(allowed); setChecking(false); setOffline(false);
+        if (!allowed) void signOut(auth);
+      }, () => { setOffline(true); setChecking(false); });
+    });
+    return () => { stopAdmin?.(); stopAuth(); };
+  }, []);
 
- useEffect(()=>{
-  let stopAdmin:undefined|(()=>void);
-  const stopAuth=onAuthStateChanged(auth,next=>{
-   if(stopAdmin){stopAdmin();stopAdmin=undefined}
-   setUser(next);
-   setChecking(true);
-   setOffline(false);
-   if(!next){setAuthorized(false);setChecking(false);return}
-   stopAdmin=onSnapshot(doc(db,"admins",next.uid),snapshot=>{
-    const allowed=snapshot.exists()&&hasAdminRole(snapshot.data());
-    setAuthorized(allowed);
-    setOffline(false);
-    setChecking(false);
-    if(!allowed)void signOut(auth);
-   },()=>{
-    setOffline(true);
-    setChecking(false);
-   });
-  });
-  return ()=>{if(stopAdmin)stopAdmin();stopAuth()};
- },[]);
+  async function signIn(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setError("");
+    try {
+      const response = await fetch("/api/operations-login", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ word })
+      });
+      const payload = await response.json() as { token?: string; error?: string };
+      if (!response.ok || !payload.token) throw new Error(payload.error || "Staff sign-in failed.");
+      const credential = await signInWithCustomToken(auth, payload.token);
+      const admin = await new Promise<{ exists: boolean; data: () => Record<string, unknown> } | null>(resolve => {
+        const stop = onSnapshot(doc(db, "admins", credential.user.uid), snapshot => {
+          stop(); resolve({ exists: snapshot.exists(), data: () => snapshot.data() ?? {} });
+        }, () => { stop(); resolve(null); });
+      });
+      if (!admin?.exists || !hasAdminRole(admin.data())) {
+        setError("This account is not enabled for Vula staff operations.");
+        await signOut(auth);
+      } else { setAuthorized(true); setOffline(false); setWord(""); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Staff sign-in failed."); }
+    finally { setBusy(false); }
+  }
 
- async function signIn(e:React.FormEvent){
-  e.preventDefault();setBusy(true);setError("");
-  try{
-   const response=await fetch("/api/operations-login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({word:accessWord})});
-   const payload=await response.json() as {token?:string;error?:string};
-   if(!response.ok||!payload.token)throw new Error(payload.error??"Access denied. Check the access word and try again.");
-   const credential=await signInWithCustomToken(auth,payload.token);
-   const adminSnapshot=await new Promise<{exists:boolean;data:()=>Record<string,unknown>}|null>(resolve=>{
-    const stop=onSnapshot(doc(db,"admins",credential.user.uid),snapshot=>{stop();resolve({exists:snapshot.exists(),data:()=>snapshot.data()??{}})},()=>{stop();resolve(null)});
-   });
-   if(!adminSnapshot||!adminSnapshot.exists||!hasAdminRole(adminSnapshot.data())){
-    setError("This account is not enabled for Vula staff operations.");
-    await signOut(auth);
-   }else{setAuthorized(true);setOffline(false);setAccessWord("")}
-  }catch(err){setError(friendlyAuthError(err))}
-  finally{setBusy(false)}
- }
+  if (checking) return <main className="vula"><section className="vula-section"><p className="vula-eyebrow">STAFF ACCESS</p><h1 style={{fontSize:"clamp(36px,6vw,58px)"}}>Checking access…</h1></section></main>;
+  if (user && authorized) return <div className="adminAuthorized"><div className="vula-status"><span className={"status-dot " + (!offline ? "online" : "")}/>{offline ? "Offline · staff data may be stale" : "Staff signed in"} · {user.email || "authorized staff"}<button style={{marginLeft:12}} onClick={() => void signOut(auth)}>Sign out</button></div>{children}</div>;
 
- if(checking)return <main className="adminPage"><div className="adminShell"><div className="emptyState"><div>🔐</div><h1>Opening Vula's Car Wash Admin</h1><p>Checking access…</p></div></div></main>;
- if(user&&authorized)return <div className="adminAuthorized">{offline&&<div className="adminAccountBar"><span>Vula's Car Wash Admin · Offline mode · cached admin access</span><span>Changes will sync when connection returns.</span></div>}<div className="adminAccountBar"><span>Vula's Car Wash Admin · {user.email??"authorized staff"}</span><button className="button buttonLight" type="button" onClick={()=>void signOut(auth)}>Sign out</button></div>{children}</div>;
- return <main className="adminPage"><div className="adminShell"><section className="adminPanel" style={{maxWidth:520,margin:"80px auto"}}><span className="kicker">Vula's Car Wash · staff operations</span><h1>staff operations sign in</h1><p>Enter your staff operations access word to manage bookings, queue, fleet requests, services and settings.</p><form className="adminForm" onSubmit={signIn}><label>Access word<input type="password" value={accessWord} onChange={e=>setAccessWord(e.target.value)} autoComplete="current-password" required autoFocus/></label><button className="button buttonPrimary" type="submit" disabled={busy}>{busy?"Checking access…":"Enter staff operations"}</button></form>{error&&<p role="alert" className="notice">{error}</p>}</section></div></main>
+  return <main className="vula"><div className="vula-status"><span className="status-dot online"/>Vula's Car Wash · Staff access</div><section className="vula-section" style={{maxWidth:620,margin:"40px auto"}}><p className="vula-eyebrow">STAFF ONLY</p><h1 style={{fontSize:"clamp(38px,6vw,62px)"}}>Operations sign in.</h1><p>Use the private staff access word. Do not share it with customers.</p><form className="admin-editor" onSubmit={signIn}><label>Staff access word<input type="password" value={word} onChange={event=>setWord(event.target.value)} required autoComplete="current-password"/></label><button className="vula-button primary" disabled={busy}>{busy ? "Checking…" : "Enter staff workspace"}</button>{error&&<p role="alert" className="vula-notice error">{error}</p>}</form></section></main>;
 }
