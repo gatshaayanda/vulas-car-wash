@@ -20,7 +20,8 @@ export default function Home() {
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [online, setOnline] = useState(true);
   const [userId, setUserId] = useState("");
-  const [isGuest, setIsGuest] = useState(true);\n  const [linkNotice, setLinkNotice] = useState("");
+  const [isGuest, setIsGuest] = useState(true);
+  const [linkNotice, setLinkNotice] = useState("");
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"site" | "mobile">("site");
@@ -44,7 +45,8 @@ export default function Home() {
     const onOffline = () => { setOnline(false); setNotice({ kind: "pending", text: "Offline: requests can be saved on this device, but the team cannot see them until they sync." }); };
     const stopAuth = onAuthStateChanged(auth, user => { setUserId(user?.uid ?? ""); setIsGuest(user?.isAnonymous ?? true); });
     const stops = [subscribeServices(setServices, error => setConnectionError(error.message)), subscribeGallery(setGallery, () => {}), subscribeSettings(value => setSettings(value ?? {}), () => {})];
-    window.addEventListener("online", onOnline); window.addEventListener("offline", onOffline);\n    if (navigator.onLine) void syncOfflineRequests();
+    window.addEventListener("online", onOnline); window.addEventListener("offline", onOffline);
+    if (navigator.onLine) void syncOfflineRequests();
     return () => { stopAuth(); stops.forEach(stop => stop()); window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
   }, []);
 
