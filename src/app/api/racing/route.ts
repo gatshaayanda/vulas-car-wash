@@ -167,7 +167,7 @@ export async function POST(request: Request) {
         if (existingResult.exists) {
           const existingProfile = await tx.get(profileRef);
           const savedRacer = ((existingProfile.data()?.racers || []) as Racer[]).find(r => r.id === racerId);
-          const saved = existingResult.data();
+          const saved = existingResult.data() || {};
           response = {
             racer: savedRacer,
             result: { id: raceId, track: saved.track, place: saved.place, time: saved.time, credits: saved.credits, at: saved.createdAt, verified: saved.verified },
