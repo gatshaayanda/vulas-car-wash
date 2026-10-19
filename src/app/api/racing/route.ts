@@ -10,7 +10,10 @@ const divisions = [
   { name: "International Series", tracks: ["Alpine Ring", "Riviera Sprint", "Old Town Grand Prix"] },
   { name: "World Apex", tracks: ["Neon Meridian", "Orbital Crown", "Apex Zero"] },
 ];
-const rewards = [0, 150, 75, 45];
+const qualifierRewards = [0, 1000, 500, 250];
+const divisionRewards = [0, 2000, 1000, 0];
+type RaceKind = "warmup" | "qualifier" | "division";
+function raceKindOf(value: unknown): RaceKind | null { return value === "warmup" || value === "qualifier" || value === "division" ? value : null; }
 type Racer = { id: string; alias: string; division: number; wins: number; credits: number; upgrade: number; best: Record<string, number>; history: Array<Record<string, unknown>>; createdAt: string; updatedAt: string };
 function adminApp() {
   const existing = getApps().find(app => app.name === "vula-operations");
@@ -121,7 +124,7 @@ export async function POST(request: Request) {
         const racers = (snap.data()?.racers || []) as Racer[];
         const next = racers.map(r => {
           if (r.id !== racerId) return r;
-          const cost = (r.upgrade + 1) * 100;
+          const cost = 2000;
           if (r.upgrade >= 5 || r.credits < cost) throw new Error("Not enough virtual credits for this upgrade.");
           updated = { ...r, credits: r.credits - cost, upgrade: r.upgrade + 1, updatedAt: now };
           return updated;
@@ -134,6 +137,8 @@ export async function POST(request: Request) {
     if (body.action === "start") {
       const racerId = String(body.racerId || "");
       const track = String(body.track || "");
+      const kind = raceKindOf(body.kind);
+      if (!kind) return NextResponse.json({ error: "Choose warm-up, qualifier, or division race." }, { status: 400 });
       if (!divisions.some(d => d.tracks.includes(track))) {
         return NextResponse.json({ error: "Choose a valid Vula circuit." }, { status: 400 });
       }
@@ -148,7 +153,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "This track is locked until you reach its division." }, { status: 403 });
       }
       const raceId = crypto.randomUUID();
-      await store.doc(`racingSessions/${uid}_${raceId}`).create({ uid, racerId, track, startedAt: Date.now(), status: "started" });
+      await store.doc(`racingSessions/${uid}_${raceId}`).create({ uid, racerId, track, kind, startedAt: Date.now(), status: "started" });
       return NextResponse.json({ raceId, sync: "server" }, { headers: { "Cache-Control": "no-store" } });
     }
     if (body.action === "finish") {
@@ -190,11 +195,13 @@ export async function POST(request: Request) {
         const rivalOne = 34 + (seed % 1300) / 100 + Math.max(0, 2 - current.upgrade) * 1.2;
         const rivalTwo = 37 + ((seed * 7) % 1100) / 100 + Math.max(0, 1 - current.upgrade) * .8;
         const place = [normalizedTime, rivalOne, rivalTwo].sort((a, b) => a - b).indexOf(normalizedTime) + 1;
-        const credits = rewards[place];
-        const historyItem = { id: raceId, track, place, time: normalizedTime, credits, at: now, verified: true };
+        const kind = raceKindOf(session.data()?.kind);
+        if (!kind) throw new Error("Race stage is missing. Start a new race from the garage.");
+        const credits = kind === "warmup" ? 0 : kind === "qualifier" ? qualifierRewards[place] : divisionRewards[place];
+        const historyItem = { id: raceId, track, place, time: normalizedTime, credits, at: now, kind, verified: true };
         const best = { ...current.best, [track]: Math.min(Number(current.best?.[track] ?? Infinity), normalizedTime) };
         const history = [historyItem, ...(current.history || []).filter(h => h.id !== raceId)].slice(0, 50);
-        const wins = current.wins + (place === 1 ? 1 : 0);
+        const wins = current.wins + (kind === "division" && place === 1 ? 1 : 0);
         let division = current.division;
         if (wins >= (division + 1) * 3 && division < 3) division++;
         else if (history.length >= 4 && wins === 0 && division > 0) division--;
