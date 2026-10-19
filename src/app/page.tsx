@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { collection, doc, setDoc } from "firebase/firestore";
 import { auth, db, hasFirebaseWebConfig } from "@/lib/firebase/client";
-import { subscribeGallery, subscribeServices, subscribeSettings, type VulaGalleryItem, type VulaService } from "@/lib/firebase/vula-data";
+import { saveReminderPreferences, subscribeCustomerBookings, subscribeGallery, subscribeLoyaltyAccount, subscribeReminderPreferences, subscribeServices, subscribeSettings, type VulaBooking, type VulaGalleryItem, type VulaService } from "@/lib/firebase/vula-data";
 import "./vula.css";
 
 type Notice = { kind: "success" | "error" | "pending"; text: string };
@@ -24,7 +24,7 @@ export default function Home() {
   const [mode, setMode] = useState<"site" | "mobile">("site");
   const [serviceId, setServiceId] = useState("");
   const [tab, setTab] = useState<"book" | "queue" | "fleet">("book");
-  const [connectionError, setConnectionError] = useState("");
+  const [connectionError, setConnectionError] = useState("");\n  const [myBookings, setMyBookings] = useState<VulaBooking[]>([]);\n  const [loyaltyPoints, setLoyaltyPoints] = useState(0);\n  const [remindersEnabled, setRemindersEnabled] = useState(false);\n  const [reminderNotice, setReminderNotice] = useState("");
   const mobileCoverage = Array.isArray(settings.mobileCoverage) ? settings.mobileCoverage as string[] : [];
   const businessName = typeof settings.businessName === "string" && settings.businessName.trim() ? settings.businessName : "Vula's Car Wash";
   const locationName = typeof settings.locationName === "string" && settings.locationName.trim() ? settings.locationName : "G-West";
@@ -39,6 +39,23 @@ export default function Home() {
     window.addEventListener("online", onOnline); window.addEventListener("offline", onOffline);
     return () => { stopAuth(); stops.forEach(stop => stop()); window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
   }, []);
+
+  useEffect(() => {
+    if (!userId) { setMyBookings([]); setLoyaltyPoints(0); setRemindersEnabled(false); return; }
+    const fail = () => {};
+    const stops = [
+      subscribeCustomerBookings(userId, setMyBookings, fail),
+      subscribeLoyaltyAccount(userId, value => setLoyaltyPoints(Number(value?.pointsBalance ?? 0)), fail),
+      subscribeReminderPreferences(userId, value => setRemindersEnabled(Boolean(value?.enabled)), fail),
+    ];
+    return () => stops.forEach(stop => stop());
+  }, [userId]);
+
+  async function saveReminderChoice() {
+    if (!userId || !navigator.onLine) { setReminderNotice("Connect to the internet and submit a request first to save this preference."); return; }
+    try { await saveReminderPreferences(userId, remindersEnabled); setReminderNotice("Your in-app reminder preference is saved. Push, SMS or email delivery still needs a notification channel to be configured."); }
+    catch (error) { setReminderNotice(error instanceof Error ? error.message : "Reminder preference could not be saved."); }
+  }
 
   async function ensureUser() {
     if (auth.currentUser) return auth.currentUser;
@@ -120,6 +137,7 @@ export default function Home() {
       {tab==="queue"&&<label>Service<select value={serviceId} onChange={e=>setServiceId(e.target.value)}><option value="">General walk-in service</option>{activeServices.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>}
       {tab==="fleet"&&<><label>Number of vehicles<input name="vehicleCount" type="number" min="1" max="10000" defaultValue="2" required/></label><label>Email (optional)<input name="email" type="email" maxLength={254} placeholder="you@company.com"/></label><label>Service needs<input name="fleetNeeds" maxLength={200} placeholder="e.g. regular cleaning"/></label><label>Preferred schedule<input name="preferredSchedule" maxLength={200} placeholder="Days / frequency"/></label><label>Preferred location<input name="preferredLocation" maxLength={200} defaultValue={locationName}/></label></>}
       <label className="full-field">Notes (optional)<textarea name="notes" maxLength={1500} rows={3} placeholder="Anything the team should know?"/></label></div><button className="vula-button primary submit-button" disabled={busy}>{busy?"Sending…":tab==="book"?"Send booking request":tab==="queue"?"Join the queue":"Send fleet enquiry"} ↗</button>{notice&&<p role="status" className={"vula-notice "+notice.kind}>{notice.text}</p>}</form></div></section>
+    <section className="vula-section account-section" id="my-wash"><div className="section-title"><p className="vula-eyebrow">YOUR WASH SPACE</p><h2>My requests & loyalty.</h2><p>Booking updates are shared live when online. Points are maintained by staff using the business's confirmed loyalty policy.</p></div><div className="account-grid"><article className="account-card loyalty-card"><span className="service-category">LOYALTY BALANCE</span><strong className="loyalty-points">{loyaltyPoints}</strong><span>points</span><p>Points are not automatically awarded until Vula confirms the earning rules. Ask staff if you need help linking this guest session to another device.</p><label className="reminder-toggle"><input type="checkbox" checked={remindersEnabled} onChange={e=>setRemindersEnabled(e.target.checked)}/> Save in-app booking reminder preference</label><button type="button" className="vula-button secondary" onClick={()=>void saveReminderChoice()} disabled={!userId || !online}>Save preference</button>{reminderNotice&&<p className="vula-notice pending">{reminderNotice}</p>}</article><article className="account-card"><span className="service-category">MY BOOKINGS</span>{myBookings.length?myBookings.slice(0,5).map(item=><div className="customer-booking" key={item.id}><strong>{item.serviceName}</strong><span>{item.status} · {item.scheduledFor||"Time to be agreed"}</span><small>{item.serviceMode==="mobile"?"Mobile request":"At the wash"} · {item.phone}</small></div>):<p className="account-empty">{userId?"No booking requests are linked to this guest session yet.":"Your requests will appear here after you submit your first online request."}</p>}</article></div></section>
     <section className="vula-section gallery-section" id="gallery"><div className="section-title"><p className="vula-eyebrow">THE RESULTS</p><h2>Care in every detail.</h2><p>Gallery photos are managed by staff. Only published images appear here.</p></div><div className="vula-gallery">{gallery.length?gallery.map(item=><figure key={item.id}><img src={item.imageUrl} alt={item.title} loading="lazy"/><figcaption><strong>{item.title}</strong><span>{item.description}</span></figcaption></figure>):<div className="gallery-empty">Vula's real work photos will appear here when staff publish them.</div>}</div></section>
     <section className="vula-bottom"><p className="vula-eyebrow">READY WHEN YOU ARE</p><h2>Your car called.</h2><p>Let's get it clean. Every booking is confirmed by the team.</p><a href="#request" className="vula-button primary">Book or enquire ↗</a></section>
     <footer className="vula-footer"><a href="#top" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></a><span>{userId ? "Customer session active" : "Guest booking available"} · Shared when synced</span><a href="/admin">Staff sign in</a></footer>
