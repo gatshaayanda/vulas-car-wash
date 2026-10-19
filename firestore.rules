@@ -22,7 +22,7 @@ service cloud.firestore {
         && validText(request.resource.data.updatedAt, 40);
     }
     function validBooking(uid) {
-      return request.resource.data.keys().hasOnly(['customerId','customerName','phone','vehicleType','vehicleRegistration','serviceId','serviceName','serviceMode','locationId','address','scheduledFor','notes','priceQuote','paymentMethod','paymentStatus','status','createdAt','updatedAt'])
+      return request.resource.data.keys().hasOnly(['customerId','customerName','phone','vehicleType','vehicleRegistration','serviceId','serviceName','serviceIds','serviceNames','basketItems','durationMinutes','serviceMode','locationId','address','scheduledFor','notes','priceQuote','paymentMethod','paymentStatus','status','createdAt','updatedAt'])
         && request.resource.data.keys().hasAll(['customerId','customerName','phone','vehicleType','vehicleRegistration','serviceId','serviceName','serviceMode','locationId','address','scheduledFor','notes','paymentMethod','paymentStatus','status','createdAt','updatedAt'])
         && request.resource.data.customerId == uid
         && validText(request.resource.data.customerName, 120)
@@ -31,6 +31,10 @@ service cloud.firestore {
         && validText(request.resource.data.vehicleRegistration, 30)
         && validText(request.resource.data.serviceId, 120)
         && validText(request.resource.data.serviceName, 120)
+        && (!request.resource.data.keys().hasAny(['serviceIds']) || (request.resource.data.serviceIds is list && request.resource.data.serviceIds.size() <= 20))
+        && (!request.resource.data.keys().hasAny(['serviceNames']) || (request.resource.data.serviceNames is list && request.resource.data.serviceNames.size() <= 20))
+        && (!request.resource.data.keys().hasAny(['basketItems']) || (request.resource.data.basketItems is list && request.resource.data.basketItems.size() <= 20))
+        && (!request.resource.data.keys().hasAny(['durationMinutes']) || (request.resource.data.durationMinutes is number && request.resource.data.durationMinutes >= 15 && request.resource.data.durationMinutes <= 240))
         && request.resource.data.serviceMode in ['site','mobile']
         && validText(request.resource.data.locationId, 120)
         && validText(request.resource.data.address, 500)
