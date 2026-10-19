@@ -111,15 +111,30 @@ export async function POST(request: Request) {
       });
       return NextResponse.json({ racer: updated, sync: "server" }, { headers: { "Cache-Control": "no-store" } });
     }
+    if (body.action === "start") {
+      const racerId = String(body.racerId || "");
+      const track = String(body.track || "");
+      if (!divisions.some(d => d.tracks.includes(track))) {
+        return NextResponse.json({ error: "Choose a valid Vula circuit." }, { status: 400 });
+      }
+      const profile = await profileRef.get();
+      const racers = (profile.data()?.racers || []) as Racer[];
+      if (!profile.exists || !racers.some(r => r.id === racerId)) {
+        return NextResponse.json({ error: "Create or select your racer before starting." }, { status: 400 });
+      }
+      const raceId = crypto.randomUUID();
+      await store.doc(`racingSessions/${uid}_${raceId}`).create({ uid, racerId, track, startedAt: Date.now(), status: "started" });
+      return NextResponse.json({ raceId, sync: "server" }, { headers: { "Cache-Control": "no-store" } });
+    }
     if (body.action === "finish") {
       const racerId = String(body.racerId || "");
       const track = String(body.track || "");
       const elapsed = Number(body.elapsed);
       const raceId = String(body.raceId || "");
-      if (!raceId || raceId.length > 100 || !divisions.some(d => d.tracks.includes(track)) || !Number.isFinite(elapsed) || elapsed < 12 || elapsed > 240) {
+      if (!raceId || raceId.length > 100 || !divisions.some(d => d.tracks.includes(track))) {
         return NextResponse.json({ error: "Race result failed validation. Please race again online." }, { status: 400 });
       }
-      const resultRef = store.doc(`racingResults/${uid}_${raceId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80)}`);
+      const resultRef = store.doc(`racingResults/${uid}_${raceId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80)}`);\n      const sessionRef = store.doc(`racingSessions/${uid}_${raceId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80)}`);\n      const finishedAt = Date.now();
       let response: Record<string, unknown> = {};
       await store.runTransaction(async tx => {
         const existingResult = await tx.get(resultRef);
@@ -129,7 +144,7 @@ export async function POST(request: Request) {
         const racers = (profile.data()?.racers || []) as Racer[];
         const current = racers.find(r => r.id === racerId);
         if (!current) throw new Error("Racer profile not found.");
-        const normalizedTime = Number(elapsed.toFixed(2));
+        const normalizedTime = Number(serverElapsed.toFixed(2));
         const seed = Array.from(raceId).reduce((sum, char) => sum + char.charCodeAt(0), 0);
         const rivalOne = 34 + (seed % 1300) / 100 + Math.max(0, 2 - current.upgrade) * 1.2;
         const rivalTwo = 37 + ((seed * 7) % 1100) / 100 + Math.max(0, 1 - current.upgrade) * .8;
@@ -144,7 +159,7 @@ export async function POST(request: Request) {
         else if (history.length >= 4 && wins === 0 && division > 0) division--;
         const updated = { ...current, division, wins, credits: current.credits + credits, best, history, updatedAt: now };
         tx.set(profileRef, { racers: racers.map(r => r.id === racerId ? updated : r), updatedAt: now }, { merge: true });
-        tx.set(resultRef, { uid, racerId, alias: current.alias, track, division: current.division, place, time: normalizedTime, credits, createdAt: now, verified: true });
+        tx.set(resultRef, { uid, racerId, alias: current.alias, track, division: current.division, place, time: normalizedTime, credits, createdAt: now, verified: true });\n        tx.set(sessionRef, { status: "completed", finishedAt, elapsed: normalizedTime }, { merge: true });
         response = { racer: updated, result: historyItem, sync: "server" };
       });
       return NextResponse.json(response, { headers: { "Cache-Control": "no-store" } });
