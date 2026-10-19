@@ -23,9 +23,9 @@ export default async function RootLayout({children}:{children:React.ReactNode}){
 (function () {
   window.addEventListener("beforeinstallprompt", function (event) {
     var standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-    if (standalone || window.__iteration13PwaListenerReady === true) return;
+    if (standalone || window.__vulaPwaListenerReady === true) return;
     event.preventDefault();
-    window.__iteration13InstallPrompt = event;
+    window.__vulaInstallPrompt = event;
   });
 })();
 `}</Script><PwaRegister initialEmbedded={embedded} initialAndroid={android}/>{children}<Analytics/><SpeedInsights/></body></html>
