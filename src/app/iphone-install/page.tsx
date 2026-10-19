@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 import Link from "next/link";
 
 export const metadata = { title: "Install on iPhone", description: "Add the Vula's Car Wash to your iPhone home screen from Safari." };
