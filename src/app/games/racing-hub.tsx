@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import "./racing.css";
 import { onAuthStateChanged, signInAnonymously, type User } from "firebase/auth";
 import { auth, hasFirebaseWebConfig } from "@/lib/firebase/client";
 
@@ -25,6 +26,7 @@ export default function RacingHub() {
   const [activeId, setActiveId] = useState("");
   const [alias, setAlias] = useState("");
   const [trackIndex, setTrackIndex] = useState(0);
+  const [selectedDivision, setSelectedDivision] = useState(0);
   const [phase, setPhase] = useState<"garage" | "race" | "finished">("garage");
   const [paused, setPaused] = useState(false);
   const [notice, setNotice] = useState("Career saves on this device. Online racer sync is not enabled yet.");
@@ -41,9 +43,8 @@ export default function RacingHub() {
   const frame = useRef<number | null>(null);
   const lastFrame = useRef(0);
   const active = racers.find(r => r.id === activeId) ?? null;
-  const division = active ? divisions[active.division] : divisions[0];
+  const division = divisions[selectedDivision] ?? divisions[0];
   const track = division.tracks[trackIndex % 3];
-  const trackNumber = active ? active.division * 3 + trackIndex + 1 : 1;
 
   useEffect(() => {
     try {
@@ -121,7 +122,7 @@ export default function RacingHub() {
     const clean = alias.trim().replace(/[^\p{L}\p{N} _-]/gu, "").slice(0, 18);
     if (clean.length < 2) { setNotice("Choose an alias with at least two letters or numbers."); return; }
     const racer = starter(crypto.randomUUID?.() ?? String(Date.now()), clean);
-    setRacers(current => [...current, racer]); setActiveId(racer.id); setAlias("");
+    setRacers(current => [...current, racer]); setActiveId(racer.id); setSelectedDivision(0); setTrackIndex(0); setAlias("");
     setNotice("Racer created. Career progress is saved locally on this device.");
   }
   function startRace() {
@@ -135,7 +136,7 @@ export default function RacingHub() {
   function finishRace() {
     if (phase !== "race" || !active) return;
     setPhase("finished");
-    const ai1 = 33 + Math.random() * 31;
+    const ai1 = 42 + Math.random() * 28;
     const ai2 = 40 + Math.random() * 30;
     const playerScore = Math.max(8, 100 - elapsed * 0.65 + active.upgrade * 2 + Math.random() * 5);
     const scores = [{ name: active.alias, score: playerScore, player: true }, { name: "Kago · The Attacker", score: ai1, player: false }, { name: "Neo · The Smooth One", score: ai2, player: false }].sort((a,b) => b.score-a.score);
@@ -180,7 +181,7 @@ export default function RacingHub() {
         {active && <><div className="race-profile"><div className="race-avatar">{active.alias.slice(0,1).toUpperCase()}</div><div><strong>{active.alias}</strong><span>{divisions[active.division].name}</span></div></div><div className="race-stats"><div><strong>{active.credits}</strong><span>Virtual credits</span></div><div><strong>{active.wins}</strong><span>Race wins</span></div><div><strong>{active.upgrade}/5</strong><span>Kart upgrade</span></div><div><strong>{active.history.length}</strong><span>Races logged</span></div></div><div className="race-upgrade"><div><strong>Engine tune · Level {active.upgrade}/5</strong><p>Cost: {(active.upgrade+1)*100} credits · improves pace.</p></div><button className="vula-button secondary" onClick={upgrade} disabled={active.upgrade>=5||active.credits<(active.upgrade+1)*100}>Upgrade</button></div><button className="vula-button secondary race-reset" onClick={()=>setConfirmReset(true)}>Reset this racer…</button>{confirmReset&&<div className="race-confirm"><p>Delete {active.alias}'s local career, credits, upgrades and race history? Your Vula customer account will remain untouched.</p><button className="vula-button secondary" onClick={()=>setConfirmReset(false)}>Keep racer</button><button className="vula-button primary" onClick={resetRacer}>Delete racer</button></div>}</>}
       </aside>
       <div className="race-main">
-        {phase === "garage" && <><p className="vula-eyebrow">CHOOSE YOUR NEXT CIRCUIT</p><div className="race-track-grid">{divisions.map((d,di)=><article key={d.name} className={"race-division "+(active&&active.division===di?"selected":"")+(active&&active.division<di?" locked":"")}><span>DIVISION {String(di+1).padStart(2,"0")}</span><h2>{d.name}</h2><p>{di===0?"Learn the racing line and master your boost.":di===1?"Technical bends and higher pace.":di===2?"International-style circuits, tighter margins.":"Elite tracks for the sharpest racers."}</p>{d.tracks.map((t,ti)=><button key={t} type="button" disabled={!active||active.division<di} className={track===t?"active":""} onClick={()=>{setTrackIndex(ti);if(active&&active.division!==di)setRacers(rs=>rs.map(r=>r.id===activeId?{...r,division:di}:r));}}><span>{String(di*3+ti+1).padStart(2,"0")}</span>{t}</button>)}</article>)}</div><button className="vula-button primary race-start" disabled={!active} onClick={startRace}>Start race · {track} ↗</button></>}
+        {phase === "garage" && <><p className="vula-eyebrow">CHOOSE YOUR NEXT CIRCUIT</p><div className="race-track-grid">{divisions.map((d,di)=><article key={d.name} className={"race-division "+(selectedDivision===di?"selected":"")+(active&&active.division<di?" locked":"")}><span>DIVISION {String(di+1).padStart(2,"0")}</span><h2>{d.name}</h2><p>{di===0?"Learn the racing line and master your boost.":di===1?"Technical bends and higher pace.":di===2?"International-style circuits, tighter margins.":"Elite tracks for the sharpest racers."}</p>{d.tracks.map((t,ti)=><button key={t} type="button" disabled={!active||active.division<di} className={track===t?"active":""} onClick={()=>{setSelectedDivision(di);setTrackIndex(ti);}}><span>{String(di*3+ti+1).padStart(2,"0")}</span>{t}</button>)}</article>)}</div><button className="vula-button primary race-start" disabled={!active} onClick={startRace}>Start race · {track} ↗</button></>}
         {phase === "race" && <div className="race-play"><div className="race-play-head"><div><p className="vula-eyebrow">LIVE RACE</p><h2>{track}</h2></div><div className="race-timer">{elapsed.toFixed(1)}s <small>elapsed</small></div></div><div className="race-scene"><div className="race-sky"/><div className="race-hills"/><div className="race-track-surface"><div className="race-lane"/><div className="race-car rival rival-a" style={{left:`${25+Math.sin(elapsed*1.3)*7}%`}}>K</div><div className="race-car rival rival-b" style={{left:`${58+Math.cos(elapsed*.8)*8}%`}}>N</div><div className="race-car player-car" style={{left:`${clamp(50+steer*10,10,82)}%`,bottom:`${8+position*.55}%`}}>YOU</div></div><div className="race-hud"><span>PACE <b>{Math.round(speed)} km/h</b></span><span>PROGRESS <b>{Math.round(position)}%</b></span><span>BOOST <b>{boost} left</b></span></div></div><div className="race-controls"><div className="race-steering"><button aria-label="Steer left" onPointerDown={()=>setSteer(-1)} onPointerUp={()=>setSteer(0)} onPointerLeave={()=>setSteer(0)} onPointerCancel={()=>setSteer(0)}>←</button><button aria-label="Steer right" onPointerDown={()=>setSteer(1)} onPointerUp={()=>setSteer(0)} onPointerLeave={()=>setSteer(0)} onPointerCancel={()=>setSteer(0)}>→</button></div><div className="race-driving"><button onPointerDown={()=>setBrake(true)} onPointerUp={()=>setBrake(false)} onPointerLeave={()=>setBrake(false)} onPointerCancel={()=>setBrake(false)}>Brake</button><button className="boost-button" onClick={useBoost} disabled={boost<=0}>Boost ⚡</button></div><button className="vula-button secondary" onClick={()=>setPaused(v=>!v)}>{paused?"Resume":"Pause"} (P)</button></div>{paused&&<div className="race-paused"><strong>Race paused</strong><p>Take a breath. Your timer is stopped.</p><button className="vula-button primary" onClick={()=>setPaused(false)}>Resume race</button><button className="vula-button secondary" onClick={()=>{setPhase("garage");setPaused(false);}}>Retire to garage</button></div>}<p className="race-help">Keyboard: A/D or ←/→ steer · W/↑ release brake · S/↓ brake · Space boost · P pause. On touch screens, hold the controls.</p></div>}
         {phase === "finished" && <div className="race-result"><p className="vula-eyebrow">FINISH LINE</p><h2>{lastPlace===1?"P1. Clean racing.":lastPlace===2?"P2. A podium finish.":"P3. Keep pushing."}</h2><p>You finished {track} in {elapsed.toFixed(2)} seconds.</p><div className="race-reward"><strong>+{lastReward}</strong><span>virtual credits</span></div><p>Your race result is saved locally. Results are not server-verified or part of a public online leaderboard.</p><button className="vula-button primary" onClick={()=>setPhase("garage")}>Back to garage</button><button className="vula-button secondary" onClick={startRace}>Race again</button></div>}
       </div>
