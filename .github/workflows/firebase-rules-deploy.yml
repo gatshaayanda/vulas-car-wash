@@ -33,7 +33,7 @@ jobs:
       - name: Deploy Vula Firestore and Storage rules
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
-        run: firebase deploy --only firestore:rules,storage --project vulas-car-wash --non-interactive
+        run: firebase deploy --only firestore:rules,firestore:indexes,storage --project vulas-car-wash --non-interactive
       - name: Remove Firebase service account
         if: always()
         run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
