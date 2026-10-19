@@ -4,7 +4,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { collection, doc, setDoc } from "firebase/firestore";
-import { auth, db, hasFirebaseWebConfig } from "@/lib/firebase/client";\nimport { enableVulaPushNotifications } from "@/lib/firebase/vula-notifications";
+import { auth, db, hasFirebaseWebConfig } from "@/lib/firebase/client";
+import { enableVulaPushNotifications } from "@/lib/firebase/vula-notifications";
 import { saveReminderPreferences, subscribeCustomerBookings, subscribeGallery, subscribeLoyaltyAccount, subscribeReminderPreferences, subscribeServices, subscribeSettings, type VulaBooking, type VulaGalleryItem, type VulaService } from "@/lib/firebase/vula-data";
 import "./vula.css";
 
@@ -28,7 +29,8 @@ export default function Home() {
   const [myBookings, setMyBookings] = useState<VulaBooking[]>([]);
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
   const [remindersEnabled, setRemindersEnabled] = useState(false);
-  const [reminderNotice, setReminderNotice] = useState("");\n  const [pushNotice, setPushNotice] = useState("");
+  const [reminderNotice, setReminderNotice] = useState("");
+  const [pushNotice, setPushNotice] = useState("");
   const mobileCoverage = Array.isArray(settings.mobileCoverage) ? settings.mobileCoverage as string[] : [];
   const businessName = typeof settings.businessName === "string" && settings.businessName.trim() ? settings.businessName : "Vula's Car Wash";
   const locationName = typeof settings.locationName === "string" && settings.locationName.trim() ? settings.locationName : "G-West";
@@ -62,7 +64,13 @@ export default function Home() {
     catch (error) { setReminderNotice(error instanceof Error ? error.message : "Reminder preference could not be saved."); }
   }
 
-  async function enablePush() {\n    if (!userId || !navigator.onLine) { setPushNotice("Connect and submit an online request first."); return; }\n    try { await enableVulaPushNotifications(userId); await saveReminderPreferences(userId, true); setRemindersEnabled(true); setPushNotice("Push reminders are enabled on this device for confirmed bookings."); }\n    catch (error) { setPushNotice(error instanceof Error ? error.message : "Push reminders could not be enabled."); }\n  }\n\n  async function ensureUser() {
+  async function enablePush() {
+    if (!userId || !navigator.onLine) { setPushNotice("Connect and submit an online request first."); return; }
+    try { await enableVulaPushNotifications(userId); await saveReminderPreferences(userId, true); setRemindersEnabled(true); setPushNotice("Push reminders are enabled on this device for confirmed bookings."); }
+    catch (error) { setPushNotice(error instanceof Error ? error.message : "Push reminders could not be enabled."); }
+  }
+
+  async function ensureUser() {
     if (auth.currentUser) return auth.currentUser;
     if (!navigator.onLine || !hasFirebaseWebConfig) return null;
     return (await signInAnonymously(auth)).user;
