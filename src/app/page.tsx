@@ -115,7 +115,7 @@ export default function Home() {
       const user = await ensureUser(); if (!user) return;
       const remaining: typeof drafts = [];
       for (const draft of drafts) {
-        try { const id = draft.id || crypto.randomUUID(); await setDoc(doc(db, draft.collection, id), { ...draft.data, customerId: user.uid, updatedAt: stamp() }); }
+        try { const id = draft.id || crypto.randomUUID(); await saveCustomerRecord(user.uid, String(draft.data.customerName || ""), String(draft.data.phone || ""), String(draft.data.email || user.email || "")); await setDoc(doc(db, draft.collection, id), { ...draft.data, customerId: user.uid, updatedAt: stamp() }); }
         catch { remaining.push(draft); }
       }
       localStorage.setItem(pendingKey, JSON.stringify(remaining));
