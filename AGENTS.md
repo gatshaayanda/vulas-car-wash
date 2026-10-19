@@ -29,6 +29,7 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Anonymous Auth lets customers begin without forced registration. Linking an anonymous session to Google preserves its UID. Explain that unlinked guest data remains device/session dependent.
 - Push reminders require `NEXT_PUBLIC_FIREBASE_VAPID_KEY`, registered customer tokens, `FIREBASE_ADMIN_KEY`, `VULA_REMINDER_CRON_SECRET`, and GitHub Actions secrets for the scheduled job. Only confirmed bookings should receive reminders.
 - Gallery uploads require the Firebase Storage rules to be published.
+- Vula Racing currently uses device-local career storage. Its results, credits, promotion state and leaderboard are not server-synced or trusted; do not describe these as cross-device or public until a server-authoritative race API, owner-scoped persistence, and corresponding security tests are implemented. The `/admin` Games tab controls racing availability and the customer-facing notice through `businessSettings/main`.
 - Do not claim Firebase rules/indexes or production deployment are live just because their files are committed.
 
 ## Implementation and verification
