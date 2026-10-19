@@ -1,6 +1,6 @@
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { getFirestore } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
         store.collection("racingResults").orderBy("createdAt", "desc").limit(100).get(),
       ]);
       return NextResponse.json({
-        profiles: profiles.docs.map(d => ({ racers: Array.isArray(d.data().racers) ? d.data().racers.map((r: Record<string, unknown>) => ({ id: r.id, alias: r.alias, division: r.division, updatedAt: r.updatedAt })) : [] })),
+        profiles: profiles.docs.map(d => ({ uid: d.id, racers: Array.isArray(d.data().racers) ? d.data().racers.map((r: Record<string, unknown>) => ({ id: r.id, alias: r.alias, division: r.division, updatedAt: r.updatedAt })) : [] })),
         results: results.docs.map(d => { const r = d.data(); return { id: d.id, alias: r.alias, track: r.track, division: r.division, place: r.place, time: r.time, credits: r.credits, createdAt: r.createdAt, verified: r.verified }; }),
       }, { headers: { "Cache-Control": "no-store" } });
     }
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
         const updated = { ...current, division, wins, credits: current.credits + credits, best, history, updatedAt: now };
         tx.set(profileRef, { racers: racers.map(r => r.id === racerId ? updated : r), updatedAt: now }, { merge: true });
         tx.set(resultRef, { uid, racerId, alias: current.alias, track, division: current.division, place, time: normalizedTime, credits, createdAt: now, verified: true });
-        tx.set(sessionRef, { status: "completed", finishedAt, elapsed: normalizedTime }, { merge: true });\n        tx.set(sessionRef, { status: "completed", finishedAt, elapsed: normalizedTime }, { merge: true });
+        tx.set(sessionRef, { status: "completed", finishedAt, elapsed: normalizedTime }, { merge: true });
         response = { racer: updated, result: historyItem, sync: "server" };
       });
       return NextResponse.json(response, { headers: { "Cache-Control": "no-store" } });
