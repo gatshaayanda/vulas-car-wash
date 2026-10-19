@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client";
 import {onAuthStateChanged,signInWithCustomToken,signOut,type User} from "firebase/auth";
 import {doc,onSnapshot} from "firebase/firestore";
