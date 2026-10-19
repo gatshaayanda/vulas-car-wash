@@ -1,22 +1,13 @@
-name: Deploy The Plug Firebase rules
+name: Deploy Vula Firebase rules
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "firestore.rules"
-      - "storage.rules"
-      - "firebase.json"
-      - ".firebaserc"
-      - ".github/workflows/firebase-rules-deploy.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: the-plug-firebase-rules-deploy
+  group: vula-firebase-rules-deploy
   cancel-in-progress: false
 
 jobs:
@@ -43,7 +34,7 @@ jobs:
           umask 077
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
 
-      - name: Deploy The Plug Firestore rules
+      - name: Deploy Vula Firestore rules
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
         run: |
@@ -60,7 +51,7 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Deploy Storage rules only when the Storage rules file changes
+      - name: Deploy Vula Storage rules only when explicitly changed
         if: steps.storage-changed.outputs.changed == 'true'
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
