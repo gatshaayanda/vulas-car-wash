@@ -12,7 +12,7 @@ import "./vula.css";
 type Notice = { kind: "success" | "error" | "pending"; text: string };
 const pendingKey = "vulas-car-wash:offline-requests:v1";
 const stamp = () => new Date().toISOString();
-const money = (price?: number) => typeof price === "number" ? "P" + price.toLocaleString("en-BW", { maximumFractionDigits: 2 }) : "Price confirmed by the team";
+const money = (price?: number | null) => typeof price === "number" ? "P" + price.toLocaleString("en-BW", { maximumFractionDigits: 2 }) : "Price confirmed by the team";
 
 export default function Home() {
   const [services, setServices] = useState<VulaService[]>([]);
