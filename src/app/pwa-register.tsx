@@ -5,8 +5,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { getIdToken, onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -79,31 +77,11 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     setEmbeddedAndroid((initialEmbedded && initialAndroid) || (env.embedded && env.android));
     setInstallPlatform(env.ios ? "ios" : env.android ? "android" : "other");
 
-    const retryPendingOrderNotifications = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
-      const idToken = await getIdToken(user).catch(() => null);
-      if (!idToken) return;
-      const pendingKeys = Object.keys(localStorage).filter(key => key.startsWith("vula-pending-notification-"));
-      for (const key of pendingKeys) {
-        const orderId = key.replace("vula-pending-notification-", "");
-        try {
-          const response = await fetch("/api/notifications/order-created", {
-            method: "POST",
-            headers: { Authorization: "Bearer " + idToken, "Content-Type": "application/json" },
-            body: JSON.stringify({ orderId })
-          });
-          if (response.ok) localStorage.removeItem(key);
-        } catch {}
-      }
-    };
-
     const online = () => {
       setOffline(false);
       setReconnecting(true);
       window.setTimeout(() => {
         setReconnecting(false);
-        void retryPendingOrderNotifications();
       }, 1200);
     };
     const off = () => {
@@ -189,8 +167,6 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     };
 
     void register();
-    void retryPendingOrderNotifications();
-    const stopPendingAuth = onAuthStateChanged(auth, () => { void retryPendingOrderNotifications(); });
     const controllerChange = () => { if (reloadForUpdate.current) window.location.reload(); };
     navigator.serviceWorker?.addEventListener("controllerchange", controllerChange);
 
@@ -201,7 +177,6 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
       window.removeEventListener("offline", off);
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
       navigator.serviceWorker?.removeEventListener("controllerchange", controllerChange);
-      stopPendingAuth();
     };
   }, [initialEmbedded, initialAndroid]);
 
