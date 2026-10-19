@@ -5,7 +5,7 @@ import {SpeedInsights} from "@vercel/speed-insights/next";
 import PwaRegister from "@/app/pwa-register";
 import Script from "next/script";
 import "./globals.css"; import "./pwa.css"; import "./vula.css";
-const siteUrl=process.env.NEXT_PUBLIC_BASE_URL||"https://vulas-car-wash.vercel.app";
+const siteUrl=process.env.NEXT_PUBLIC_BASE_URL||"http://localhost:3000";
 const EMBEDDED_BROWSER_PATTERN=/WhatsApp|Instagram|FBAN|FBAV|Messenger|Line[/]|Twitter|TikTok|Snapchat/i;
 export const metadata:Metadata={metadataBase:new URL(siteUrl),title:{default:"Vula's Car Wash",template:"%s | Vula's Car Wash"},description:"Book a car wash, request mobile service, and follow requests online or offline.",applicationName:"Vula's Car Wash",keywords:["Vula's Car Wash","PWA","mobile app","offline","installation"],alternates:{canonical:"/"},openGraph:{type:"website",url:siteUrl,siteName:"Vula's Car Wash",title:"Vula's Car Wash",description:"Car wash bookings, mobile-service requests and live staff operations."},twitter:{card:"summary",title:"Vula's Car Wash",description:"Car wash bookings, mobile-service requests and live staff operations."},icons:{icon:[{url:"/vula-icon-192.png",sizes:"192x192",type:"image/png"},{url:"/vula-icon-512.png",sizes:"512x512",type:"image/png"},{url:"/vula-icon.svg",type:"image/svg+xml"}],apple:{url:"/vula-icon-180.png",sizes:"180x180",type:"image/png"}},manifest:"/manifest.webmanifest",appleWebApp:{capable:true,title:"Vula's Car Wash",statusBarStyle:"default"}};
 export const viewport:Viewport={themeColor:"#c6f36b",colorScheme:"light"};
