@@ -5,8 +5,9 @@ const failures = [];
 function read(relative) { return fs.readFileSync(path.join(root, relative), "utf8"); }
 const manifest = JSON.parse(read("public/manifest.webmanifest"));
 if (manifest.name !== "Vula's Car Wash" || manifest.short_name !== "Vula's") failures.push("web manifest does not use Vula identity");
-if (!manifest.icons?.some(icon => icon.src === "/vula-icon.svg")) failures.push("Vula icon missing from web manifest");
-if (!fs.existsSync(path.join(root, "public/vula-icon.svg"))) failures.push("Vula SVG icon asset missing");\nfor (const icon of ["vula-icon-180.png", "vula-icon-192.png", "vula-icon-512.png"]) if (!fs.existsSync(path.join(root, "public", icon))) failures.push("Vula PWA icon asset missing: " + icon);
+if (!manifest.icons?.some(icon => icon.src === "/vula-icon.svg") || !manifest.icons?.some(icon => icon.src === "/vula-icon-192.png") || !manifest.icons?.some(icon => icon.src === "/vula-icon-512.png")) failures.push("Vula icon missing from web manifest");
+if (!fs.existsSync(path.join(root, "public/vula-icon.svg"))) failures.push("Vula SVG icon asset missing");
+for (const icon of ["vula-icon-180.png", "vula-icon-192.png", "vula-icon-512.png"]) if (!fs.existsSync(path.join(root, "public", icon))) failures.push("Vula PWA icon asset missing: " + icon);
 const appManifest = read("src/app/manifest.ts");
 if (!appManifest.includes("Vula's Car Wash") || appManifest.includes("Iteration 13")) failures.push("app manifest identity mismatch");
 const layout = read("src/app/layout.tsx");
