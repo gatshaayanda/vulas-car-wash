@@ -162,8 +162,9 @@ export default function Home() {
       const user = await ensureUser();
       if (!user) throw new Error("Online service is not configured yet. Your request has not been sent.");
       await saveCustomerRecord(user.uid, customerName, phone, String(form.get("email") || user.email || ""));\n      const writePromise = setDoc(doc(collection(db, collectionName)), { ...data, customerId: user.uid });
-      formElement.reset(); setNotice({ kind: "pending", text: "Sending securely to Vula's system…" });
+      setNotice({ kind: "pending", text: "Sending securely to Vula's system…" });
       await writePromise;
+      formElement.reset();
       setNotice({ kind: "success", text: "Request received by Vula's system. Staff still need to confirm the booking, mobile coverage or fleet arrangement." });
     } catch (error) {
       setNotice({ kind: "error", text: error instanceof Error ? error.message : "We couldn't send this request. Please try again when connected." });
