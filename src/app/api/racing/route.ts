@@ -48,10 +48,12 @@ export async function GET(request: Request) {
       const [profiles, results, issues] = await Promise.all([
         store.collection("racingProfiles").limit(200).get(),
         store.collection("racingResults").orderBy("createdAt", "desc").limit(100).get(),
+        store.collection("racingIssues").orderBy("createdAt", "desc").limit(100).get(),
       ]);
       return NextResponse.json({
         profiles: profiles.docs.map(d => ({ racers: Array.isArray(d.data().racers) ? d.data().racers.map((r: Record<string, unknown>) => ({ id: r.id, alias: r.alias, division: r.division, updatedAt: r.updatedAt })) : [] })),
         results: results.docs.map(d => { const r = d.data(); return { id: d.id, alias: r.alias, track: r.track, division: r.division, place: r.place, time: r.time, credits: r.credits, createdAt: r.createdAt, verified: r.verified }; }),
+        issues: issues.docs.map(d => { const r = d.data(); return { id: d.id, alias: r.alias, track: r.track, category: r.category, description: r.description, status: r.status, createdAt: r.createdAt }; }),
       }, { headers: { "Cache-Control": "no-store" } });
     }
     const profile = await store.doc(`racingProfiles/${uid}`).get();
