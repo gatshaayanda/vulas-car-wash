@@ -187,7 +187,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     const previousOverflow = document.body.style.overflow;
     if (isEmbeddedGate) document.body.style.overflow = "hidden";
     if (installState === "embedded") embeddedActionRef.current?.focus();
-    else document.querySelector<HTMLButtonElement>(".plugInstallPrimary")?.focus();
+    else document.querySelector<HTMLButtonElement>(".vulaInstallPrimary")?.focus();
 
     const keepDialogFocused = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -272,7 +272,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
   const embeddedInstallStyle: CSSProperties = { position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(0,0,0,.82)", backdropFilter: "blur(4px)", overscrollBehavior: "contain" };
   const installCard = installState === "native" ? (
     <div style={installShellStyle} role="presentation">
-      <section className="plugInstallModal" role="dialog" aria-modal="false" aria-labelledby="vula-install-title" aria-describedby="vula-install-message">
+      <section className="vulaInstallModal" role="dialog" aria-modal="false" aria-labelledby="vula-install-title" aria-describedby="vula-install-message">
         <div className="plugInstallTop"><span className="plugInstallMark">13</span><span className="plugInstallTag">ITERATION 13 · SERVICE STUDIO</span><button type="button" className="plugInstallClose" aria-label="Close install prompt" onClick={dismissInstall}>×</button></div>
         <div className="plugInstallKicker">YOUR SERVICE STUDIO APP</div>
         <h2 id="vula-install-title">Vula's Car Wash.<br/><em>One tap away.</em></h2>
@@ -295,12 +295,12 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
                 <p>In Chrome or Edge, open the browser menu and choose <b>Install Vula's Car Wash</b> or <b>Install page as app</b>, if offered.</p>
               </>
             )}
-            <button type="button" className="plugInstallPrimary" onClick={dismissInstall}>Got it</button>
+            <button type="button" className="vulaInstallPrimary" onClick={dismissInstall}>Got it</button>
           </div>
         ) : (
           <>
-            <div className="plugInstallModalBenefits"><span><b>01</b><strong>Quick access</strong><small>Open Vula's Car Wash from your home screen.</small></span><span><b>02</b><strong>Your requests</strong><small>Return to your demo requests and account view.</small></span><span><b>03</b><strong>Private by account</strong><small>Keep your demo requests on this device.</small></span></div>
-            <button type="button" className="plugInstallPrimary" onClick={() => void install()}>Install Vula's Car Wash →</button>
+            <div className="vulaInstallModalBenefits"><span><b>01</b><strong>Quick access</strong><small>Open Vula's Car Wash from your home screen.</small></span><span><b>02</b><strong>Your requests</strong><small>Return to your demo requests and account view.</small></span><span><b>03</b><strong>Private by account</strong><small>Keep your demo requests on this device.</small></span></div>
+            <button type="button" className="vulaInstallPrimary" onClick={() => void install()}>Install Vula's Car Wash →</button>
             <button type="button" className="plugInstallSecondary" onClick={dismissInstall}>Not now</button>
           </>
         )}
