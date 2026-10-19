@@ -1,7 +1,9 @@
 /* eslint-disable react/no-unescaped-entities, @next/next/no-html-link-for-pages */
 "use client";
 
-import { useEffect, useState } from "react";\nimport { getDownloadURL, ref, uploadBytes } from "firebase/storage";\nimport { storage } from "@/lib/firebase/client";
+import { useEffect, useState } from "react";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { storage } from "@/lib/firebase/client";
 import { saveGalleryItem, saveLoyaltyBalance, saveService, saveSettings, setBookingStatus, subscribeBookings, subscribeFleet, subscribeGallery, subscribeQueue, subscribeServices, subscribeSettings, updateOperationalRecord, type VulaBooking, type VulaFleetRequest, type VulaGalleryItem, type VulaQueueEntry, type VulaService } from "@/lib/firebase/vula-data";
 import "@/app/vula.css";
 
