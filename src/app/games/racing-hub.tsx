@@ -163,7 +163,6 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
           steeringStartAngle.current = null; setWheelRotation(0); setBoostActive(false); signalRef.current = null; setActiveSignal(null);
           setElapsed(0); setDistance(0); setSpeed(105); setHits(value => value + 1); setCountdownValue(3); setCountdownReason("collision");
           phaseRef.current = "countdown"; setPhase("countdown");
-          setCountdownReason("collision");
         }
         if (race.distance >= finishDistance) { race.distance = finishDistance; controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false); steeringStartAngle.current = null; setWheelRotation(0); phaseRef.current = "finished"; setPhase("finished"); }
         setElapsed(race.elapsed); setDistance(race.distance); setSpeed(race.speed);
