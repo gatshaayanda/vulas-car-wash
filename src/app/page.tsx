@@ -40,7 +40,7 @@ export default function Home() {
   const [availabilityNote, setAvailabilityNote] = useState("");
   const [availabilityRetry, setAvailabilityRetry] = useState(0);
   const [receipt, setReceipt] = useState<{ id: string; customerName: string; vehicleType: string; serviceNames: string[]; total?: number; scheduledFor?: string } | null>(null);
-  const [tab, setTab] = useState<"book" | "queue" | "fleet">("book");
+  const [tab, setTab] = useState<"book" | "queue">("book");
   const [connectionError, setConnectionError] = useState("");
   const [myBookings, setMyBookings] = useState<VulaBooking[]>([]);
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
