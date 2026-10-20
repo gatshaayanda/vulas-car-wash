@@ -9,9 +9,9 @@ import { showVulaToast } from "@/lib/vula-toast";
 type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
 type RacingHubProps = { embedded?: boolean };
 type TrafficCar = { lane: number; y: number; color: string; hit: boolean; pace?: number; targetLane?: number; switchIn?: number; name?: string };
-type RaceState = { lane: number; targetLane: number; distance: number; elapsed: number; speed: number; traffic: TrafficCar[]; opponents: TrafficCar[]; spawn: number; stripeOffset: number; hits: number; last: number };
+type RaceState = { lane: number; targetLane: number; distance: number; elapsed: number; speed: number; traffic: TrafficCar[]; opponents: TrafficCar[]; spawn: number; stripeOffset: number; last: number };
 
-const newRace = (): RaceState => ({ lane: 1, targetLane: 1, distance: 0, elapsed: 0, speed: 105, traffic: [], opponents: [], spawn: 999, stripeOffset: 0, hits: 0, last: 0 });
+const newRace = (): RaceState => ({ lane: 1, targetLane: 1, distance: 0, elapsed: 0, speed: 105, traffic: [], opponents: [], spawn: 999, stripeOffset: 0, last: 0 });
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const finishDistance = 500;
 const roadObjects = [
@@ -165,7 +165,7 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
           showVulaToast("Marker hit — restarting from the beginning. Steer a little earlier next time.", "error");
         }
         if (race.distance >= finishDistance) { race.distance = finishDistance; showVulaToast("Warm-up complete — nice driving!", "success"); controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false); steeringStartAngle.current = null; setWheelRotation(0); phaseRef.current = "finished"; setPhase("finished"); }
-        setElapsed(race.elapsed); setDistance(race.distance); setSpeed(race.speed); setHits(race.hits);
+        setElapsed(race.elapsed); setDistance(race.distance); setSpeed(race.speed);
       }
       context.clearRect(0, 0, width, height); context.fillStyle = "#8aa96e"; context.fillRect(0, 0, width, height); context.fillStyle = "#76965e";
       for (let y = -40; y < height + 40; y += 72) { const offset = currentPhase === "running" ? race.stripeOffset : 0; context.fillRect(width * .035, y + offset, width * .045, 26); context.fillRect(width * .92, y + offset, width * .045, 26); }
