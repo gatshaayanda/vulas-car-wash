@@ -1404,3 +1404,16 @@ button.plugProductAction{width:100%;align-items:center;background:transparent;bo
     width: auto;
   }
 }
+
+
+/* Shared, accessible feedback surface for customer, public and game journeys. */
+.vula-toast-stack{position:fixed;z-index:10000;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));display:grid;gap:9px;width:min(390px,calc(100vw - 24px));pointer-events:none}
+.vula-toast{display:grid;grid-template-columns:30px minmax(0,1fr) 28px;align-items:start;gap:10px;padding:13px 12px;border:1px solid #d6dfd1;border-radius:13px;background:#fff;color:#172820;box-shadow:0 12px 34px #17282020;pointer-events:auto;animation:vula-toast-in .18s ease-out}
+.vula-toast-mark{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#edf4e4;color:#36542a;font-weight:900}
+.vula-toast.success .vula-toast-mark{background:#e2f6ce;color:#275b25}
+.vula-toast.error .vula-toast-mark{background:#fde5df;color:#9e3428}
+.vula-toast.pending .vula-toast-mark{background:#fff1cb;color:#78500c}
+.vula-toast>div{min-width:0}.vula-toast strong{display:block;font-size:12px;line-height:1.4}.vula-toast p{margin:3px 0 0;font-size:12px;line-height:1.45;color:#526052;overflow-wrap:anywhere}
+.vula-toast>button{border:0;background:transparent;color:#637062;font-size:21px;line-height:1;cursor:pointer;min-height:28px}
+@keyframes vula-toast-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.vula-toast{animation:none}}
