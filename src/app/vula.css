@@ -460,3 +460,43 @@ margin:3px 12px 0;font-size:.7rem
 }
 
 }
+
+
+/* Appointment time picker — keep the date field compact and open slots in a focused dialog. */
+.vula .time-selection-summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.vula .time-selection-summary>div{display:grid;gap:4px;min-width:0}
+.vula .time-selection-summary strong{font-size:16px}
+.vula .time-selection-summary small{font-size:12px;color:var(--muted)}
+.vula-time-picker-backdrop{position:fixed;inset:0;z-index:1500;display:flex;align-items:flex-end;justify-content:center;padding:16px;background:rgba(14,24,20,.55);backdrop-filter:blur(4px);overscroll-behavior:contain}
+.vula-time-picker-dialog{width:min(620px,100%);max-height:min(82vh,760px);overflow:auto;overscroll-behavior:contain;background:var(--paper);border:1px solid #d5ddd1;border-radius:18px;padding:clamp(18px,4vw,28px);box-shadow:0 24px 80px rgba(0,0,0,.25);outline:none;animation:vulaTimePickerRise .18s ease-out}
+.vula-time-picker-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px}
+.vula-time-picker-heading h3{font:600 clamp(1.55rem,4vw,2rem) "Space Grotesk",Arial,sans-serif;letter-spacing:-.045em;margin:7px 0}
+.vula-time-picker-heading p{font-size:.88rem;line-height:1.5;color:var(--muted);margin:0}
+.vula-time-picker-close{width:42px;height:42px;flex:0 0 auto;border:1px solid var(--line);border-radius:50%;background:#fff;color:var(--ink);font-size:1.55rem;cursor:pointer}
+.vula-slot-hour-groups{display:grid;gap:20px}
+.vula-slot-hour-group{display:grid;gap:9px}
+.vula-slot-hour-group h4{margin:0;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:800}
+.vula-slot-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.vula-slot-button{min-height:46px;border:1px solid #cbd5c9;border-radius:6px;background:#fff;color:var(--ink);font-size:.9rem;font-weight:700;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.vula-slot-button:hover,.vula-slot-button.selected{background:var(--ink);border-color:var(--ink);color:#fff}
+.vula-slot-button:focus-visible,.vula-time-picker-close:focus-visible{outline:3px solid #91b947;outline-offset:2px}
+.vula-time-picker-dialog>.slot-hint{margin:18px 0 0}
+@keyframes vulaTimePickerRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Post-booking confirmation follows the calm account hand-off used by the reference app. */
+.wash-confirmation{width:min(700px,100%);margin:0 auto;padding:clamp(22px,4vw,38px);background:#fff;border:1px solid var(--line);border-radius:12px}
+.wash-confirmation>.vula-eyebrow{text-align:center;margin-bottom:12px}
+.wash-confirmation-mark{width:52px;height:52px;display:grid;place-items:center;margin:0 auto 15px;border-radius:50%;background:var(--green);font-size:25px;font-weight:800}
+.wash-confirmation h3{margin:0;text-align:center;font:600 clamp(1.8rem,4vw,2.5rem)/1.1 "Space Grotesk",Arial,sans-serif;letter-spacing:-.055em}
+.wash-confirmation-intro{max-width:46ch;margin:12px auto 22px;text-align:center;color:var(--muted);font-size:.94rem;line-height:1.65}
+.wash-confirmation-reference{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 15px;border:1px solid var(--line);background:#f8faf5;border-radius:7px}
+.wash-confirmation-reference span{font-size:.8rem;color:var(--muted)}
+.wash-confirmation-reference strong{font:700 1rem "Space Grotesk",Arial,sans-serif;letter-spacing:.05em}
+.wash-confirmation dl{margin:14px 0 20px}
+.wash-confirmation dl>div{display:grid;grid-template-columns:140px minmax(0,1fr);gap:12px;padding:11px 0;border-bottom:1px solid #edf0e9}
+.wash-confirmation dt{font-size:.82rem;color:var(--muted)}
+.wash-confirmation dd{margin:0;font-size:.9rem;font-weight:700;overflow-wrap:anywhere}
+.wash-confirmation-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:9px}
+.wash-confirmation-note{margin:17px 0 0;text-align:center;font-size:.76rem;color:var(--muted);line-height:1.55}
+@media(max-width:560px){.vula-time-picker-backdrop{padding:0}.vula-time-picker-dialog{width:100%;max-height:88dvh;border-radius:18px 18px 0 0;padding:22px 16px calc(20px + env(safe-area-inset-bottom))}.vula-slot-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.vula .time-selection-summary .vula-button{padding:11px 13px;white-space:nowrap}.wash-confirmation{padding:22px 16px}.wash-confirmation dl>div{grid-template-columns:105px minmax(0,1fr);gap:8px}.wash-confirmation-actions{display:grid}.wash-confirmation-actions .vula-button{width:100%}}
+@media(prefers-reduced-motion:reduce){.vula-time-picker-dialog{animation:none}}
