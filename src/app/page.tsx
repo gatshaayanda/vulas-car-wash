@@ -79,10 +79,10 @@ export default function Home() {
     try {
       await linkWithPopup(user, new GoogleAuthProvider());
       setIsGuest(false);
-      setLinkNotice("Your guest session is now linked to Google. Your Vula customer ID and loyalty balance stay with this account on supported devices.");
+      setLinkNotice("Your Vula booking history is now linked to this Google account.");
     } catch (error) {
       const code = typeof error === "object" && error !== null && "code" in error ? String((error as {code?:unknown}).code) : "";
-      setLinkNotice(code === "auth/credential-already-in-use" ? "That Google account is already linked to another Firebase account. Staff will need to help reconcile existing loyalty records." : error instanceof Error ? error.message : "We could not link this session. Try again while online.");
+      setLinkNotice(code === "auth/credential-already-in-use" ? "That Google account is already linked to another Vula account. The two booking histories have not been merged." : error instanceof Error ? error.message : "We could not link this session. Try again while online.");
     }
   }
 
