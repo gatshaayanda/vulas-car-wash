@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./racing.css";
 
 type Phase = "ready" | "running" | "paused" | "finished";
@@ -24,21 +24,21 @@ export default function RacingHub() {
   const [, setLane] = useState(1);
   phaseRef.current = phase;
 
-  function moveLane(direction: number) {
+  const moveLane = useCallback((direction: number) => {
     const next = clamp(raceRef.current.lane + direction, 0, 2);
     raceRef.current.lane = next;
     setLane(next);
-  }
+  }, []);
   function startRace() {
     if (phaseRef.current === "finished") { raceRef.current = newRace(); setElapsed(0); setDistance(0); setSpeed(105); setHits(0); setLane(1); }
     raceRef.current.last = 0;
     phaseRef.current = "running";
     setPhase("running");
   }
-  function pauseRace() {
+  const pauseRace = useCallback(() => {
     if (phaseRef.current === "running") { phaseRef.current = "paused"; setPhase("paused"); }
     else if (phaseRef.current === "paused") { raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running"); }
-  }
+  }, []);
   function restartRace() {
     raceRef.current = newRace(); setElapsed(0); setDistance(0); setSpeed(105); setHits(0); setLane(1);
     phaseRef.current = "running"; setPhase("running");
@@ -96,7 +96,7 @@ export default function RacingHub() {
       if ((event.key.toLowerCase() === "p" || event.key === "Escape") && !event.repeat) pauseRace();
     };
     window.addEventListener("keydown", keyDown); return () => window.removeEventListener("keydown", keyDown);
-  }, []);
+  }, [moveLane, pauseRace]);
 
   return <main className="vula race-hub">
     <div className="vula-status"><span className="status-dot online" />Vula Racing · 2D warm-up · local test only</div>
