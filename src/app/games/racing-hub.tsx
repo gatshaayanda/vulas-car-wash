@@ -159,7 +159,7 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
           raceRef.current = newRace();
           raceRef.current.last = now;
           controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false;
-          steeringStartAngle.current = null; setWheelRotation(0); setBoostActive(false);
+          steeringStartAngle.current = null; setWheelRotation(0); setBoostActive(false); signalRef.current = null; setActiveSignal(null);
           setElapsed(0); setDistance(0); setSpeed(105); setHits(value => value + 1); setCountdownValue(3);
           phaseRef.current = "countdown"; setPhase("countdown");
           showVulaToast("Marker hit — restarting from the beginning. Steer a little earlier next time.", "error");
