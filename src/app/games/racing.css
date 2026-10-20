@@ -49,3 +49,5 @@
 .warmup-steering .warmup-signals button.signal-active{background:#fff0c8;border-color:#e3a82e;color:#79500a;box-shadow:inset 0 0 0 1px #e3a82e}
 .warmup-signals button:focus-visible{outline:3px solid #709f34;outline-offset:2px}
 @media(max-width:640px){.warmup-signals{gap:4px}.warmup-steering .warmup-signals button{flex:1;padding:5px 3px;font-size:9px}}
+
+.warmup-steering .warmup-signals button:disabled{opacity:.45;cursor:not-allowed}
