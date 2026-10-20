@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./racing.css";
 import { subscribeSettings } from "@/lib/firebase/vula-data";
-import { showVulaToast } from "@/lib/vula-toast";
 
 type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
+type CountdownReason = "start" | "restart" | "collision";
 type RacingHubProps = { embedded?: boolean };
 type TrafficCar = { lane: number; y: number; color: string; hit: boolean; pace?: number; targetLane?: number; switchIn?: number; name?: string };
 type RaceState = { lane: number; targetLane: number; distance: number; elapsed: number; speed: number; traffic: TrafficCar[]; opponents: TrafficCar[]; spawn: number; stripeOffset: number; last: number };
@@ -27,6 +27,7 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
   const phaseRef = useRef<Phase>("ready");
   const [phase, setPhase] = useState<Phase>("ready");
   const [countdownValue, setCountdownValue] = useState(3);
+  const [countdownReason, setCountdownReason] = useState<CountdownReason>("start");
   const [elapsed, setElapsed] = useState(0);
   const [distance, setDistance] = useState(0);
   const [speed, setSpeed] = useState(105);
@@ -75,7 +76,7 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
     const next = signalRef.current === signal ? null : signal;
     signalRef.current = next;
     setActiveSignal(next);
-    if (next) showVulaToast((next === "left" ? "Left" : "Right") + " indicator on.", "info");
+    
   }
 
   function startRace() {
@@ -85,7 +86,7 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
     setCountdownValue(3);
     phaseRef.current = "countdown";
     setPhase("countdown");
-    showVulaToast("Get ready — your 500 m warm-up starts in 3.", "info");
+    setCountdownReason("start");
   }
   useEffect(() => {
     if (phase !== "countdown") return;
@@ -94,7 +95,7 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
         setCountdownValue(0);
         phaseRef.current = "running";
         setPhase("running");
-        showVulaToast("Go! Steer around the road markers and use NOS when you need a burst.", "success");
+        
       } else {
         setCountdownValue(value => value - 1);
       }
@@ -111,8 +112,8 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
   }, []);
   function restartRace() {
     raceRef.current = newRace(); setElapsed(0); setDistance(0); setSpeed(105); setHits(0); stopSteering(); signalRef.current = null; setActiveSignal(null); controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false;
-    setCountdownValue(3); phaseRef.current = "countdown"; setPhase("countdown");
-    showVulaToast("Race reset. Get ready to try again.", "info");
+    setCountdownValue(3); setCountdownReason("restart"); phaseRef.current = "countdown"; setPhase("countdown");
+    
   }
 
   useEffect(() => {
@@ -160,11 +161,11 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
           raceRef.current.last = now;
           controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false;
           steeringStartAngle.current = null; setWheelRotation(0); setBoostActive(false); signalRef.current = null; setActiveSignal(null);
-          setElapsed(0); setDistance(0); setSpeed(105); setHits(value => value + 1); setCountdownValue(3);
+          setElapsed(0); setDistance(0); setSpeed(105); setHits(value => value + 1); setCountdownValue(3); setCountdownReason("collision");
           phaseRef.current = "countdown"; setPhase("countdown");
-          showVulaToast("Marker hit — restarting from the beginning. Steer a little earlier next time.", "error");
+          setCountdownReason("collision");
         }
-        if (race.distance >= finishDistance) { race.distance = finishDistance; showVulaToast("Warm-up complete — nice driving!", "success"); controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false); steeringStartAngle.current = null; setWheelRotation(0); phaseRef.current = "finished"; setPhase("finished"); }
+        if (race.distance >= finishDistance) { race.distance = finishDistance; controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false); steeringStartAngle.current = null; setWheelRotation(0); phaseRef.current = "finished"; setPhase("finished"); }
         setElapsed(race.elapsed); setDistance(race.distance); setSpeed(race.speed);
       }
       context.clearRect(0, 0, width, height); context.fillStyle = "#8aa96e"; context.fillRect(0, 0, width, height); context.fillStyle = "#76965e";
@@ -227,7 +228,7 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
     <section className="vula-section warmup-game">
       <div className="warmup-hud" aria-live="polite"><div><span>Distance</span><strong>{Math.round(distance)} <small>/ {finishDistance} m</small></strong></div><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Time</span><strong>{elapsed.toFixed(1)} <small>s</small></strong></div><div><span>Markers hit</span><strong>{hits}</strong></div></div>
       <div className="warmup-canvas-wrap"><canvas ref={canvasRef} aria-label="Top-down 2D road racing warm-up. Drag the virtual steering wheel on mobile or hold the left and right keys on desktop." role="img" />
-        {phase !== "running" && <div className="warmup-overlay"><span>{phase === "ready" ? "READY ON THE GRID" : phase === "countdown" ? "GET READY" : phase === "paused" ? "RACE PAUSED" : "FINISH LINE"}</span><strong>{phase === "ready" ? "Start when you are." : phase === "countdown" ? String(countdownValue || 1) : phase === "paused" ? "Take your time." : "Warm-up complete."}</strong><p>{phase === "ready" ? "Drag the steering wheel to turn, or hold ← / → on desktop." : phase === "countdown" ? "Take your position. The road is clear ahead." : phase === "paused" ? "Your timer is stopped." : "You finished in " + elapsed.toFixed(1) + " seconds."}</p></div>}
+        {phase !== "running" && <div className="warmup-overlay"><span>{phase === "ready" ? "READY ON THE GRID" : phase === "countdown" ? (countdownReason === "collision" ? "MARKER HIT · RESET" : countdownReason === "restart" ? "RACE RESET" : "GET READY") : phase === "paused" ? "RACE PAUSED" : "FINISH LINE"}</span><strong>{phase === "ready" ? "Start when you are." : phase === "countdown" ? String(countdownValue || 1) : phase === "paused" ? "Take your time." : "Warm-up complete."}</strong><p>{phase === "ready" ? "Drag the steering wheel to turn, or hold ← / → on desktop." : phase === "countdown" ? (countdownReason === "collision" ? "Back to the start. Steer a little earlier next time." : "Take your position. The road is clear ahead.") : phase === "paused" ? "Your timer is stopped." : "You finished in " + elapsed.toFixed(1) + " seconds."}</p></div>}
       </div>
       <div className="warmup-controls"><div className="warmup-steering"><button ref={wheelRef} type="button" className="warmup-wheel" aria-label="Virtual steering wheel. Drag around the wheel to steer." aria-describedby="steering-help" disabled={phase !== "running"} style={{ transform: `rotate(${wheelRotation}deg)` }} onPointerDown={startSteering} onPointerMove={steerWheel} onPointerUp={stopSteering} onPointerCancel={stopSteering} onLostPointerCapture={stopSteering}><span className="wheel-ring"><span className="wheel-spoke vertical"/><span className="wheel-spoke horizontal"/><span className="wheel-hub"/></span><span className="wheel-caption">STEER</span></button><span id="steering-help" className="steering-caption">Drag the wheel left or right</span><div className="warmup-signals" aria-label="Turn indicators"><button type="button" aria-label="Toggle left indicator" disabled={phase !== "running"} aria-pressed={activeSignal === "left"} className={activeSignal === "left" ? "signal-active" : ""} onClick={() => toggleSignal("left")}>← Signal</button><button type="button" aria-label="Toggle right indicator" disabled={phase !== "running"} aria-pressed={activeSignal === "right"} className={activeSignal === "right" ? "signal-active" : ""} onClick={() => toggleSignal("right")}>Signal →</button></div></div><div className="warmup-driving"><button type="button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.accelerate = true; }} onPointerUp={() => { controlsRef.current.accelerate = false; }} onPointerLeave={() => { controlsRef.current.accelerate = false; }} onPointerCancel={() => { controlsRef.current.accelerate = false; }}>Accelerate ↑</button><button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.brake = true; }} onPointerUp={() => { controlsRef.current.brake = false; }} onPointerLeave={() => { controlsRef.current.brake = false; }} onPointerCancel={() => { controlsRef.current.brake = false; }}>Brake ↓</button><button type="button" className="nos-button" aria-label="NOS boost" disabled={phase !== "running"} aria-pressed={boostActive} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.boost = true; setBoostActive(true); }} onPointerUp={() => { controlsRef.current.boost = false; setBoostActive(false); }} onPointerLeave={() => { controlsRef.current.boost = false; setBoostActive(false); }} onPointerCancel={() => { controlsRef.current.boost = false; setBoostActive(false); }}>NOS ⚡</button></div><div className="warmup-actions">{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start race ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Starting {countdownValue || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause race Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume race ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Run again ↗</button>}<button type="button" className="vula-button secondary" onClick={restartRace}>Restart race ↻</button></div></div>
       <p className="warmup-help">Steer: drag the wheel on phones, or hold ← / → or A / D on desktop · Accelerate: ↑ / W · Brake: ↓ / S · NOS: hold the boost button or Shift · Indicators: ← Signal / Signal → · Pause: P / Esc.</p>
