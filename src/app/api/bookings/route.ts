@@ -95,9 +95,8 @@ export async function POST(request: Request) {
       const startMinutes = minutes(time);
       if (startMinutes < minutes(open) || startMinutes + interval > minutes(close) || (startMinutes - minutes(open)) % interval !== 0) throw new Error("Choose a time within operating hours from the live calendar.");
       const serviceSnapshots = await Promise.all(serviceRefs.map(ref => transaction.get(ref)));
-      let services: Array<{ id: string; name: string; category: string; price: number | null; durationMinutes: number }>;
       const starterById = new Map(vulaServiceSeed.map(item => [item.id, item]));
-      services = serviceSnapshots.map((snapshot, index) => {
+      const services: Array<{ id: string; name: string; category: string; price: number | null; durationMinutes: number }> = serviceSnapshots.map((snapshot, index) => {
         if (snapshot.exists) {
           const data = snapshot.data()!;
           if (data.active !== true) throw new Error("A selected service is no longer published. Refresh the menu and try again.");

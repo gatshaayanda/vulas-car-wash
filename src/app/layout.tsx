@@ -3,6 +3,7 @@ import {headers} from "next/headers";
 import {Analytics} from "@vercel/analytics/next";
 import {SpeedInsights} from "@vercel/speed-insights/next";
 import PwaRegister from "@/app/pwa-register";
+import ToastHost from "@/app/ToastHost";
 import Script from "next/script";
 import { getPublicBusinessName } from "@/lib/server/vula-public-settings";
 import "./globals.css"; import "./pwa.css"; import "./vula.css";
@@ -45,5 +46,5 @@ export default async function RootLayout({children}:{children:React.ReactNode}){
     window.__vulaInstallPrompt = event;
   });
 })();
-`}</Script><PwaRegister initialEmbedded={embedded} initialAndroid={android}/>{children}<Analytics/><SpeedInsights/></body></html>
+`}</Script><PwaRegister initialEmbedded={embedded} initialAndroid={android}/>{children}<ToastHost/><Analytics/><SpeedInsights/></body></html>
 }
