@@ -56,7 +56,7 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
     }, () => {});
     return stop;
   }, []);
-  useEffect(() => { document.title = businessName + " · Racing warm-up"; }, [businessName]);
+  useEffect(() => { if (!embedded) document.title = businessName + " · Racing warm-up"; }, [businessName, embedded]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

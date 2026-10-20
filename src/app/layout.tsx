@@ -10,7 +10,7 @@ const siteUrl=process.env.NEXT_PUBLIC_BASE_URL||"http://localhost:3000";
 const FALLBACK_BUSINESS_NAME = "Vula's Car Wash";
 const EMBEDDED_BROWSER_PATTERN=/WhatsApp|Instagram|FBAN|FBAV|Messenger|Line[/]|Twitter|TikTok|Snapchat/i;
 export async function generateMetadata(): Promise<Metadata> {
- const businessName = await getPublicBusinessName();
+ const businessName = (await getPublicBusinessName()) || FALLBACK_BUSINESS_NAME;
  return {
   metadataBase: new URL(siteUrl),
   title: { default: businessName, template: "%s | " + businessName },
