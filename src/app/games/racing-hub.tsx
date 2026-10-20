@@ -7,10 +7,10 @@ import { subscribeSettings } from "@/lib/firebase/vula-data";
 
 type Phase = "ready" | "running" | "paused" | "finished";
 type RacingHubProps = { embedded?: boolean };
-type TrafficCar = { lane: number; y: number; color: string; hit: boolean };
-type RaceState = { lane: number; targetLane: number; distance: number; elapsed: number; speed: number; traffic: TrafficCar[]; spawn: number; stripeOffset: number; hits: number; last: number };
+type TrafficCar = { lane: number; y: number; color: string; hit: boolean; pace?: number; targetLane?: number; switchIn?: number; name?: string };
+type RaceState = { lane: number; targetLane: number; distance: number; elapsed: number; speed: number; traffic: TrafficCar[]; opponents: TrafficCar[]; spawn: number; stripeOffset: number; hits: number; last: number };
 
-const newRace = (): RaceState => ({ lane: 1, targetLane: 1, distance: 0, elapsed: 0, speed: 105, traffic: [], spawn: 0.6, stripeOffset: 0, hits: 0, last: 0 });
+const newRace = (): RaceState => ({ lane: 1, targetLane: 1, distance: 0, elapsed: 0, speed: 105, traffic: [], opponents: [{ lane: 0, targetLane: 0, y: 90, color: "#df795c", hit: false, pace: 112, switchIn: 1.8, name: "SPRINT" }, { lane: 2, targetLane: 2, y: 205, color: "#6392c7", hit: false, pace: 99, switchIn: 3.6, name: "STEADY" }], spawn: 0.6, stripeOffset: 0, hits: 0, last: 0 });
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const finishDistance = 500;
 
@@ -89,6 +89,23 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
         const roadLeft = width * .15; const roadWidth = width * .7; const laneWidth = roadWidth / 3; const carWidth = Math.min(40, width * .09); const playerY = height - 100;
         for (const car of race.traffic) { car.y += race.speed * dt * 1.2; if (!car.hit && car.lane === Math.round(race.lane) && car.y + carWidth * 1.6 > playerY && car.y < playerY + carWidth * 1.6) { car.hit = true; race.hits += 1; race.speed = Math.max(65, race.speed - 22); } }
         race.traffic = race.traffic.filter(car => car.y < height + 80);
+        for (const opponent of race.opponents) {
+          opponent.switchIn = (opponent.switchIn ?? 2) - dt;
+          if (opponent.switchIn <= 0) {
+            const currentLane = Math.round(opponent.lane);
+            opponent.targetLane = opponent.name === "SPRINT"
+              ? Math.floor(Math.random() * 3)
+              : clamp(currentLane + (Math.random() > 0.5 ? 1 : -1), 0, 2);
+            opponent.switchIn = opponent.name === "SPRINT" ? 1.5 + Math.random() * 1.2 : 3 + Math.random() * 2;
+          }
+          opponent.lane += ((opponent.targetLane ?? opponent.lane) - opponent.lane) * Math.min(1, dt * (opponent.name === "SPRINT" ? 5.5 : 2.4));
+          opponent.y += (race.speed - (opponent.pace ?? 105)) * dt * 1.7;
+          if (opponent.y > height + 70) { opponent.y = -100; opponent.lane = Math.floor(Math.random() * 3); opponent.targetLane = opponent.lane; }
+          if (opponent.y < -100) { opponent.y = height + 60; opponent.lane = Math.floor(Math.random() * 3); opponent.targetLane = opponent.lane; }
+          if (!opponent.hit && Math.round(opponent.lane) === Math.round(race.lane) && opponent.y + carWidth * 1.6 > playerY && opponent.y < playerY + carWidth * 1.6) {
+            opponent.hit = true; race.hits += 1; race.speed = Math.max(65, race.speed - 18); opponent.y = -120;
+          } else if (opponent.hit && opponent.y < -100) opponent.hit = false;
+        }
         if (race.distance >= finishDistance) { race.distance = finishDistance; phaseRef.current = "finished"; setPhase("finished"); }
         setElapsed(race.elapsed); setDistance(race.distance); setSpeed(race.speed); setHits(race.hits);
       }
@@ -97,6 +114,7 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
       const roadLeft = width * .15; const roadWidth = width * .7; context.fillStyle = "#3c4544"; context.fillRect(roadLeft, 0, roadWidth, height); context.fillStyle = "#f5f0d9"; context.fillRect(roadLeft, 0, 4, height); context.fillRect(roadLeft + roadWidth - 4, 0, 4, height);
       context.fillStyle = "#d4d5c6"; for (let laneIndex = 1; laneIndex < 3; laneIndex++) { const x = roadLeft + roadWidth * laneIndex / 3; for (let y = -72 + race.stripeOffset; y < height; y += 72) context.fillRect(x - 2, y, 4, 36); }
       for (const car of race.traffic) { const laneWidth = roadWidth / 3; const carWidth = Math.min(40, width * .09); drawCar(roadLeft + laneWidth * (car.lane + .5) - carWidth / 2, car.y, car.hit ? "#6d7774" : car.color); }
+      for (const opponent of race.opponents) { const laneWidth = roadWidth / 3; const carWidth = Math.min(40, width * .09); drawCar(roadLeft + laneWidth * (opponent.lane + .5) - carWidth / 2, opponent.y, opponent.hit ? "#6d7774" : opponent.color, opponent.name || "AI"); }
       const playerWidth = Math.min(40, width * .09); drawCar(roadLeft + roadWidth / 3 * (race.lane + .5) - playerWidth / 2, height - 100, "#a7d84d", "YOU");
       frame = window.requestAnimationFrame(draw);
     };
