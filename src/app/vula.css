@@ -500,3 +500,40 @@ margin:3px 12px 0;font-size:.7rem
 .wash-confirmation-note{margin:17px 0 0;text-align:center;font-size:.76rem;color:var(--muted);line-height:1.55}
 @media(max-width:560px){.vula-time-picker-backdrop{padding:0}.vula-time-picker-dialog{width:100%;max-height:88dvh;border-radius:18px 18px 0 0;padding:22px 16px calc(20px + env(safe-area-inset-bottom))}.vula-slot-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.vula .time-selection-summary .vula-button{padding:11px 13px;white-space:nowrap}.wash-confirmation{padding:22px 16px}.wash-confirmation dl>div{grid-template-columns:105px minmax(0,1fr);gap:8px}.wash-confirmation-actions{display:grid}.wash-confirmation-actions .vula-button{width:100%}}
 @media(prefers-reduced-motion:reduce){.vula-time-picker-dialog{animation:none}}
+
+
+/* Vula customer account: booking history and optional guest-account linking. */
+.vula-account{min-height:100vh}
+.vula-account-hero{max-width:1184px;margin:0 auto;padding:clamp(45px,7vw,88px) 28px 42px}
+.vula-account-hero h1{font:600 clamp(2.8rem,6vw,5.2rem)/.98 "Space Grotesk",Arial,sans-serif;letter-spacing:-.075em;margin:0 0 20px}
+.vula-account-hero h1 em{font-style:normal;color:#6a8b32}
+.vula-account-hero>p:last-child{max-width:520px;color:#59665d;line-height:1.7}
+.vula-account-content{max-width:1184px;margin:0 auto;padding:0 28px 72px}
+.vula-account-content>.vula-notice{margin-bottom:18px}
+.vula-account-link-card{display:flex;align-items:center;justify-content:space-between;gap:22px;padding:20px 22px;background:#fff;border:1px solid var(--line);border-radius:9px;margin-bottom:36px}
+.vula-account-link-card strong{font-size:1rem}
+.vula-account-link-card p{margin:6px 0 0;max-width:65ch;color:var(--muted);font-size:.88rem;line-height:1.6}
+.vula-account-connected{padding:13px 15px;background:#edf4e5;border:1px solid #d8e5ca;border-radius:7px;color:#38542c;font-size:.85rem;margin:0 0 28px}
+.vula-account-list-heading{display:flex;align-items:end;justify-content:space-between;gap:18px;margin:32px 0 17px}
+.vula-account-list-heading .vula-eyebrow{margin-bottom:7px}
+.vula-account-list-heading h2{font:600 clamp(1.65rem,3.2vw,2.4rem)/1.1 "Space Grotesk",Arial,sans-serif;letter-spacing:-.05em;margin:0}
+.vula-account-list-heading>span{color:var(--muted);font-size:.82rem;padding-bottom:4px}
+.vula-account-bookings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.vula-account-booking,.vula-account-empty{min-width:0;padding:22px;background:#fff;border:1px solid var(--line);border-radius:9px}
+.vula-account-booking-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:13px;border-bottom:1px solid #edf0e9}
+.vula-account-booking-top span{font-size:.66rem;font-weight:800;letter-spacing:.08em;color:var(--muted)}
+.vula-account-booking-top b{max-width:50%;padding:5px 8px;background:#edf4e5;border-radius:4px;font-size:.7rem;text-transform:capitalize;overflow-wrap:anywhere}
+.vula-account-booking h3,.vula-account-empty h3{font:600 1.3rem/1.2 "Space Grotesk",Arial,sans-serif;letter-spacing:-.035em;margin:17px 0 12px}
+.vula-account-booking dl{margin:0}
+.vula-account-booking dl>div{display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;padding:9px 0;border-bottom:1px solid #edf0e9}
+.vula-account-booking dt{font-size:.78rem;color:var(--muted)}
+.vula-account-booking dd{margin:0;font-size:.82rem;font-weight:700;overflow-wrap:anywhere}
+.vula-account-booking>p,.vula-account-empty p{font-size:.8rem;line-height:1.6;color:var(--muted);margin:15px 0 0}
+.vula-account-empty{padding:28px}
+.vula-account-empty h2{font:600 1.6rem "Space Grotesk",Arial,sans-serif;letter-spacing:-.04em;margin:0}
+.vula-account-empty .vula-button{margin-top:18px}
+.vula-account-state{padding:24px;background:#fff;border:1px solid var(--line);border-radius:8px;color:var(--muted)}
+.vula-account-footer{display:flex;gap:18px;flex-wrap:wrap;padding:24px 0 0;margin-top:26px;border-top:1px solid var(--line);font-size:.84rem;font-weight:700}
+.vula-account-footer a:hover{text-decoration:underline}
+@media(max-width:760px){.vula-account-hero,.vula-account-content{padding-left:20px;padding-right:20px}.vula-account-bookings{grid-template-columns:1fr}.vula-account-link-card{align-items:stretch;flex-direction:column}.vula-account-link-card .vula-button{width:100%}}
+@media(max-width:480px){.vula-account-hero{padding-top:44px}.vula-account-list-heading{align-items:flex-start}.vula-account-booking,.vula-account-empty{padding:17px}.vula-account-booking dl>div{grid-template-columns:100px minmax(0,1fr);gap:8px}.vula-account-booking-top{align-items:flex-start;flex-direction:column}.vula-account-booking-top b{max-width:100%}}
