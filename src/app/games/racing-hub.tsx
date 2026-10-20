@@ -125,7 +125,7 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
     return () => { window.removeEventListener("keydown", keyDown); window.removeEventListener("keyup", keyUp); controlsRef.current.accelerate = false; controlsRef.current.brake = false; };
   }, [moveLane, pauseRace, embedded, expanded]);
 
-  if (embedded && !expanded) return <div className="race-inline-promo"><div><p className="vula-eyebrow">VULA RACING · QUICK BREAK</p><h2>Got a minute? Take a lap.</h2><p>A quick 500 m drive. Dodge traffic, find your rhythm and get back to your wash booking whenever you're ready.</p></div><button type="button" className="vula-button primary" onClick={() => setExpanded(true)}>Play now ↗</button></div>;
+  if (embedded && !expanded) return <div className="race-inline-promo"><div><p className="vula-eyebrow">VULA RACING · QUICK BREAK</p><h2>Got a minute? Take a lap.</h2><p>A quick 500 m drive. Dodge traffic, find your rhythm and get back to your wash booking whenever you&apos;re ready.</p></div><button type="button" className="vula-button primary" onClick={() => setExpanded(true)}>Play now ↗</button></div>;
   return <div className={"vula race-hub" + (embedded ? " race-hub-embedded" : "")}>
     {!embedded && <><div className="vula-status"><span className="status-dot online" />Vula Racing · 2D warm-up · local test only</div>
     <header className="vula-nav"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Racing warm-up</small></span></Link><nav><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></nav></header>
