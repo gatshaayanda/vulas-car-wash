@@ -19,7 +19,6 @@ const money = (price?: number | null) => typeof price === "number" ? "P" + price
 
 export default function Home() {
   const [services, setServices] = useState<VulaService[]>([]);
-  const [servicesLoaded, setServicesLoaded] = useState(false);
   const [announcements, setAnnouncements] = useState<VulaAnnouncement[]>([]);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [online, setOnline] = useState(true);
@@ -61,7 +60,7 @@ export default function Home() {
     const onOnline = () => { setOnline(true); void syncOfflineRequests(); };
     const onOffline = () => { setOnline(false); setNotice({ kind: "pending", text: "Offline: requests can be saved on this device, but the team cannot see them until they sync." }); };
     const stopAuth = onAuthStateChanged(auth, user => { setUserId(user?.uid ?? ""); setIsGuest(user?.isAnonymous ?? true); });
-    const stops = [subscribeServices(value => { setServices(value); setServicesLoaded(true); }, error => { setConnectionError(error.message); setServicesLoaded(true); }), subscribeAnnouncements(setAnnouncements, () => {}), subscribeSettings(value => setSettings(value ?? {}), () => {})];
+    const stops = [subscribeServices(value => { setServices(value); }, error => { setConnectionError(error.message); }), subscribeAnnouncements(setAnnouncements, () => {}), subscribeSettings(value => setSettings(value ?? {}), () => {})];
     window.addEventListener("online", onOnline); window.addEventListener("offline", onOffline);
     if (navigator.onLine) void syncOfflineRequests();
     return () => { stopAuth(); stops.forEach(stop => stop()); window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
