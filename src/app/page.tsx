@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { GoogleAuthProvider, linkWithPopup, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { collection, doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db, hasFirebaseWebConfig } from "@/lib/firebase/client";
-import { subscribeAnnouncements, subscribeGallery, subscribeServices, subscribeSettings, type VulaAnnouncement, type VulaGalleryItem, type VulaService } from "@/lib/firebase/vula-data";
+import { subscribeAnnouncements, subscribeServices, subscribeSettings, type VulaAnnouncement, type VulaGalleryItem, type VulaService } from "@/lib/firebase/vula-data";
 import { vulaServiceSeed } from "@/lib/vula/service-seed";
 import RacingHub from "./games/racing-hub";
 import "./vula.css";
@@ -18,8 +18,6 @@ const money = (price?: number | null) => typeof price === "number" ? "P" + price
 export default function Home() {
   const [services, setServices] = useState<VulaService[]>([]);
   const [servicesLoaded, setServicesLoaded] = useState(false);
-  const [showAllServices, setShowAllServices] = useState(false);
-  const [gallery, setGallery] = useState<VulaGalleryItem[]>([]);
   const [announcements, setAnnouncements] = useState<VulaAnnouncement[]>([]);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [online, setOnline] = useState(true);
@@ -42,14 +40,9 @@ export default function Home() {
   const [receipt, setReceipt] = useState<{ id: string; customerName: string; vehicleType: string; serviceNames: string[]; total?: number; scheduledFor?: string } | null>(null);
   const [tab, setTab] = useState<"book" | "queue">("book");
   const [connectionError, setConnectionError] = useState("");
-  const mobileCoverage = Array.isArray(settings.mobileCoverage) ? settings.mobileCoverage as string[] : [];
   const businessName = typeof settings.businessName === "string" && settings.businessName.trim() ? settings.businessName : "Vula's Car Wash";
   useEffect(() => { document.title = businessName; }, [businessName]);
   const locationName = typeof settings.locationName === "string" && settings.locationName.trim() ? settings.locationName : "G-West";
-  const configuredAddress = typeof settings.address === "string" && settings.address.trim() ? settings.address : "";
-  const businessAddress = configuredAddress && !configuredAddress.toLowerCase().includes("exact plot") ? configuredAddress : "G-West, Gaborone";
-  const configuredHours = typeof settings.openingHours === "string" && settings.openingHours.trim() ? settings.openingHours : "";
-  const businessHours = configuredHours && !configuredHours.toLowerCase().includes("editable starter") ? configuredHours : "08:00–17:00";
   const seedServices = useMemo<VulaService[]>(() => vulaServiceSeed.map(service => ({ ...service, price: service.price > 0 ? service.price : null, active: true })), []);
   const activeServices = useMemo(() => services.length ? services.filter(s => s.active) : seedServices, [services, seedServices]);
   const selectedServices = useMemo(() => activeServices.filter(service => selectedServiceIds.includes(service.id)), [activeServices, selectedServiceIds]);
@@ -62,7 +55,7 @@ export default function Home() {
     const onOnline = () => { setOnline(true); void syncOfflineRequests(); };
     const onOffline = () => { setOnline(false); setNotice({ kind: "pending", text: "Offline: requests can be saved on this device, but the team cannot see them until they sync." }); };
     const stopAuth = onAuthStateChanged(auth, user => { setUserId(user?.uid ?? ""); setIsGuest(user?.isAnonymous ?? true); });
-    const stops = [subscribeServices(value => { setServices(value); setServicesLoaded(true); }, error => { setConnectionError(error.message); setServicesLoaded(true); }), subscribeGallery(setGallery, () => {}), subscribeAnnouncements(setAnnouncements, () => {}), subscribeSettings(value => setSettings(value ?? {}), () => {})];
+    const stops = [subscribeServices(value => { setServices(value); setServicesLoaded(true); }, error => { setConnectionError(error.message); setServicesLoaded(true); }), subscribeAnnouncements(setAnnouncements, () => {}), subscribeSettings(value => setSettings(value ?? {}), () => {})];
     window.addEventListener("online", onOnline); window.addEventListener("offline", onOffline);
     if (navigator.onLine) void syncOfflineRequests();
     return () => { stopAuth(); stops.forEach(stop => stop()); window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
