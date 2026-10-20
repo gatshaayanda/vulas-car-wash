@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./racing.css";
+import { subscribeSettings } from "@/lib/firebase/vula-data";
 
 type Phase = "ready" | "running" | "paused" | "finished";
 type TrafficCar = { lane: number; y: number; color: string; hit: boolean };
@@ -22,6 +23,7 @@ export default function RacingHub() {
   const [speed, setSpeed] = useState(105);
   const [hits, setHits] = useState(0);
   const [, setLane] = useState(1);
+  const [businessName, setBusinessName] = useState("Vula's Car Wash");
   phaseRef.current = phase;
 
   const moveLane = useCallback((direction: number) => {
@@ -43,6 +45,15 @@ export default function RacingHub() {
     raceRef.current = newRace(); setElapsed(0); setDistance(0); setSpeed(105); setHits(0); setLane(1);
     phaseRef.current = "running"; setPhase("running");
   }
+
+  useEffect(() => {
+    const stop = subscribeSettings(settings => {
+      const value = settings?.businessName;
+      if (typeof value === "string" && value.trim()) setBusinessName(value.trim());
+    }, () => {});
+    return stop;
+  }, []);
+  useEffect(() => { document.title = businessName + " · Racing warm-up"; }, [businessName]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -100,7 +111,7 @@ export default function RacingHub() {
 
   return <main className="vula race-hub">
     <div className="vula-status"><span className="status-dot online" />Vula Racing · 2D warm-up · local test only</div>
-    <header className="vula-nav"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>Vula&apos;s Car Wash<small>Racing warm-up</small></span></Link><nav><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></nav></header>
+    <header className="vula-nav"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Racing warm-up</small></span></Link><nav><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></nav></header>
     <section className="vula-section warmup-intro"><p className="vula-eyebrow">VULA RACING · MECHANICS TEST</p><h1>Take the warm-up lap.</h1><p>A simple top-down 2D driving test. Steer between lanes, avoid traffic, and finish 500 m. We can tune these mechanics before bringing them into the in-account racing experience.</p><p className="warmup-boundary">This prototype does not use accounts, credits, upgrades, bookings, loyalty or receipts. Your controls and race run only in this open page.</p></section>
     <section className="vula-section warmup-game">
       <div className="warmup-hud" aria-live="polite"><div><span>Distance</span><strong>{Math.round(distance)} <small>/ {finishDistance} m</small></strong></div><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Time</span><strong>{elapsed.toFixed(1)} <small>s</small></strong></div><div><span>Traffic bumps</span><strong>{hits}</strong></div></div>

@@ -1,7 +1,13 @@
 import type { MetadataRoute } from "next";
-export default function manifest(): MetadataRoute.Manifest {
+import { getPublicBusinessName } from "@/lib/server/vula-public-settings";
+
+export const revalidate = 300;
+
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const businessName = await getPublicBusinessName();
+  const shortName = businessName.length > 12 ? businessName.slice(0, 12).trim() : businessName;
   return {
-    id: "/", name: "Vula's Car Wash", short_name: "Vula's",
+    id: "/", name: businessName, short_name: shortName,
     description: "Book a car wash, request mobile service, and follow requests online or offline.",
     start_url: "/", scope: "/", display: "standalone",
     background_color: "#f5f6f1", theme_color: "#c6f36b", orientation: "portrait-primary", lang: "en",
