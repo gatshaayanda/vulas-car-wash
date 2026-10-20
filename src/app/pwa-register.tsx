@@ -268,13 +268,13 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     }, 1800);
   }
 
-  const installShellStyle: CSSProperties = { position: "fixed", left: 16, right: 16, bottom: 16, zIndex: 1000, maxWidth: 720, margin: "0 auto", padding: 16, borderRadius: 18, background: "#FFFFFF", color: "#111318", boxShadow: "0 12px 40px rgba(0,0,0,.18)", border: "1px solid rgba(17,19,24,.12)" };
+  const installShellStyle: CSSProperties = { position: "fixed", left: 16, right: 16, bottom: 16, zIndex: 1000, maxWidth: 720, maxHeight: "calc(100dvh - 32px)", overflowY: "auto", overscrollBehavior: "contain", margin: "0 auto", padding: "16px 16px calc(16px + env(safe-area-inset-bottom))", borderRadius: 18, background: "#FFFFFF", color: "#111318", boxShadow: "0 12px 40px rgba(0,0,0,.18)", border: "1px solid rgba(17,19,24,.12)" };
   const embeddedInstallStyle: CSSProperties = { position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(0,0,0,.82)", backdropFilter: "blur(4px)", overscrollBehavior: "contain" };
   const installCard = installState === "native" ? (
     <div style={installShellStyle} role="presentation">
       <section className="vulaInstallModal" role="dialog" aria-modal="false" aria-labelledby="vula-install-title" aria-describedby="vula-install-message">
-        <div className="plugInstallTop"><span className="plugInstallMark">13</span><span className="plugInstallTag">ITERATION 13 · SERVICE STUDIO</span><button type="button" className="plugInstallClose" aria-label="Close install prompt" onClick={dismissInstall}>×</button></div>
-        <div className="plugInstallKicker">YOUR SERVICE STUDIO APP</div>
+        <div className="plugInstallTop"><span className="plugInstallMark" aria-hidden="true">V</span><span className="plugInstallTag">VULA’S CAR WASH</span><button type="button" className="plugInstallClose" aria-label="Close install prompt" onClick={dismissInstall}>×</button></div>
+        <div className="plugInstallKicker">YOUR CAR WASH, READY WHEN YOU ARE</div>
         <h2 id="vula-install-title">Vula's Car Wash.<br/><em>One tap away.</em></h2>
         <p id="vula-install-message">Install Vula's Car Wash on your device for quick access to the service menu, your booking requests and account.</p>
         {installHelpOpen ? (
@@ -288,6 +288,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
               <>
                 <strong>Add Vula's Car Wash from Chrome</strong>
                 <p>In Chrome, tap the <b>⋮ menu</b> and choose <b>Install app</b> or <b>Add to Home screen</b>. The wording depends on your Chrome version.</p>
+                <p className="vulaInstallTroubleshoot">If neither option appears, make sure you are in the Chrome app (not an in-app browser), reconnect to the internet, then refresh this page and check the menu again.</p>
               </>
             ) : (
               <>
@@ -299,7 +300,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
           </div>
         ) : (
           <>
-            <div className="vulaInstallModalBenefits"><span><b>01</b><strong>Quick access</strong><small>Open Vula's Car Wash from your home screen.</small></span><span><b>02</b><strong>Your requests</strong><small>Return to your demo requests and account view.</small></span><span><b>03</b><strong>Private by account</strong><small>Keep your demo requests on this device.</small></span></div>
+            <div className="vulaInstallModalBenefits"><span><b>01</b><strong>Quick access</strong><small>Open Vula's Car Wash from your home screen.</small></span><span><b>02</b><strong>Your requests</strong><small>Return to your bookings and account.</small></span><span><b>03</b><strong>Private by account</strong><small>Access your bookings from your account.</small></span></div>
             <button type="button" className="vulaInstallPrimary" onClick={() => void install()}>Install Vula's Car Wash →</button>
             <button type="button" className="plugInstallSecondary" onClick={dismissInstall}>Not now</button>
           </>
@@ -311,7 +312,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     <div style={embeddedInstallStyle} role="alertdialog" aria-modal="true" aria-labelledby="vula-embedded-title" aria-describedby="vula-embedded-message">
       <div className="pwaInstallInfo" style={{...installShellStyle, position: "relative", left: "auto", right: "auto", bottom: "auto", width: "100%", maxWidth: 520, margin: 0}}>
         <div>
-          <strong id="vula-embedded-title"><span aria-hidden="true">🌐 </span>OPEN ITERATION 13 IN YOUR BROWSER</strong>
+          <strong id="vula-embedded-title"><span aria-hidden="true">🌐 </span>OPEN VULA’S CAR WASH IN YOUR BROWSER</strong>
           <span id="vula-embedded-message">{embeddedAndroid ? <>Tap below to open Vula's Car Wash in Chrome. Then open the <b>⋮ menu</b> and choose <b>Install app</b>.</> : <>Vula's Car Wash opened inside another app. Use that app’s menu to open this page in your browser, then look for <b>Install app</b> in the browser menu.</>}</span>
         </div>
         <div className="pwaInstallActions" style={{display:"flex",justifyContent:"flex-end"}}>
