@@ -32,6 +32,8 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
   const [speed, setSpeed] = useState(105);
   const [hits, setHits] = useState(0);
   const [boostActive, setBoostActive] = useState(false);
+  const [activeSignal, setActiveSignal] = useState<"left" | "right" | null>(null);
+  const signalRef = useRef<"left" | "right" | null>(null);
   const [wheelRotation, setWheelRotation] = useState(0);
   const wheelRef = useRef<HTMLButtonElement>(null);
   const steeringStartAngle = useRef<number | null>(null);
@@ -69,9 +71,16 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
     controlsRef.current.steer = 0;
     setWheelRotation(0);
   };
+  function toggleSignal(signal: "left" | "right") {
+    const next = signalRef.current === signal ? null : signal;
+    signalRef.current = next;
+    setActiveSignal(next);
+    if (next) showVulaToast((next === "left" ? "Left" : "Right") + " indicator on.", "info");
+  }
+
   function startRace() {
     if (phaseRef.current === "finished") { raceRef.current = newRace(); setElapsed(0); setDistance(0); setSpeed(105); setHits(0); }
-    controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false); steeringStartAngle.current = null; setWheelRotation(0);
+    controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false); signalRef.current = null; setActiveSignal(null); steeringStartAngle.current = null; setWheelRotation(0);
     raceRef.current.last = 0;
     setCountdownValue(3);
     phaseRef.current = "countdown";
@@ -125,7 +134,7 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
       width = Math.max(320, rect.width); height = Math.max(360, rect.height);
       canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr); context.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
-    const drawCar = (x: number, y: number, color: string, label = "") => {
+    const drawCar = (x: number, y: number, color: string, label = "", signal: "left" | "right" | null = null, blink = false) => {
       const carWidth = Math.min(40, width * .09); const carHeight = carWidth * 1.65;
       context.fillStyle = "rgba(0,0,0,.22)"; context.beginPath(); context.ellipse(x + carWidth / 2, y + carHeight - 2, carWidth * .58, 6, 0, 0, Math.PI * 2); context.fill();
       context.fillStyle = "#151b18"; context.fillRect(x - 3, y + 8, 5, 12); context.fillRect(x + carWidth - 2, y + 8, 5, 12); context.fillRect(x - 3, y + carHeight - 20, 5, 12); context.fillRect(x + carWidth - 2, y + carHeight - 20, 5, 12);
@@ -133,6 +142,9 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
       context.fillStyle = "#dce9e7"; context.beginPath(); context.roundRect(x + carWidth * .19, y + carHeight * .19, carWidth * .62, carHeight * .25, 4); context.fill();
       context.fillStyle = "#fff4bd"; context.fillRect(x + 5, y + 3, 5, 3); context.fillRect(x + carWidth - 10, y + 3, 5, 3);
       context.fillStyle = "#ff7166"; context.fillRect(x + 5, y + carHeight - 5, 5, 3); context.fillRect(x + carWidth - 10, y + carHeight - 5, 5, 3);
+      context.fillStyle = signal && blink ? "#ffb52e" : "#a86d24";
+      if (signal === "left") { context.fillRect(x + 2, y + carHeight * .35, 4, 5); context.fillRect(x + 2, y + carHeight - 11, 4, 5); }
+      if (signal === "right") { context.fillRect(x + carWidth - 6, y + carHeight * .35, 4, 5); context.fillRect(x + carWidth - 6, y + carHeight - 11, 4, 5); }
       if (label) { context.fillStyle = "#ffffff"; context.font = "bold 8px system-ui"; context.textAlign = "center"; context.fillText(label, x + carWidth / 2, y + carHeight * .65); }
     };
     const draw = (now: number) => {
@@ -170,7 +182,7 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
         context.fillStyle = "#f0a83d"; context.beginPath(); context.moveTo(objectX, objectY - radius); context.lineTo(objectX + radius, objectY + radius); context.lineTo(objectX - radius, objectY + radius); context.closePath(); context.fill();
         context.strokeStyle = "#fff0d2"; context.lineWidth = 2; context.beginPath(); context.moveTo(objectX - radius * .45, objectY + 2); context.lineTo(objectX + radius * .45, objectY + 2); context.stroke();
       }
-      drawCar(roadLeft + roadWidth / 3 * (race.lane + .5) - playerWidth / 2, playerY, "#a7d84d", "YOU");
+      drawCar(roadLeft + roadWidth / 3 * (race.lane + .5) - playerWidth / 2, playerY, "#a7d84d", "YOU", signalRef.current, Math.floor(now / 350) % 2 === 0);
       frame = window.requestAnimationFrame(draw);
     };
     const visibilityChange = () => {
@@ -217,8 +229,8 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
       <div className="warmup-canvas-wrap"><canvas ref={canvasRef} aria-label="Top-down 2D road racing warm-up. Drag the virtual steering wheel on mobile or hold the left and right keys on desktop." role="img" />
         {phase !== "running" && <div className="warmup-overlay"><span>{phase === "ready" ? "READY ON THE GRID" : phase === "countdown" ? "GET READY" : phase === "paused" ? "RACE PAUSED" : "FINISH LINE"}</span><strong>{phase === "ready" ? "Start when you are." : phase === "countdown" ? String(countdownValue || 1) : phase === "paused" ? "Take your time." : "Warm-up complete."}</strong><p>{phase === "ready" ? "Drag the steering wheel to turn, or hold ← / → on desktop." : phase === "countdown" ? "Take your position. The road is clear ahead." : phase === "paused" ? "Your timer is stopped." : "You finished in " + elapsed.toFixed(1) + " seconds."}</p></div>}
       </div>
-      <div className="warmup-controls"><div className="warmup-steering"><button ref={wheelRef} type="button" className="warmup-wheel" aria-label="Virtual steering wheel. Drag around the wheel to steer." aria-describedby="steering-help" disabled={phase !== "running"} style={{ transform: `rotate(${wheelRotation}deg)` }} onPointerDown={startSteering} onPointerMove={steerWheel} onPointerUp={stopSteering} onPointerCancel={stopSteering} onLostPointerCapture={stopSteering}><span className="wheel-ring"><span className="wheel-spoke vertical"/><span className="wheel-spoke horizontal"/><span className="wheel-hub"/></span><span className="wheel-caption">STEER</span></button><span id="steering-help" className="steering-caption">Drag the wheel left or right</span></div><div className="warmup-driving"><button type="button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.accelerate = true; }} onPointerUp={() => { controlsRef.current.accelerate = false; }} onPointerLeave={() => { controlsRef.current.accelerate = false; }} onPointerCancel={() => { controlsRef.current.accelerate = false; }}>Accelerate ↑</button><button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.brake = true; }} onPointerUp={() => { controlsRef.current.brake = false; }} onPointerLeave={() => { controlsRef.current.brake = false; }} onPointerCancel={() => { controlsRef.current.brake = false; }}>Brake ↓</button><button type="button" className="nos-button" aria-label="NOS boost" disabled={phase !== "running"} aria-pressed={boostActive} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.boost = true; setBoostActive(true); }} onPointerUp={() => { controlsRef.current.boost = false; setBoostActive(false); }} onPointerLeave={() => { controlsRef.current.boost = false; setBoostActive(false); }} onPointerCancel={() => { controlsRef.current.boost = false; setBoostActive(false); }}>NOS ⚡</button></div><div className="warmup-actions">{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start race ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Starting {countdownValue || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause race Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume race ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Run again ↗</button>}<button type="button" className="vula-button secondary" onClick={restartRace}>Restart race ↻</button></div></div>
-      <p className="warmup-help">Steer: drag the wheel on phones, or hold ← / → or A / D on desktop · Accelerate: ↑ / W · Brake: ↓ / S · NOS: hold the boost button or Shift · Pause: P / Esc.</p>
+      <div className="warmup-controls"><div className="warmup-steering"><button ref={wheelRef} type="button" className="warmup-wheel" aria-label="Virtual steering wheel. Drag around the wheel to steer." aria-describedby="steering-help" disabled={phase !== "running"} style={{ transform: `rotate(${wheelRotation}deg)` }} onPointerDown={startSteering} onPointerMove={steerWheel} onPointerUp={stopSteering} onPointerCancel={stopSteering} onLostPointerCapture={stopSteering}><span className="wheel-ring"><span className="wheel-spoke vertical"/><span className="wheel-spoke horizontal"/><span className="wheel-hub"/></span><span className="wheel-caption">STEER</span></button><span id="steering-help" className="steering-caption">Drag the wheel left or right</span><div className="warmup-signals" aria-label="Turn indicators"><button type="button" aria-label="Toggle left indicator" aria-pressed={activeSignal === "left"} className={activeSignal === "left" ? "signal-active" : ""} onClick={() => toggleSignal("left")}>← Signal</button><button type="button" aria-label="Toggle right indicator" aria-pressed={activeSignal === "right"} className={activeSignal === "right" ? "signal-active" : ""} onClick={() => toggleSignal("right")}>Signal →</button></div></div><div className="warmup-driving"><button type="button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.accelerate = true; }} onPointerUp={() => { controlsRef.current.accelerate = false; }} onPointerLeave={() => { controlsRef.current.accelerate = false; }} onPointerCancel={() => { controlsRef.current.accelerate = false; }}>Accelerate ↑</button><button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.brake = true; }} onPointerUp={() => { controlsRef.current.brake = false; }} onPointerLeave={() => { controlsRef.current.brake = false; }} onPointerCancel={() => { controlsRef.current.brake = false; }}>Brake ↓</button><button type="button" className="nos-button" aria-label="NOS boost" disabled={phase !== "running"} aria-pressed={boostActive} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.boost = true; setBoostActive(true); }} onPointerUp={() => { controlsRef.current.boost = false; setBoostActive(false); }} onPointerLeave={() => { controlsRef.current.boost = false; setBoostActive(false); }} onPointerCancel={() => { controlsRef.current.boost = false; setBoostActive(false); }}>NOS ⚡</button></div><div className="warmup-actions">{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start race ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Starting {countdownValue || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause race Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume race ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Run again ↗</button>}<button type="button" className="vula-button secondary" onClick={restartRace}>Restart race ↻</button></div></div>
+      <p className="warmup-help">Steer: drag the wheel on phones, or hold ← / → or A / D on desktop · Accelerate: ↑ / W · Brake: ↓ / S · NOS: hold the boost button or Shift · Indicators: ← Signal / Signal → · Pause: P / Esc.</p>
     </section>
     {!embedded && <footer className="vula-footer"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></Link><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></footer>}
   </div>;
