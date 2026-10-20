@@ -65,7 +65,7 @@ export default function VulaDashboard() {
         settingsFromServer=!fromCache;
         if(!s&&!fromCache&&!settingsSeeded){
           settingsSeeded=true;
-          void saveSettings({businessName:"Vula's Car Wash",locationName:"G-West",address:"G-West, Gaborone — exact plot/landmark to be confirmed",openingHours:"08:00–17:00 (editable starter hours; confirm before launch)",openingTime:"08:00",closingTime:"17:00",slotIntervalMinutes:30,bufferMinutes:0,closedDays:[],siteCapacityPerSlot:1,mobileCapacityPerSlot:1,siteCapacityPerSlot:1,mobileCapacityPerSlot:1,mobileCoverage:[],bookingNotice:"Requests remain pending until staff confirm them."})
+          void saveSettings({businessName:"Vula's Car Wash",locationName:"G-West",address:"G-West, Gaborone — exact plot/landmark to be confirmed",openingHours:"08:00–17:00 (editable starter hours; confirm before launch)",openingTime:"08:00",closingTime:"17:00",slotIntervalMinutes:30,bufferMinutes:0,closedDays:[],siteCapacityPerSlot:1,mobileCapacityPerSlot:1,mobileCoverage:[],bookingNotice:"Requests remain pending until staff confirm them."})
             .then(()=>setMessage("Editable starter business details added. Update the address and hours before launch."))
             .catch(error=>setMessage(error instanceof Error?error.message:"Starter business details could not be saved."));
         }
