@@ -17,7 +17,7 @@ function subscribeList<T>(path: string, cb: (items: T[], fromCache?: boolean) =>
     cb(snapshot.docs.map(item => ({ id: item.id, ...item.data() }) as T), snapshot.metadata.fromCache);
   }, fail);
 }
-export const subscribeServices = (cb: (items: VulaService[]) => void, fail: (e: Error) => void) => subscribeList<VulaService>("services", cb, fail);
+export const subscribeServices = (cb: (items: VulaService[], fromCache?: boolean) => void, fail: (e: Error) => void) => subscribeList<VulaService>("services", cb, fail);
 export const subscribeGallery = (cb: (items: VulaGalleryItem[]) => void, fail: (e: Error) => void) => subscribeList<VulaGalleryItem>("gallery", cb, fail, true);
 export const subscribeAnnouncements = (cb: (items: VulaAnnouncement[]) => void, fail: (e: Error) => void) => subscribeList<VulaAnnouncement>("announcements", cb, fail);
 export const subscribeBookings = (cb: (items: VulaBooking[]) => void, fail: (e: Error) => void) => subscribeList<VulaBooking>("bookings", cb, fail);

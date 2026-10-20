@@ -7,6 +7,7 @@ import Script from "next/script";
 import { getPublicBusinessName } from "@/lib/server/vula-public-settings";
 import "./globals.css"; import "./pwa.css"; import "./vula.css";
 const siteUrl=process.env.NEXT_PUBLIC_BASE_URL||"http://localhost:3000";
+const FALLBACK_BUSINESS_NAME = "Vula's Car Wash";
 const EMBEDDED_BROWSER_PATTERN=/WhatsApp|Instagram|FBAN|FBAV|Messenger|Line[/]|Twitter|TikTok|Snapchat/i;
 export async function generateMetadata(): Promise<Metadata> {
  const businessName = await getPublicBusinessName();
@@ -20,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
   openGraph: { type: "website", url: siteUrl, siteName: businessName, title: businessName, description: "Car wash bookings, mobile-service requests and live staff operations." },
   twitter: { card: "summary", title: businessName, description: "Car wash bookings, mobile-service requests and live staff operations." },
   icons: { icon: [{ url: "/vula-icon-192.png", sizes: "192x192", type: "image/png" }, { url: "/vula-icon-512.png", sizes: "512x512", type: "image/png" }, { url: "/vula-icon.svg", type: "image/svg+xml" }], apple: { url: "/vula-icon-180.png", sizes: "180x180", type: "image/png" } },
-  manifest: "/manifest.webmanifest",
+  manifest: "/api/manifest",
   appleWebApp: { capable: true, title: businessName, statusBarStyle: "default" },
  };
 }

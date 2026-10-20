@@ -1,10 +1,11 @@
 import type { MetadataRoute } from "next";
 import { getPublicBusinessName } from "@/lib/server/vula-public-settings";
 
+const FALLBACK_BUSINESS_NAME = "Vula's Car Wash";
 export const revalidate = 300;
 
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
-  const businessName = await getPublicBusinessName();
+  const businessName = await getPublicBusinessName() || FALLBACK_BUSINESS_NAME;
   const shortName = businessName.length > 12 ? businessName.slice(0, 12).trim() : businessName;
   return {
     id: "/", name: businessName, short_name: shortName,
