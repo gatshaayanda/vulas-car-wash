@@ -48,7 +48,7 @@ export default function Home() {
   useEffect(() => { document.title = businessName; }, [businessName]);
   const locationName = typeof settings.locationName === "string" && settings.locationName.trim() ? settings.locationName : "G-West";
   const seedServices = useMemo<VulaService[]>(() => vulaServiceSeed.map(service => ({ ...service, price: service.price > 0 ? service.price : null, active: true })), []);
-  const activeServices = useMemo(() => seedServices.map(seed => services.find(service => service.id === seed.id) ?? seed).filter(service => service.active), [services, seedServices]);
+  const activeServices = useMemo(() => seedServices.map(seed => { const saved = services.find(service => service.id === seed.id); if (!saved) return seed; return { ...seed, ...saved, price: saved.price === undefined ? seed.price : saved.price, description: saved.description?.trim() ? saved.description : seed.description, category: saved.category?.trim() ? saved.category : seed.category, durationMinutes: saved.durationMinutes || seed.durationMinutes }; }).filter(service => service.active), [services, seedServices]);
   const selectedServices = useMemo(() => activeServices.filter(service => selectedServiceIds.includes(service.id)), [activeServices, selectedServiceIds]);
   const basketTotal = selectedServices.length && selectedServices.every(service => typeof service.price === "number") ? selectedServices.reduce((sum, service) => sum + Number(service.price), 0) : undefined;
   const appointmentDuration = Math.max(30, Math.min(240, selectedServices.reduce((sum, service) => sum + Number(service.durationMinutes || 30), 0) || 30));
