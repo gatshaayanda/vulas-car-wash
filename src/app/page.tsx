@@ -50,7 +50,7 @@ export default function Home() {
   const businessName = typeof settings.businessName === "string" && settings.businessName.trim() ? settings.businessName : "Vula's Car Wash";
   useEffect(() => { document.title = businessName; }, [businessName]);
   const locationName = typeof settings.locationName === "string" && settings.locationName.trim() ? settings.locationName : "G-West";
-  const seedServices = useMemo(() => vulaServiceSeed.map(service => ({ ...service, price: service.price > 0 ? service.price : null, active: true })), []);
+  const seedServices = useMemo<VulaService[]>(() => vulaServiceSeed.map(service => ({ ...service, price: service.price > 0 ? service.price : null, active: true })), []);
   const activeServices = useMemo(() => services.length ? services.filter(s => s.active) : servicesLoaded && !connectionError ? seedServices : [], [services, servicesLoaded, connectionError, seedServices]);
   const selectedServices = useMemo(() => activeServices.filter(service => selectedServiceIds.includes(service.id)), [activeServices, selectedServiceIds]);
   const basketTotal = selectedServices.length && selectedServices.every(service => typeof service.price === "number") ? selectedServices.reduce((sum, service) => sum + Number(service.price), 0) : undefined;
