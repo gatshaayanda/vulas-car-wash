@@ -200,10 +200,20 @@ export default function Home() {
       const user = await ensureUser();
       if (!user) throw new Error("Online service is not configured yet. Your request has not been sent.");
       await saveCustomerRecord(user.uid, customerName, phone, String(form.get("email") || user.email || ""));
-      const recordRef = doc(collection(db, collectionName));
       setNotice({ kind: "pending", text: "Sending securely to Vula's system…" });
-      await setDoc(recordRef, { ...data, customerId: user.uid });
-      if (tab === "book") setReceipt({ id: recordRef.id, customerName, vehicleType, serviceNames: selectedServices.map(service => service.name), total: basketTotal, scheduledFor: String(data.scheduledFor) });
+      if (tab === "book") {
+        const response = await fetch("/api/bookings", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + await user.getIdToken(), "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const payload = await response.json().catch(() => ({})) as { id?: string; serviceNames?: string[]; total?: number; scheduledFor?: string; error?: string };
+        if (!response.ok || !payload.id) throw new Error(payload.error || "The booking request could not be saved. Please try again.");
+        setReceipt({ id: payload.id, customerName, vehicleType, serviceNames: payload.serviceNames || selectedServices.map(service => service.name), ...(typeof payload.total === "number" ? { total: payload.total } : {}), scheduledFor: payload.scheduledFor || String(data.scheduledFor) });
+      } else {
+        const recordRef = doc(collection(db, collectionName));
+        await setDoc(recordRef, { ...data, customerId: user.uid });
+      }
       formElement.reset();
       setSelectedServiceIds([]); setSelectedTime(""); setAppointmentDate("");
       setNotice({ kind: "success", text: "Request received by Vula's system. Staff still need to confirm the booking, mobile coverage or fleet arrangement." });
