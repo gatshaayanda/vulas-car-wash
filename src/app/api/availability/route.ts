@@ -9,10 +9,31 @@ const minutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value
 const clock = (value: number) => String(Math.floor(value / 60)).padStart(2, "0") + ":" + String(value % 60).padStart(2, "0");
 function app() {
   const existing = getApps().find(item => item.name === "vula-operations");
-  if (existing) return existing;
+  if (existing) {
+    if (existing.options.projectId && existing.options.projectId !== "vulas-car-wash") {
+      throw new Error("Firebase Admin is connected to an unexpected project.");
+    }
+    return existing;
+  }
   const raw = process.env.FIREBASE_ADMIN_KEY;
   if (!raw) throw new Error("Live appointment availability is not configured on the server.");
-  return initializeApp({ credential: cert(JSON.parse(raw) as Parameters<typeof cert>[0]), projectId: "vulas-car-wash" }, "vula-operations");
+  let account: { project_id?: string; client_email?: string; private_key?: string };
+  try {
+    account = JSON.parse(raw) as typeof account;
+  } catch {
+    throw new Error("FIREBASE_ADMIN_KEY must contain valid service-account JSON.");
+  }
+  if (account.project_id !== "vulas-car-wash" || !account.client_email || !account.private_key) {
+    throw new Error("FIREBASE_ADMIN_KEY must be a complete service account for the Vula Firebase project.");
+  }
+  return initializeApp({
+    credential: cert({
+      projectId: account.project_id,
+      clientEmail: account.client_email,
+      privateKey: account.private_key.replace(/\\n/g, "\n"),
+    }),
+    projectId: account.project_id,
+  }, "vula-operations");
 }
 function validDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
