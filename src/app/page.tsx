@@ -144,8 +144,17 @@ export default function Home() {
       const user = await ensureUser(); if (!user) return;
       const remaining: typeof drafts = [];
       for (const draft of drafts) {
-        try { const id = draft.id || crypto.randomUUID(); await saveCustomerRecord(user.uid, String(draft.data.customerName || ""), String(draft.data.phone || ""), String(draft.data.email || user.email || "")); await setDoc(doc(db, draft.collection, id), { ...draft.data, customerId: user.uid, updatedAt: stamp() }); }
-        catch { remaining.push(draft); }
+        const id = draft.id || crypto.randomUUID();
+        try {
+          await saveCustomerRecord(user.uid, String(draft.data.customerName || ""), String(draft.data.phone || ""), String(draft.data.email || user.email || ""));
+          if (draft.collection === "bookings") {
+            const response = await fetch("/api/bookings", { method: "POST", headers: { Authorization: "Bearer " + await user.getIdToken(), "Content-Type": "application/json" }, body: JSON.stringify({ ...draft.data, requestId: id }) });
+            const payload = await response.json().catch(() => ({})) as { error?: string };
+            if (!response.ok) throw new Error(payload.error || "The saved booking could not sync. It may need a new available time.");
+          } else {
+            await setDoc(doc(db, draft.collection, id), { ...draft.data, customerId: user.uid, updatedAt: stamp() });
+          }
+        } catch { remaining.push(draft); }
       }
       localStorage.setItem(pendingKey, JSON.stringify(remaining));
       setNotice(remaining.length ? { kind: "pending", text: remaining.length + " saved request(s) still have not synced." } : { kind: "success", text: "Saved requests have synced to Vula's system. Bookings still need staff confirmation." });

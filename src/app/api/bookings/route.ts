@@ -32,6 +32,8 @@ export async function POST(request: Request) {
     const vehicleRegistration = clean(body.vehicleRegistration, 30), notes = clean(body.notes, 1500);
     const address = clean(body.address, 500), mode = body.serviceMode === "mobile" ? "mobile" : "site";
     const scheduledFor = clean(body.scheduledFor, 40);
+    const requestId = clean(body.requestId, 120);
+    if (requestId && !/^[a-zA-Z0-9_-]{1,120}$/.test(requestId)) return NextResponse.json({ error: "Invalid booking request ID." }, { status: 400 });
     if (!customerName || !phone || !vehicleType) return NextResponse.json({ error: "Enter your name, phone number and vehicle type." }, { status: 400 });
     if (mode === "mobile" && !address) return NextResponse.json({ error: "Enter the area or address for the mobile service request." }, { status: 400 });
     const scheduledDate = new Date(scheduledFor);
@@ -45,9 +47,21 @@ export async function POST(request: Request) {
     if (rawIds.length > 20 || (rawIds.length && !serviceIds.length)) return NextResponse.json({ error: "Choose valid services from the published menu." }, { status: 400 });
     const db = getFirestore(app);
     const settingsRef = db.doc("businessSettings/main");
-    const bookingRef = db.collection("bookings").doc();
+    const bookingRef = db.collection("bookings").doc(requestId || undefined);
     const serviceRefs = serviceIds.map(id => db.collection("services").doc(id));
     const result = await db.runTransaction(async transaction => {
+      const existingRequest = await transaction.get(bookingRef);
+      if (existingRequest.exists) {
+        const existing = existingRequest.data() || {};
+        if (existing.customerId !== decoded.uid) throw new Error("This booking request ID has already been used.");
+        return {
+          id: bookingRef.id,
+          serviceNames: Array.isArray(existing.serviceNames) ? existing.serviceNames.map(String) : [clean(existing.serviceName, 240) || "General car wash request"],
+          ...(typeof existing.priceQuote === "number" ? { total: existing.priceQuote } : {}),
+          scheduledFor: clean(existing.scheduledFor, 40),
+          alreadySaved: true,
+        };
+      }
       const settingsSnapshot = await transaction.get(settingsRef);
       const settings = settingsSnapshot.data() ?? {};
       const open = clean(settings.openingTime, 5) || "08:00";
