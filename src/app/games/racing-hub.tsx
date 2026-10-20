@@ -80,20 +80,18 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
   }
   useEffect(() => {
     if (phase !== "countdown") return;
-    const timer = window.setInterval(() => {
-      setCountdownValue(value => {
-        if (value <= 1) {
-          window.clearInterval(timer);
-          phaseRef.current = "running";
-          setPhase("running");
-          showVulaToast("Go! Steer around the road markers and use NOS when you need a burst.", "success");
-          return 0;
-        }
-        return value - 1;
-      });
+    const timer = window.setTimeout(() => {
+      if (countdownValue <= 1) {
+        setCountdownValue(0);
+        phaseRef.current = "running";
+        setPhase("running");
+        showVulaToast("Go! Steer around the road markers and use NOS when you need a burst.", "success");
+      } else {
+        setCountdownValue(value => value - 1);
+      }
     }, 1000);
-    return () => window.clearInterval(timer);
-  }, [phase]);
+    return () => window.clearTimeout(timer);
+  }, [phase, countdownValue]);
 
   const pauseRace = useCallback(() => {
     if (phaseRef.current === "running") {
