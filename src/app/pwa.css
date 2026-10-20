@@ -3,3 +3,7 @@
 /* Persistent installation entry point, matching the working Odi PWA pattern. */
 .plugPwaInstallButton{position:fixed;left:16px;right:16px;bottom:16px;z-index:999;max-width:720px;margin:0 auto;border:1px solid #14221e;border-radius:14px;padding:14px 17px;background:#c6f36b;color:#14221e;font:inherit;font-weight:800;cursor:pointer;box-shadow:0 8px 24px rgba(20,34,30,.16)}
 @media(min-width:700px){.plugPwaInstallButton{left:auto;right:18px;bottom:18px;width:auto}}
+
+ 
+/* Keep the installation fallback fully usable on short mobile viewports. */
+.vulaInstallModal{min-width:0}.plugInstallTop{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.plugInstallTag{min-width:0;overflow-wrap:anywhere}.plugInstallClose{margin-left:auto;flex:0 0 auto}.plugInstallSteps{min-width:0}.vulaInstallTroubleshoot{margin-top:10px;padding-top:10px;border-top:1px solid #e5e8e1;font-size:.78rem;line-height:1.5;color:#59665d}.vulaInstallPrimary,.plugInstallSecondary{min-height:44px;touch-action:manipulation}@media(max-height:680px){.plugInstallTop{gap:7px}.plugInstallMark{width:34px;height:34px;flex:0 0 auto}.plugInstallSteps p{margin:8px 0;font-size:.88rem;line-height:1.45}.plugInstallFootnote{margin-bottom:2px;font-size:.72rem}}
