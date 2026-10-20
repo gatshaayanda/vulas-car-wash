@@ -5,8 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { GoogleAuthProvider, linkWithPopup, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { collection, doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db, hasFirebaseWebConfig } from "@/lib/firebase/client";
-import { enableVulaPushNotifications } from "@/lib/firebase/vula-notifications";
-import { saveReminderPreferences, subscribeAnnouncements, subscribeCustomerBookings, subscribeGallery, subscribeLoyaltyAccount, subscribeReminderPreferences, subscribeServices, subscribeSettings, type VulaAnnouncement, type VulaBooking, type VulaGalleryItem, type VulaService } from "@/lib/firebase/vula-data";
+import { subscribeAnnouncements, subscribeGallery, subscribeServices, subscribeSettings, type VulaAnnouncement, type VulaGalleryItem, type VulaService } from "@/lib/firebase/vula-data";
 import { vulaServiceSeed } from "@/lib/vula/service-seed";
 import RacingHub from "./games/racing-hub";
 import "./vula.css";
@@ -43,11 +42,6 @@ export default function Home() {
   const [receipt, setReceipt] = useState<{ id: string; customerName: string; vehicleType: string; serviceNames: string[]; total?: number; scheduledFor?: string } | null>(null);
   const [tab, setTab] = useState<"book" | "queue">("book");
   const [connectionError, setConnectionError] = useState("");
-  const [myBookings, setMyBookings] = useState<VulaBooking[]>([]);
-  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
-  const [remindersEnabled, setRemindersEnabled] = useState(false);
-  const [reminderNotice, setReminderNotice] = useState("");
-  const [pushNotice, setPushNotice] = useState("");
   const mobileCoverage = Array.isArray(settings.mobileCoverage) ? settings.mobileCoverage as string[] : [];
   const businessName = typeof settings.businessName === "string" && settings.businessName.trim() ? settings.businessName : "Vula's Car Wash";
   useEffect(() => { document.title = businessName; }, [businessName]);
@@ -57,12 +51,11 @@ export default function Home() {
   const configuredHours = typeof settings.openingHours === "string" && settings.openingHours.trim() ? settings.openingHours : "";
   const businessHours = configuredHours && !configuredHours.toLowerCase().includes("editable starter") ? configuredHours : "08:00–17:00";
   const seedServices = useMemo<VulaService[]>(() => vulaServiceSeed.map(service => ({ ...service, price: service.price > 0 ? service.price : null, active: true })), []);
-  const activeServices = useMemo(() => services.length ? services.filter(s => s.active) : servicesLoaded && !connectionError ? seedServices : [], [services, servicesLoaded, connectionError, seedServices]);
+  const activeServices = useMemo(() => services.length ? services.filter(s => s.active) : seedServices, [services, seedServices]);
   const selectedServices = useMemo(() => activeServices.filter(service => selectedServiceIds.includes(service.id)), [activeServices, selectedServiceIds]);
   const basketTotal = selectedServices.length && selectedServices.every(service => typeof service.price === "number") ? selectedServices.reduce((sum, service) => sum + Number(service.price), 0) : undefined;
   const appointmentDuration = Math.max(30, Math.min(240, selectedServices.reduce((sum, service) => sum + Number(service.durationMinutes || 30), 0) || 30));
   const minAppointmentDate = new Date(Date.now() + 2 * 3600000).toISOString().slice(0, 10);
-  const upcomingBookings = myBookings.filter(item => !["completed","cancelled"].includes(item.status) && Number.isFinite(Date.parse(item.scheduledFor)) && Date.parse(item.scheduledFor) >= Date.now() && Date.parse(item.scheduledFor) - Date.now() <= 24 * 60 * 60 * 1000);
 
   useEffect(() => {
     setOnline(navigator.onLine);
@@ -87,17 +80,6 @@ export default function Home() {
     return () => controller.abort();
   }, [appointmentDate, mode, appointmentDuration, tab, availabilityRetry]);
 
-  useEffect(() => {
-    if (!userId) { setMyBookings([]); setLoyaltyPoints(0); setRemindersEnabled(false); return; }
-    const fail = () => {};
-    const stops = [
-      subscribeCustomerBookings(userId, setMyBookings, fail),
-      subscribeLoyaltyAccount(userId, value => setLoyaltyPoints(Number(value?.pointsBalance ?? 0)), fail),
-      subscribeReminderPreferences(userId, value => setRemindersEnabled(Boolean(value?.enabled)), fail),
-    ];
-    return () => stops.forEach(stop => stop());
-  }, [userId]);
-
   async function linkGuestAccount() {
     const user = auth.currentUser;
     if (!user || !user.isAnonymous) { setLinkNotice("This session is already linked to a sign-in method."); return; }
@@ -109,18 +91,6 @@ export default function Home() {
       const code = typeof error === "object" && error !== null && "code" in error ? String((error as {code?:unknown}).code) : "";
       setLinkNotice(code === "auth/credential-already-in-use" ? "That Google account is already linked to another Firebase account. Staff will need to help reconcile existing loyalty records." : error instanceof Error ? error.message : "We could not link this session. Try again while online.");
     }
-  }
-
-  async function saveReminderChoice() {
-    if (!userId || !navigator.onLine) { setReminderNotice("Connect to the internet and submit a request first to save this preference."); return; }
-    try { await saveReminderPreferences(userId, remindersEnabled); setReminderNotice("Your in-app reminder preference is saved. Push, SMS or email delivery still needs a notification channel to be configured."); }
-    catch (error) { setReminderNotice(error instanceof Error ? error.message : "Reminder preference could not be saved."); }
-  }
-
-  async function enablePush() {
-    if (!userId || !navigator.onLine) { setPushNotice("Connect and submit an online request first."); return; }
-    try { await enableVulaPushNotifications(userId); await saveReminderPreferences(userId, true); setRemindersEnabled(true); setPushNotice("Push reminders are enabled on this device for confirmed bookings."); }
-    catch (error) { setPushNotice(error instanceof Error ? error.message : "Push reminders could not be enabled."); }
   }
 
   async function saveCustomerRecord(uid: string, name: string, phone: string, email: string) {
