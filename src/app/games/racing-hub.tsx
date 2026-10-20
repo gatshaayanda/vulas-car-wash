@@ -73,8 +73,10 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
     if (phaseRef.current === "finished") { raceRef.current = newRace(); setElapsed(0); setDistance(0); setSpeed(105); setHits(0); }
     controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false); steeringStartAngle.current = null; setWheelRotation(0);
     raceRef.current.last = 0;
-    phaseRef.current = "running";
-    setPhase("running");
+    setCountdownValue(3);
+    phaseRef.current = "countdown";
+    setPhase("countdown");
+    showVulaToast("Get ready — your 500 m warm-up starts in 3.", "info");
   }
   useEffect(() => {
     if (phase !== "countdown") return;
@@ -102,7 +104,8 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
   }, []);
   function restartRace() {
     raceRef.current = newRace(); setElapsed(0); setDistance(0); setSpeed(105); setHits(0); stopSteering(); controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false;
-    phaseRef.current = "running"; setPhase("running");
+    setCountdownValue(3); phaseRef.current = "countdown"; setPhase("countdown");
+    showVulaToast("Race reset. Get ready to try again.", "info");
   }
 
   useEffect(() => {
@@ -212,7 +215,7 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
     <section className="vula-section warmup-intro"><p className="vula-eyebrow">VULA RACING · MECHANICS TEST</p><h1>Take the warm-up lap.</h1><p>A simple top-down 2D driving test. Steer freely, hit NOS for a burst of speed, and finish 500 m. We can tune these mechanics before bringing them into the in-account racing experience.</p><p className="warmup-boundary">This prototype does not use accounts, credits, upgrades, bookings, loyalty or receipts. Your controls and race run only in this open page.</p></section></>}
     {embedded && <div className="race-inline-heading"><div><p className="vula-eyebrow">VULA RACING · 500 M</p><h2>Take the warm-up lap.</h2><p>Steer freely and use NOS. Finish the run, then get back to your car wash.</p></div><button type="button" className="vula-button secondary" onClick={() => { if (phaseRef.current === "running") pauseRace(); setExpanded(false); }}>Close game ×</button></div>}
     <section className="vula-section warmup-game">
-      <div className="warmup-hud" aria-live="polite"><div><span>Distance</span><strong>{Math.round(distance)} <small>/ {finishDistance} m</small></strong></div><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Time</span><strong>{elapsed.toFixed(1)} <small>s</small></strong></div><div><span>NOS boost</span><strong>{boostActive ? "ON" : "READY"}</strong></div></div>
+      <div className="warmup-hud" aria-live="polite"><div><span>Distance</span><strong>{Math.round(distance)} <small>/ {finishDistance} m</small></strong></div><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Time</span><strong>{elapsed.toFixed(1)} <small>s</small></strong></div><div><span>Markers hit</span><strong>{hits}</strong></div></div>
       <div className="warmup-canvas-wrap"><canvas ref={canvasRef} aria-label="Top-down 2D road racing warm-up. Drag the virtual steering wheel on mobile or hold the left and right keys on desktop." role="img" />
         {phase !== "running" && <div className="warmup-overlay"><span>{phase === "ready" ? "READY ON THE GRID" : phase === "countdown" ? "GET READY" : phase === "paused" ? "RACE PAUSED" : "FINISH LINE"}</span><strong>{phase === "ready" ? "Start when you are." : phase === "countdown" ? String(countdownValue || 1) : phase === "paused" ? "Take your time." : "Warm-up complete."}</strong><p>{phase === "ready" ? "Drag the steering wheel to turn, or hold ← / → on desktop." : phase === "countdown" ? "Take your position. The road is clear ahead." : phase === "paused" ? "Your timer is stopped." : "You finished in " + elapsed.toFixed(1) + " seconds."}</p></div>}
       </div>
