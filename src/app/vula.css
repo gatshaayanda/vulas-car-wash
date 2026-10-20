@@ -460,3 +460,19 @@ margin:3px 12px 0;font-size:.7rem
 }
 
 }
+
+
+/* Admin media controls: visible previews and responsive editing for real business photos. */
+.service-image-preview,.gallery-edit-preview{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px;border:1px solid #d8dfd5;border-radius:8px;background:#fbfcf9}
+.service-image-preview img{display:block;width:min(220px,100%);aspect-ratio:16/9;object-fit:cover;border-radius:6px}
+.service-image-preview a{font-size:12px;font-weight:700}
+.gallery-edit-form{display:grid;gap:12px;width:100%}
+.gallery-edit-form label{display:grid;gap:6px;font-size:11px;font-weight:600}
+.gallery-edit-form input{width:100%;min-width:0;border:1px solid #cbd3c8;border-radius:5px;padding:10px;background:#fff;color:var(--ink)}
+.gallery-edit-preview img{display:block;width:104px;height:76px;object-fit:cover;border-radius:7px;background:#eef0e8}
+.gallery-edit-preview>div{display:grid;gap:6px;min-width:0}
+.gallery-edit-preview small{font-size:11px;color:var(--muted)}
+.service-card-placeholder{display:flex;aspect-ratio:16/9;align-items:flex-end;justify-content:space-between;padding:16px;border-radius:14px;margin-bottom:16px;background:linear-gradient(135deg,#edf1e8,#dce5d3);color:#40513d}
+.service-card-placeholder span{font-size:11px;letter-spacing:.18em;font-weight:800}
+.service-card-placeholder strong{font-size:11px;text-align:right;letter-spacing:.08em}
+@media(max-width:600px){.service-image-preview img{width:100%;max-width:320px}.gallery-edit-preview img{width:84px;height:66px}}
