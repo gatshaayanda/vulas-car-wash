@@ -19,7 +19,7 @@ function subscribeList<T>(path: string, cb: (items: T[]) => void, fail: (error: 
 }
 export const subscribeServices = (cb: (items: VulaService[]) => void, fail: (e: Error) => void) => subscribeList<VulaService>("services", cb, fail);
 export const subscribeGallery = (cb: (items: VulaGalleryItem[]) => void, fail: (e: Error) => void) => subscribeList<VulaGalleryItem>("gallery", cb, fail, true);
-export const subscribeAnnouncements = (cb: (items: VulaAnnouncement[]) => void, fail: (e: Error) => void) => subscribeList<VulaAnnouncement>("announcements", cb, fail, true);
+export const subscribeAnnouncements = (cb: (items: VulaAnnouncement[]) => void, fail: (e: Error) => void) => subscribeList<VulaAnnouncement>("announcements", cb, fail);
 export const subscribeBookings = (cb: (items: VulaBooking[]) => void, fail: (e: Error) => void) => subscribeList<VulaBooking>("bookings", cb, fail);
 export const subscribeQueue = (cb: (items: VulaQueueEntry[]) => void, fail: (e: Error) => void) => subscribeList<VulaQueueEntry>("queueEntries", cb, fail);
 export const subscribeFleet = (cb: (items: VulaFleetRequest[]) => void, fail: (e: Error) => void) => subscribeList<VulaFleetRequest>("fleetRequests", cb, fail);
