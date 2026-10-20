@@ -21,7 +21,7 @@ export default function RacingHub() {
   const [distance, setDistance] = useState(0);
   const [speed, setSpeed] = useState(105);
   const [hits, setHits] = useState(0);
-  const [lane, setLane] = useState(1);
+  const [, setLane] = useState(1);
   phaseRef.current = phase;
 
   function moveLane(direction: number) {
@@ -48,7 +48,7 @@ export default function RacingHub() {
     const canvas = canvasRef.current;
     const context = canvas?.getContext("2d");
     if (!canvas || !context) return;
-    let frame = 0; let width = 0; let height = 0; let dpr = 1; let finished = false;
+    let frame = 0; let width = 0; let height = 0; let dpr = 1;
     const resize = () => {
       const rect = canvas.getBoundingClientRect(); dpr = Math.min(window.devicePixelRatio || 1, 2);
       width = Math.max(320, rect.width); height = Math.max(360, rect.height);
@@ -67,13 +67,13 @@ export default function RacingHub() {
     const draw = (now: number) => {
       const race = raceRef.current; const currentPhase = phaseRef.current;
       const dt = race.last ? Math.min((now - race.last) / 1000, .04) : 0; race.last = now;
-      if (currentPhase === "running" && !finished) {
+      if (currentPhase === "running") {
         race.elapsed += dt; race.speed = Math.min(155, race.speed + dt * 1.6); race.distance += race.speed * dt / 8; race.stripeOffset = (race.stripeOffset + race.speed * dt * 1.3) % 72; race.spawn -= dt;
         if (race.spawn <= 0) { race.traffic.push({ lane: Math.floor(Math.random() * 3), y: -72, color: ["#e5a34b", "#c85b4c", "#6586a8"][Math.floor(Math.random() * 3)], hit: false }); race.spawn = .9 + Math.random() * .7; }
         const roadLeft = width * .15; const roadWidth = width * .7; const laneWidth = roadWidth / 3; const carWidth = Math.min(40, width * .09); const playerY = height - 100;
         for (const car of race.traffic) { car.y += race.speed * dt * 1.2; if (!car.hit && car.lane === race.lane && car.y + carWidth * 1.6 > playerY && car.y < playerY + carWidth * 1.6) { car.hit = true; race.hits += 1; race.speed = Math.max(65, race.speed - 22); } }
         race.traffic = race.traffic.filter(car => car.y < height + 80);
-        if (race.distance >= finishDistance) { race.distance = finishDistance; finished = true; phaseRef.current = "finished"; setPhase("finished"); }
+        if (race.distance >= finishDistance) { race.distance = finishDistance; phaseRef.current = "finished"; setPhase("finished"); }
         setElapsed(race.elapsed); setDistance(race.distance); setSpeed(race.speed); setHits(race.hits);
       }
       context.clearRect(0, 0, width, height); context.fillStyle = "#8aa96e"; context.fillRect(0, 0, width, height); context.fillStyle = "#76965e";
