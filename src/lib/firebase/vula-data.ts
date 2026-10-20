@@ -61,7 +61,11 @@ export async function deleteAnnouncement(id: string) {
 }
 export async function saveGalleryItem(data: { id?: string; title: string; imageUrl: string; description: string; active: boolean }) {
   const ref = data.id ? doc(db, "gallery", data.id) : doc(collection(db, "gallery"));
-  await setDoc(ref, { ...data, id: ref.id, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, { merge: true });
+  const now = new Date().toISOString();
+  await setDoc(ref, { ...data, id: ref.id, ...(!data.id ? { createdAt: now } : {}), updatedAt: now }, { merge: true });
+}
+export async function deleteGalleryItem(id: string) {
+  await deleteDoc(doc(db, "gallery", id));
 }
 export async function saveSettings(data: Record<string, unknown>) {
   await setDoc(doc(db, "businessSettings", "main"), { ...data, updatedAt: new Date().toISOString() }, { merge: true });
