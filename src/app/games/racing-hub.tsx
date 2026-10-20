@@ -101,10 +101,10 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
           opponent.lane += ((opponent.targetLane ?? opponent.lane) - opponent.lane) * Math.min(1, dt * (opponent.name === "SPRINT" ? 5.5 : 2.4));
           opponent.y += (race.speed - (opponent.pace ?? 105)) * dt * 1.7;
           if (opponent.y > height + 70) { opponent.y = -100; opponent.lane = Math.floor(Math.random() * 3); opponent.targetLane = opponent.lane; }
-          if (opponent.y < -100) { opponent.y = height + 60; opponent.lane = Math.floor(Math.random() * 3); opponent.targetLane = opponent.lane; }
+          if (opponent.y < -100) { opponent.y = height + 60; opponent.lane = Math.floor(Math.random() * 3); opponent.targetLane = opponent.lane; opponent.hit = false; }
           if (!opponent.hit && Math.round(opponent.lane) === Math.round(race.lane) && opponent.y + carWidth * 1.6 > playerY && opponent.y < playerY + carWidth * 1.6) {
             opponent.hit = true; race.hits += 1; race.speed = Math.max(65, race.speed - 18); opponent.y = -120;
-          } else if (opponent.hit && opponent.y < -100) opponent.hit = false;
+          }
         }
         if (race.distance >= finishDistance) { race.distance = finishDistance; phaseRef.current = "finished"; setPhase("finished"); }
         setElapsed(race.elapsed); setDistance(race.distance); setSpeed(race.speed); setHits(race.hits);
