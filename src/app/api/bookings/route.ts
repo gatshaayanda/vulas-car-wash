@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     if (rawIds.length > 20 || (rawIds.length && !serviceIds.length)) return NextResponse.json({ error: "Choose valid services from the published menu." }, { status: 400 });
     const db = getFirestore(app);
     const settingsRef = db.doc("businessSettings/main");
-    const bookingRef = db.collection("bookings").doc(requestId || undefined);
+    const bookingRef = requestId ? db.collection("bookings").doc(requestId) : db.collection("bookings").doc();
     const serviceRefs = serviceIds.map(id => db.collection("services").doc(id));
     const result = await db.runTransaction(async transaction => {
       const existingRequest = await transaction.get(bookingRef);
