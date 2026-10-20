@@ -95,22 +95,22 @@ export async function POST(request: Request) {
       const startMinutes = minutes(time);
       if (startMinutes < minutes(open) || startMinutes + interval > minutes(close) || (startMinutes - minutes(open)) % interval !== 0) throw new Error("Choose a time within operating hours from the live calendar.");
       const serviceSnapshots = await Promise.all(serviceRefs.map(ref => transaction.get(ref)));
-      let services: Array<{ id: string; name: string; category: string; price: number | null; durationMinutes: number }>;
-      if (serviceSnapshots.every(snapshot => snapshot.exists && snapshot.data()?.active === true)) {
-        services = serviceSnapshots.map((snapshot, index) => {
-          const data = snapshot.data()!;
-          return { id: serviceIds[index], name: clean(data.name, 120), category: clean(data.category, 80), price: typeof data.price === "number" && Number.isFinite(data.price) && data.price >= 0 ? data.price : null, durationMinutes: Math.max(15, Math.min(240, Number(data.durationMinutes || 30))) };
-        });
-      } else {
-        const catalogueCheck = await transaction.get(db.collection("services").limit(1));
-        if (!catalogueCheck.empty) throw new Error("A selected service is no longer published. Refresh the menu and try again.");
-        const starterById = new Map(vulaServiceSeed.map(item => [item.id, item]));
-        services = serviceIds.map(id => {
-          const item = starterById.get(id);
-          if (!item) throw new Error("Choose valid services from the published menu.");
-          return { id: item.id, name: item.name, category: item.category, price: item.price > 0 ? item.price : null, durationMinutes: item.durationMinutes };
-        });
-      }
+      const services: Array<{ id: string; name: string; category: string; price: number | null; durationMinutes: number }> =
+        serviceSnapshots.every(snapshot => snapshot.exists && snapshot.data()?.active === true)
+          ? serviceSnapshots.map((snapshot, index) => {
+              const data = snapshot.data()!;
+              return { id: serviceIds[index], name: clean(data.name, 120), category: clean(data.category, 80), price: typeof data.price === "number" && Number.isFinite(data.price) && data.price >= 0 ? data.price : null, durationMinutes: Math.max(15, Math.min(240, Number(data.durationMinutes || 30))) };
+            })
+          : await (async () => {
+              const catalogueCheck = await transaction.get(db.collection("services").limit(1));
+              if (!catalogueCheck.empty) throw new Error("A selected service is no longer published. Refresh the menu and try again.");
+              const starterById = new Map(vulaServiceSeed.map(item => [item.id, item]));
+              return serviceIds.map(id => {
+                const item = starterById.get(id);
+                if (!item) throw new Error("Choose valid services from the published menu.");
+                return { id: item.id, name: item.name, category: item.category, price: item.price > 0 ? item.price : null, durationMinutes: item.durationMinutes };
+              });
+            })();
       const durationMinutes = Math.max(30, Math.min(240, services.reduce((sum, service) => sum + service.durationMinutes, 0) || 30));
       if (startMinutes + durationMinutes > minutes(close)) throw new Error("This service basket finishes outside operating hours. Choose an earlier time or a shorter basket.");
       const startIso = new Date(date + "T00:00:00+02:00").toISOString();
