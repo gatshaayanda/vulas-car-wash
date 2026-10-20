@@ -100,6 +100,10 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if isAdmin();
     }
+    match /announcements/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
     match /businessSettings/{id} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
