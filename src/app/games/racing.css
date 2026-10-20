@@ -9,3 +9,8 @@
 .race-hub-embedded .warmup-canvas-wrap canvas{touch-action:none}
 .race-hub-embedded .warmup-steering button{touch-action:none;user-select:none;-webkit-user-select:none}
 @media(max-width:640px){.race-inline-promo{align-items:flex-start;flex-direction:column}.race-inline-heading{flex-direction:column}.race-inline-heading .vula-button{align-self:flex-start}}
+
+.warmup-driving{display:flex;gap:9px;flex-wrap:wrap}
+.warmup-driving button{min-width:100px;min-height:48px;border:1px solid #ccd6c8;border-radius:8px;background:#eaf3d8;color:#172820;font-weight:800;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none}
+.warmup-driving button:disabled{opacity:.45}
+@media(max-width:640px){.warmup-driving{display:grid;grid-template-columns:1fr 1fr}.warmup-driving button{min-width:0}}

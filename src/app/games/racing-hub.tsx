@@ -26,6 +26,7 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
   const [hits, setHits] = useState(0);
   const [, setLane] = useState(1);
   const [businessName, setBusinessName] = useState("Vula's Car Wash");
+  const controlsRef = useRef({ accelerate: false, brake: false });
   phaseRef.current = phase;
 
   const moveLane = useCallback((direction: number) => {
@@ -81,7 +82,9 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
       const race = raceRef.current; const currentPhase = phaseRef.current;
       const dt = race.last ? Math.min((now - race.last) / 1000, .04) : 0; race.last = now;
       if (currentPhase === "running") {
-        race.elapsed += dt; race.speed = Math.min(155, race.speed + dt * 1.6); race.lane += (race.targetLane - race.lane) * Math.min(1, dt * 8); race.distance += race.speed * dt / 8; race.stripeOffset = (race.stripeOffset + race.speed * dt * 1.3) % 72; race.spawn -= dt;
+        race.elapsed += dt;
+        race.speed = controlsRef.current.brake ? Math.max(55, race.speed - dt * 58) : controlsRef.current.accelerate ? Math.min(175, race.speed + dt * 38) : Math.min(155, race.speed + dt * 1.6);
+        race.lane += (race.targetLane - race.lane) * Math.min(1, dt * 8); race.distance += race.speed * dt / 8; race.stripeOffset = (race.stripeOffset + race.speed * dt * 1.3) % 72; race.spawn -= dt;
         if (race.spawn <= 0) { race.traffic.push({ lane: Math.floor(Math.random() * 3), y: -72, color: ["#e5a34b", "#c85b4c", "#6586a8"][Math.floor(Math.random() * 3)], hit: false }); race.spawn = .9 + Math.random() * .7; }
         const roadLeft = width * .15; const roadWidth = width * .7; const laneWidth = roadWidth / 3; const carWidth = Math.min(40, width * .09); const playerY = height - 100;
         for (const car of race.traffic) { car.y += race.speed * dt * 1.2; if (!car.hit && car.lane === Math.round(race.lane) && car.y + carWidth * 1.6 > playerY && car.y < playerY + carWidth * 1.6) { car.hit = true; race.hits += 1; race.speed = Math.max(65, race.speed - 22); } }
@@ -97,19 +100,29 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
       const playerWidth = Math.min(40, width * .09); drawCar(roadLeft + roadWidth / 3 * (race.lane + .5) - playerWidth / 2, height - 100, "#a7d84d", "YOU");
       frame = window.requestAnimationFrame(draw);
     };
-    resize(); window.addEventListener("resize", resize); frame = window.requestAnimationFrame(draw);
-    return () => { window.cancelAnimationFrame(frame); window.removeEventListener("resize", resize); };
-  }, []);
+    const visibilityChange = () => {
+      if (document.hidden && phaseRef.current === "running") { phaseRef.current = "paused"; setPhase("paused"); raceRef.current.last = 0; }
+    };
+    resize(); window.addEventListener("resize", resize); document.addEventListener("visibilitychange", visibilityChange); frame = window.requestAnimationFrame(draw);
+    return () => { window.cancelAnimationFrame(frame); window.removeEventListener("resize", resize); document.removeEventListener("visibilitychange", visibilityChange); };
+  }, [expanded]);
 
   useEffect(() => {
     const keyDown = (event: KeyboardEvent) => {
       if (embedded && !expanded) return;
-      if (["ArrowLeft", "ArrowRight", "a", "A", "d", "D"].includes(event.key)) event.preventDefault();
+      if (["ArrowLeft", "ArrowRight", "a", "A", "d", "D", "ArrowUp", "ArrowDown", "w", "W", "s", "S"].includes(event.key)) event.preventDefault();
       if ((event.key === "ArrowLeft" || event.key.toLowerCase() === "a") && !event.repeat) moveLane(-1);
       if ((event.key === "ArrowRight" || event.key.toLowerCase() === "d") && !event.repeat) moveLane(1);
+      if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") controlsRef.current.accelerate = true;
+      if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") controlsRef.current.brake = true;
       if ((event.key.toLowerCase() === "p" || event.key === "Escape") && !event.repeat) pauseRace();
     };
-    window.addEventListener("keydown", keyDown); return () => window.removeEventListener("keydown", keyDown);
+    const keyUp = (event: KeyboardEvent) => {
+      if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") controlsRef.current.accelerate = false;
+      if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") controlsRef.current.brake = false;
+    };
+    window.addEventListener("keydown", keyDown); window.addEventListener("keyup", keyUp);
+    return () => { window.removeEventListener("keydown", keyDown); window.removeEventListener("keyup", keyUp); controlsRef.current.accelerate = false; controlsRef.current.brake = false; };
   }, [moveLane, pauseRace, embedded, expanded]);
 
   if (embedded && !expanded) return <div className="race-inline-promo"><div><p className="vula-eyebrow">VULA RACING · QUICK BREAK</p><h2>Got a minute? Take a lap.</h2><p>A quick 500 m drive. Dodge traffic, find your rhythm and get back to your wash booking whenever you're ready.</p></div><button type="button" className="vula-button primary" onClick={() => setExpanded(true)}>Play now ↗</button></div>;
@@ -123,8 +136,8 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
       <div className="warmup-canvas-wrap"><canvas ref={canvasRef} aria-label="Top-down 2D road racing warm-up. Use left and right arrows or the controls below to steer." role="img" />
         {phase !== "running" && <div className="warmup-overlay"><span>{phase === "ready" ? "READY ON THE GRID" : phase === "paused" ? "RACE PAUSED" : "FINISH LINE"}</span><strong>{phase === "ready" ? "Start when you are." : phase === "paused" ? "Take your time." : "Warm-up complete."}</strong><p>{phase === "ready" ? "Use ← / → or A / D to change lanes." : phase === "paused" ? "Your timer and traffic are stopped." : "You finished in " + elapsed.toFixed(1) + " seconds with " + hits + " traffic bump" + (hits === 1 ? "" : "s") + "."}</p></div>}
       </div>
-      <div className="warmup-controls"><div className="warmup-steering"><button type="button" aria-label="Steer left" onClick={() => moveLane(-1)} disabled={phase === "finished"}>← Left</button><button type="button" aria-label="Steer right" onClick={() => moveLane(1)} disabled={phase === "finished"}>Right →</button></div><div className="warmup-actions">{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start race ↗</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause race Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume race ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Run again ↗</button>}<button type="button" className="vula-button secondary" onClick={restartRace}>Restart race ↻</button></div></div>
-      <p className="warmup-help">Keyboard: ← / → or A / D to steer · P or Esc to pause. Touch: tap the steering controls. Collisions slow the car; they do not end the test.</p>
+      <div className="warmup-controls"><div className="warmup-steering"><button type="button" aria-label="Steer left" onClick={() => moveLane(-1)} disabled={phase === "finished"}>← Left</button><button type="button" aria-label="Steer right" onClick={() => moveLane(1)} disabled={phase === "finished"}>Right →</button></div><div className="warmup-driving"><button type="button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={() => { controlsRef.current.accelerate = true; }} onPointerUp={() => { controlsRef.current.accelerate = false; }} onPointerLeave={() => { controlsRef.current.accelerate = false; }} onPointerCancel={() => { controlsRef.current.accelerate = false; }}>Accelerate ↑</button><button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={() => { controlsRef.current.brake = true; }} onPointerUp={() => { controlsRef.current.brake = false; }} onPointerLeave={() => { controlsRef.current.brake = false; }} onPointerCancel={() => { controlsRef.current.brake = false; }}>Brake ↓</button></div><div className="warmup-actions">{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start race ↗</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause race Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume race ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Run again ↗</button>}<button type="button" className="vula-button secondary" onClick={restartRace}>Restart race ↻</button></div></div>
+      <p className="warmup-help">Steer: ← / → or A / D · Accelerate: ↑ / W · Brake: ↓ / S · Pause: P / Esc. On phones, use the steering, accelerate and brake controls. Collisions slow the car; they do not end the test.</p>
     </section>
     {!embedded && <footer className="vula-footer"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></Link><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></footer>}
   </div>;
