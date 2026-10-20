@@ -26,7 +26,7 @@ export default function Home() {
   const [linkNotice, setLinkNotice] = useState("");
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<"site" | "mobile">("site");
+  const [mode] = useState<"site" | "mobile">("site");
   const [serviceId, setServiceId] = useState("");
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [appointmentDate, setAppointmentDate] = useState("");
