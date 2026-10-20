@@ -140,20 +140,20 @@ export default function ServiceGuide({ view, services, requestCount, onChooseSer
   }
 
   const customerActions = [
-    { key: "services", label: "Help me choose a wash", icon: "✳" },
+    { key: "services", label: "Help me choose", icon: "✳" },
     { key: "account", label: `My bookings (${requestCount})`, icon: "↗" },
     { key: "browse", label: "Just browsing", icon: "↓" },
   ];
   const adminActions = [
-    { key: "admin-services", label: "Manage wash services", icon: "＋" },
+    { key: "admin-services", label: "Manage services", icon: "＋" },
     { key: "admin-requests", label: `Review bookings (${requestCount})`, icon: "↗" },
     { key: "storefront", label: "Customer page", icon: "↓" },
   ];
 
   return <div className="sd-guide-root">
-    {!open && teaser && <aside className="sd-guide-teaser" aria-label="Optional customer help invitation">
+    {!open && teaser && <aside className="sd-guide-teaser" aria-label="Optional wash guide invitation">
       <span className="sd-guide-teaser-spark"><Sparkles size={15}/></span>
-      <div><strong>{view === "admin" ? "Need a hand with the demo?" : "Need help choosing a wash?"}</strong><p>{view === "admin" ? "Open bookings, manage wash services or return to the customer page." : "I can help you choose a wash or find your booking."}</p><div className="sd-guide-teaser-actions"><button type="button" onClick={() => { setTeaser(false); setOpen(true); if (!messages.length) say("Hi! I’m Vula’s car wash guide. Ask about wash options, prices, appointment times or booking requests."); }}> {view === "admin" ? "Open staff guide" : "Help me choose a wash"} <ArrowRight size={14}/></button><button type="button" className="sd-guide-dismiss" onClick={() => { setTeaser(false); try { window.sessionStorage.setItem(TEASER_KEY, "dismissed"); } catch { /* optional */ } }}>Not now</button></div></div>
+      <div><strong>{view === "admin" ? "Need a hand with staff tools?" : "Not sure which wash to choose?"}</strong><p>{view === "admin" ? "Go to bookings, manage washes or return to the customer page." : "Choose a wash or find your booking."}</p><div className="sd-guide-teaser-actions"><button type="button" onClick={() => { setTeaser(false); setOpen(true); if (!messages.length) say("Hi! I’m Vula’s car wash guide. Ask about wash options, prices, appointment times or booking requests."); }}> {view === "admin" ? "Open staff guide" : "Help me choose"} <ArrowRight size={14}/></button><button type="button" className="sd-guide-dismiss" onClick={() => { setTeaser(false); try { window.sessionStorage.setItem(TEASER_KEY, "dismissed"); } catch { /* optional */ } }}>Not now</button></div></div>
       <button type="button" className="sd-guide-teaser-close" aria-label="Dismiss guide invitation" onClick={() => { setTeaser(false); try { window.sessionStorage.setItem(TEASER_KEY, "dismissed"); } catch { /* optional */ } }}><X size={15}/></button>
     </aside>}
     {open && <div className="sd-guide-backdrop" onClick={() => setOpen(false)} aria-hidden="true"/>}
@@ -161,12 +161,12 @@ export default function ServiceGuide({ view, services, requestCount, onChooseSer
       <header className="sd-guide-head"><div className="sd-guide-avatar"><Sparkles size={18}/></div><div><span className="sd-guide-eyebrow">VULA’S CAR WASH · CUSTOMER HELP</span><h2 id="sd-guide-title">{view === "admin" ? "Wash-day helper" : "Plan your car wash"}</h2><p><span/> Quick help · {view === "admin" ? "Staff tools" : "Booking help"}</p></div><button type="button" aria-label="Close help" onClick={() => { setOpen(false); launcherRef.current?.focus(); }}><ChevronDown size={19}/></button></header>
       <div className="sd-guide-intro"><strong>{view === "admin" ? "What do you need help with?" : "What would you like to do?"}</strong><p>{view === "admin" ? "I’ll point you to the right car wash action." : "Choose a wash, check appointment times, or find your booking. You can always continue without me."}</p></div>
       <div className="sd-guide-actions">{(view === "admin" ? adminActions : customerActions).map(item => <button key={item.key} type="button" onClick={() => item.key === "services" ? say("Choose a wash below to see its price and what’s included. I’ll take you to the booking form when you’re ready.") : runAction(item.key)}><span>{item.icon}</span>{item.label}<ArrowRight size={15}/></button>)}</div>
-      {view !== "admin" && <div className="sd-guide-services"><span className="sd-guide-section-label">WASH SHORTCUTS</span>{activeServices.map(service => <button key={service.id} type="button" onClick={() => chooseService(service)} aria-pressed={lastChoice === service.id}><span className="sd-guide-service-thumb" aria-hidden="true">{service.imageUrl ? <img src={service.imageUrl} alt="" loading="lazy" onError={event => { event.currentTarget.style.visibility = "hidden"; }}/> : <span className="sd-guide-service-placeholder" aria-hidden="true">V</span>}</span><span className="sd-guide-service-copy"><strong>{service.name}</strong><small>{service.description || "Choose this wash to see it in your booking basket."}</small></span><b>{formatPrice(service.price)}</b></button>)}</div>}
+      {view !== "admin" && <div className="sd-guide-services"><span className="sd-guide-section-label">WASH OPTIONS</span>{activeServices.map(service => <button key={service.id} type="button" onClick={() => chooseService(service)} aria-pressed={lastChoice === service.id}><span className="sd-guide-service-thumb" aria-hidden="true">{service.imageUrl ? <img src={service.imageUrl} alt="" loading="lazy" onError={event => { event.currentTarget.style.visibility = "hidden"; }}/> : <span className="sd-guide-service-placeholder" aria-hidden="true">V</span>}</span><span className="sd-guide-service-copy"><strong>{service.name}</strong><small>{service.description || "Choose this wash to see it in your booking basket."}</small></span><b>{formatPrice(service.price)}</b></button>)}</div>}
       {lastChoice && view !== "admin" && <button type="button" className="sd-guide-continue" onClick={continueWithService}>Add this wash to booking <ArrowRight size={16}/></button>}
       <div className="sd-guide-thread" aria-live="polite" aria-relevant="additions text">{messages.slice(-4).map(message => <p key={message.id} className={`sd-guide-message is-${message.from}`}>{message.text}</p>)}</div>
-      <form className="sd-guide-composer" onSubmit={sendText}><input ref={inputRef} value={input} onChange={event => setInput(event.target.value)} aria-label="Ask Vula’s car wash guide" aria-describedby="sd-guide-type-hint" placeholder="Ask about washes, prices or booking times…" maxLength={300}/><button type="submit" disabled={!input.trim()} aria-label="Send message"><Send size={17}/></button></form>
-      <p id="sd-guide-type-hint" className="sd-guide-type-hint">Type a question about the wash menu, booking times or your request.</p>
-      <p className="sd-guide-footnote"><Check size={12}/> Quick guidance · Staff confirm booking requests</p>
+      <form className="sd-guide-composer" onSubmit={sendText}><input ref={inputRef} value={input} onChange={event => setInput(event.target.value)} aria-label="Ask Vula’s car wash guide" aria-describedby="sd-guide-type-hint" placeholder="Tap here to type a question…" maxLength={300}/><button type="submit" disabled={!input.trim()} aria-label="Send message"><Send size={17}/></button></form>
+      <p id="sd-guide-type-hint" className="sd-guide-type-hint">Tap the message box above to type. Your keyboard opens only when you choose to type.</p>
+      <p className="sd-guide-footnote"><Check size={12}/> Quick help · Booking support</p>
     </section>}
     <button ref={launcherRef} type="button" className={`sd-guide-launcher${open ? " is-open" : ""}`} aria-expanded={open} aria-haspopup="dialog" aria-label={open ? "Close service guide" : "Open Vula car wash help"} onClick={() => { setTeaser(false); setOpen(value => !value); if (!messages.length) say("Hi! I’m Vula’s car wash guide. Ask about wash options, prices, appointment times or booking requests."); }}>
       {open ? <X size={21}/> : <MessageCircle size={22}/>}<span>{open ? "Close" : "Need a hand?"}</span>{!open && requestCount > 0 && view === "admin" && <b>{requestCount}</b>}
