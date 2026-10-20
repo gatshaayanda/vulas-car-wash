@@ -46,7 +46,6 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
     if (steeringStartAngle.current === null) return;
     event.preventDefault();
     const rect = event.currentTarget.getBoundingClientRect();
-    const radius = Math.min(rect.width, rect.height) / 2;
     const x = event.clientX - (rect.left + rect.width / 2);
     const y = event.clientY - (rect.top + rect.height / 2);
     if (Math.hypot(x, y) < 7) return;
@@ -56,7 +55,6 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
     const steering = clamp(delta / (Math.PI * 0.62), -1, 1);
     controlsRef.current.steer = steering;
     setWheelRotation(steering * 125);
-    void radius;
   };
   const stopSteering = () => {
     steeringStartAngle.current = null;
@@ -70,8 +68,11 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
     setPhase("running");
   }
   const pauseRace = useCallback(() => {
-    if (phaseRef.current === "running") { phaseRef.current = "paused"; setPhase("paused"); }
-    else if (phaseRef.current === "paused") { raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running"); }
+    if (phaseRef.current === "running") {
+      controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false;
+      steeringStartAngle.current = null; setWheelRotation(0);
+      phaseRef.current = "paused"; setPhase("paused");
+    } else if (phaseRef.current === "paused") { raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running"); }
   }, []);
   function restartRace() {
     raceRef.current = newRace(); setElapsed(0); setDistance(0); setSpeed(105); setHits(0); stopSteering(); controlsRef.current.accelerate = false; controlsRef.current.brake = false;
@@ -148,7 +149,11 @@ export default function RacingHub({ embedded = false }: RacingHubProps) {
       frame = window.requestAnimationFrame(draw);
     };
     const visibilityChange = () => {
-      if (document.hidden && phaseRef.current === "running") { phaseRef.current = "paused"; setPhase("paused"); raceRef.current.last = 0; }
+      if (document.hidden && phaseRef.current === "running") {
+        controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false;
+        steeringStartAngle.current = null; setWheelRotation(0);
+        phaseRef.current = "paused"; setPhase("paused"); raceRef.current.last = 0;
+      }
     };
     resize(); window.addEventListener("resize", resize); document.addEventListener("visibilitychange", visibilityChange); frame = window.requestAnimationFrame(draw);
     return () => { window.cancelAnimationFrame(frame); window.removeEventListener("resize", resize); document.removeEventListener("visibilitychange", visibilityChange); };
