@@ -1,7 +1,7 @@
 /**
  * Small editable starter menu for Vula's Car Wash.
- * These are sensible guide prices, not verified Vula prices. Staff can edit
- * the names, descriptions, prices and durations in the staff dashboard.
+ * Starter services are seeded so the booking form works immediately. Staff can
+ * edit the names, descriptions, prices and durations in the staff dashboard.
  */
 export type VulaServiceSeed = { id: string; name: string; category: string; description: string; price: number; durationMinutes: number };
 export const vulaServiceSeed: VulaServiceSeed[] = [
