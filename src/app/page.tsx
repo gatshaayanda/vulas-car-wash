@@ -20,6 +20,7 @@ const money = (price?: number | null) => typeof price === "number" ? "P" + price
 
 export default function Home() {
   const [services, setServices] = useState<VulaService[]>([]);
+  const [servicesLoaded, setServicesLoaded] = useState(false);
   const [announcements, setAnnouncements] = useState<VulaAnnouncement[]>([]);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [online, setOnline] = useState(true);
@@ -52,16 +53,24 @@ export default function Home() {
   const locationName = typeof settings.locationName === "string" && settings.locationName.trim() ? settings.locationName : "G-West";
   const seedServices = useMemo<VulaService[]>(() => vulaServiceSeed.map(service => ({ ...service, price: service.price > 0 ? service.price : null, active: true })), []);
   const activeServices = useMemo(() => {
-    // Keep the starter menu visible before the first catalogue arrives, but once Firestore
-    // has records, respect its active state and include every custom service staff create.
-    if (!services.length) return seedServices;
+    // Keep a usable starter menu until the first server-backed catalogue snapshot arrives.
+    // An empty live catalogue is intentional: staff may delete every service or pause the menu.
+    if (!servicesLoaded) return seedServices;
     const seeded = services.map(saved => {
       const seed = seedServices.find(item => item.id === saved.id);
       if (!seed) return saved;
-      return { ...seed, ...saved, price: saved.price === undefined ? seed.price : saved.price, description: saved.description?.trim() ? saved.description : seed.description, category: saved.category?.trim() ? saved.category : seed.category, durationMinutes: saved.durationMinutes || seed.durationMinutes };
+      // Only fill fields absent from legacy records; preserve explicit empty/null admin edits.
+      return {
+        ...seed,
+        ...saved,
+        price: saved.price === undefined ? seed.price : saved.price,
+        description: saved.description === undefined ? seed.description : saved.description,
+        category: saved.category === undefined ? seed.category : saved.category,
+        durationMinutes: saved.durationMinutes === undefined ? seed.durationMinutes : saved.durationMinutes,
+      };
     });
     return seeded.filter(service => service.active);
-  }, [services, seedServices]);
+  }, [services, servicesLoaded, seedServices]);
   const selectedServices = useMemo(() => activeServices.filter(service => selectedServiceIds.includes(service.id)), [activeServices, selectedServiceIds]);
   const basketTotal = selectedServices.length && selectedServices.every(service => typeof service.price === "number") ? selectedServices.reduce((sum, service) => sum + Number(service.price), 0) : undefined;
   const appointmentDuration = Math.max(30, Math.min(240, selectedServices.reduce((sum, service) => sum + Number(service.durationMinutes || 30), 0) || 30));
@@ -77,7 +86,7 @@ export default function Home() {
     const onOnline = () => { setOnline(true); void syncOfflineRequests(); };
     const onOffline = () => { setOnline(false); setNotice({ kind: "pending", text: "Offline: requests can be saved on this device, but the team cannot see them until they sync." }); };
     const stopAuth = onAuthStateChanged(auth, user => { setUserId(user?.uid ?? ""); setIsGuest(user?.isAnonymous ?? true); });
-    const stops = [subscribeServices(value => { setServices(value); }, error => { setConnectionError(error.message); }), subscribeAnnouncements(setAnnouncements, () => {}), subscribeSettings(value => setSettings(value ?? {}), () => {})];
+    const stops = [subscribeServices((value, fromCache) => { setServices(value); if (!fromCache) setServicesLoaded(true); }, error => { setConnectionError(error.message); setServicesLoaded(true); }), subscribeAnnouncements(setAnnouncements, () => {}), subscribeSettings(value => setSettings(value ?? {}), () => {})];
     window.addEventListener("online", onOnline); window.addEventListener("offline", onOffline);
     if (navigator.onLine) void syncOfflineRequests();
     return () => { stopAuth(); stops.forEach(stop => stop()); window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
