@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { GoogleAuthProvider, linkWithPopup, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { collection, doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db, hasFirebaseWebConfig } from "@/lib/firebase/client";
-import { subscribeAnnouncements, subscribeServices, subscribeSettings, type VulaAnnouncement, type VulaGalleryItem, type VulaService } from "@/lib/firebase/vula-data";
+import { subscribeAnnouncements, subscribeServices, subscribeSettings, type VulaAnnouncement, type VulaService } from "@/lib/firebase/vula-data";
 import { vulaServiceSeed } from "@/lib/vula/service-seed";
 import RacingHub from "./games/racing-hub";
 import "./vula.css";
