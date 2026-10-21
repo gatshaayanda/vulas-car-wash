@@ -99,15 +99,8 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
 
     window.addEventListener("online", online);
     window.addEventListener("offline", off);
-    const promptWindow = window as Window & { __vulaInstallPrompt?: Event; __vulaPwaListenerReady?: boolean };
-    // The browser can emit beforeinstallprompt before React hydrates. Adopt the
-    // event captured by the tiny beforeInteractive script before listening normally.
-    promptWindow.__vulaPwaListenerReady = true;
-    const earlyPrompt = promptWindow.__vulaInstallPrompt;
-    if (earlyPrompt) {
-      delete promptWindow.__vulaInstallPrompt;
-      onBeforeInstallPrompt(earlyPrompt);
-    }
+    // Match Africhiko's proven lifecycle: prevent the browser's automatic prompt,
+    // retain its real one-shot event, and reveal the branded card for the user's click.
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
 
     if (env.standalone && !embedded) {
