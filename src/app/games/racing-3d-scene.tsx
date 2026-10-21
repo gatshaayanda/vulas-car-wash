@@ -142,6 +142,77 @@ export default function Racing3DScene({ speed, steer, lateral, brake, boost, pha
     const track = new THREE.CatmullRomCurve3(points, true, "centripetal", .42);
     const road = new THREE.Mesh(ribbon(track, 12, 600, .015), new THREE.MeshStandardMaterial({ color: "#30383e", roughness: .94, metalness: .02, side: THREE.DoubleSide }));
     road.receiveShadow = true; scene.add(road);
+    // Recommended racing line: green = build speed, amber = prepare/lift, red = brake.
+    // It follows the circuit curvature instead of being a decorative straight stripe.
+    const linePositions: number[] = [];
+    const lineColors: number[] = [];
+    const lineIndices: number[] = [];
+    const greenLine = new THREE.Color("#8cf06a");
+    const amberLine = new THREE.Color("#ffd45c");
+    const redLine = new THREE.Color("#ff6258");
+    const lineSamples = 720;
+    for (let i = 0; i <= lineSamples; i++) {
+      const t = i / lineSamples;
+      const p = track.getPointAt(t);
+      const tangent = track.getTangentAt(t).normalize();
+      const before = track.getTangentAt((t - .004 + 1) % 1).normalize();
+      const after = track.getTangentAt((t + .004) % 1).normalize();
+      const turn = before.z * after.x - before.x * after.z;
+      const bend = clamp(Math.abs(turn) * 28, 0, 1);
+      const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+      // Offset slightly toward the inside of the bend to suggest the apex line.
+      const offset = clamp(turn * 20, -2.05, 2.05);
+      const x = p.x + side.x * offset, z = p.z + side.z * offset;
+      linePositions.push(x - side.x * .13, .075, z - side.z * .13, x + side.x * .13, .075, z + side.z * .13);
+      const color = bend > .72 ? redLine : bend > .38 ? amberLine : greenLine;
+      lineColors.push(color.r, color.g, color.b, color.r, color.g, color.b);
+      if (i < lineSamples) {
+        const a = i * 2;
+        lineIndices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+      }
+    }
+    const lineGeometry = new THREE.BufferGeometry();
+    lineGeometry.setAttribute("position", new THREE.Float32BufferAttribute(linePositions, 3));
+    lineGeometry.setAttribute("color", new THREE.Float32BufferAttribute(lineColors, 3));
+    lineGeometry.setIndex(lineIndices);
+    lineGeometry.computeVertexNormals();
+    const racingLine = new THREE.Mesh(lineGeometry, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+    racingLine.position.y = .018;
+    scene.add(racingLine);
+
+    // Fixed visual references before significant bends: brake board, turn-in chevrons and apex beacon.
+    let lastBoardAt = -1;
+    for (let i = 0; i < 180; i++) {
+      const t = i / 180;
+      const before = track.getTangentAt((t - .006 + 1) % 1).normalize();
+      const after = track.getTangentAt((t + .006) % 1).normalize();
+      const turn = before.z * after.x - before.x * after.z;
+      const strength = Math.abs(turn);
+      if (strength < .038 || (lastBoardAt >= 0 && (t - lastBoardAt + 1) % 1 < .075)) continue;
+      lastBoardAt = t;
+      const p = track.getPointAt(t);
+      const tangent = track.getTangentAt(t).normalize();
+      const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+      const outside = Math.sign(turn || 1);
+      const board = new THREE.Group();
+      const postMat = new THREE.MeshStandardMaterial({ color: "#34443b", roughness: .85 });
+      const boardMat = new THREE.MeshStandardMaterial({ color: "#f4f2e8", roughness: .65 });
+      const letteringMat = new THREE.MeshStandardMaterial({ color: "#d7473d", emissive: "#50100d", emissiveIntensity: .25 });
+      const post = new THREE.Mesh(new THREE.BoxGeometry(.12, 2.2, .12), postMat);
+      post.position.y = 1.1; board.add(post);
+      const face = new THREE.Mesh(new THREE.BoxGeometry(1.45, .8, .14), boardMat);
+      face.position.set(0, 1.75, 0); board.add(face);
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.2, .13, .16), letteringMat);
+      stripe.position.set(0, 1.75, .09); board.add(stripe);
+      board.position.set(p.x + side.x * outside * 9.2, 0, p.z + side.z * outside * 9.2);
+      board.rotation.y = Math.atan2(-side.x * outside, -side.z * outside);
+      board.traverse((node) => { const mesh = node as THREE.Mesh; mesh.castShadow = true; });
+      scene.add(board);
+      // A small amber beacon marks the corner's turn-in reference at track edge.
+      const beacon = new THREE.Mesh(new THREE.SphereGeometry(.22, 10, 8), new THREE.MeshBasicMaterial({ color: "#ffc84a" }));
+      beacon.position.set(p.x - side.x * outside * 5.4, .42, p.z - side.z * outside * 5.4);
+      scene.add(beacon);
+    }
     const kerb = new THREE.MeshStandardMaterial({ color: "#f4eee0", roughness: .8, side: THREE.DoubleSide });
     const redKerb = new THREE.MeshStandardMaterial({ color: "#d7473d", roughness: .75, side: THREE.DoubleSide });
     const barrierMat = new THREE.MeshStandardMaterial({ color: "#dce2df", roughness: .65 });
@@ -240,6 +311,26 @@ export default function Racing3DScene({ speed, steer, lateral, brake, boost, pha
             if (mesh.isMesh) { mesh.castShadow = true; mesh.receiveShadow = true; }
           });
           assetCar.add(model);
+          // GLTF cars need their own exhaust effect: the procedural fallback's flame
+          // is hidden when the Kenney model loads.
+          const flameGroup = new THREE.Group();
+          const outerFlame = new THREE.Mesh(
+            new THREE.ConeGeometry(.2, .9, 10),
+            new THREE.MeshBasicMaterial({ color: "#42dfff", transparent: true, opacity: .9 })
+          );
+          outerFlame.rotation.x = -Math.PI / 2;
+          outerFlame.position.set(0, .38, 1.72);
+          const innerFlame = new THREE.Mesh(
+            new THREE.ConeGeometry(.105, .55, 8),
+            new THREE.MeshBasicMaterial({ color: "#ffb23d", transparent: true, opacity: .96 })
+          );
+          innerFlame.rotation.x = -Math.PI / 2;
+          innerFlame.position.set(0, .38, 1.92);
+          flameGroup.add(outerFlame, innerFlame);
+          flameGroup.visible = false;
+          assetCar.add(flameGroup);
+          assetCar.userData.flame = flameGroup;
+          assetCar.userData.flameOuter = outerFlame;
           assetCar.visible = true;
           car.visible = false;
         }, undefined, (error) => console.warn("Kenney racing car failed to load; using fallback car.", error));
@@ -278,9 +369,14 @@ export default function Racing3DScene({ speed, steer, lateral, brake, boost, pha
       const frameDelta = Math.min(clock.getDelta(), .05);
       camera.position.lerp(cameraPosition, 1 - Math.exp(-frameDelta * 5.5));
       camera.lookAt(cameraTarget);
-      const flame = car.userData.flame as THREE.Mesh;
-      flame.visible = state.boost && state.phase === "running";
-      flame.scale.setScalar(.8 + Math.sin(clock.elapsedTime * 36) * .18);
+      const flame = (assetCar.visible ? assetCar.userData.flame : car.userData.flame) as THREE.Object3D | undefined;
+      if (flame) {
+        flame.visible = state.boost && state.phase === "running";
+        const pulse = .82 + Math.sin(clock.elapsedTime * 42) * .18;
+        flame.scale.setScalar(pulse);
+        const outer = assetCar.userData.flameOuter as THREE.Mesh | undefined;
+        if (outer) outer.scale.setScalar(.86 + Math.sin(clock.elapsedTime * 55) * .2);
+      }
       if (state.phase === "running") {
         camera.fov = 63 + Math.min(8, state.speed / 28) + (state.boost ? 5 : 0);
       } else camera.fov = 63;
