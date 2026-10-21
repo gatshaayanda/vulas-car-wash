@@ -10,7 +10,7 @@ type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
-type InstallState = "hidden" | "native" | "embedded";
+type InstallState = "hidden" | "native" | "ios" | "embedded";
 
 const INSTALL_DISMISSED_KEY = "vulas-car-wash:install:dismissed-at";
 const INSTALL_DISMISS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -117,6 +117,10 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     } else if (embedded) {
       // Embedded browsers are a compatibility gate, not an install promotion.
       setInstallState("embedded");
+    } else if (isIosSafari()) {
+      // iOS Safari does not emit beforeinstallprompt. Give it the correct
+      // Share → Add to Home Screen route instead of waiting for a Chromium event.
+      setInstallState("ios");
     }
 
     const requestInstall = () => {
@@ -131,11 +135,11 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
         void install();
         return;
       }
-      // Match the working Odi install flow: never let a visible install CTA silently
-      // do nothing when this browser has not emitted beforeinstallprompt.
-      const platform = current.ios ? "ios" : current.android ? "android" : "other";
-      setInstallPlatform(platform);
-      setInstallState("native");
+      // Never display a native-install card without a real captured event:
+      // that would create a visible Install button that cannot invoke the browser.
+      if (isIosSafari()) {
+        window.location.assign("/iphone-install");
+      }
     };
     const appInstalled = () => {
       installPromptRef.current = null;
@@ -260,8 +264,13 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     <aside className="vula-install-card" aria-label="Install Vula's Car Wash">
       <div className="vula-install-brand"><span className="vula-install-mark" aria-hidden="true">V</span><span><strong>VULA'S CAR WASH</strong><small>WASH · CARE · GO</small></span></div>
       <button className="vula-install-close" type="button" aria-label="Dismiss install prompt" onClick={dismissInstall}>×</button>
-      <p className="vula-install-message">Install Vula's Car Wash on your device for quick access to services and your booking requests.</p>
       <button className="vula-install-action" type="button" onClick={() => void install()}>Install Vula's Car Wash <span aria-hidden="true">↗</span></button>
+    </aside>
+  ) : installState === "ios" ? (
+    <aside className="vula-install-card" aria-label="Add Vula's Car Wash to your Home Screen">
+      <div className="vula-install-brand"><span className="vula-install-mark" aria-hidden="true">V</span><span><strong>VULA'S CAR WASH</strong><small>WASH · CARE · GO</small></span></div>
+      <button className="vula-install-close" type="button" aria-label="Dismiss install prompt" onClick={dismissInstall}>×</button>
+      <a className="vula-install-action" href="/iphone-install">Add to Home Screen <span aria-hidden="true">↗</span></a>
     </aside>
   ) : installState === "embedded" ? (
     <div style={embeddedInstallStyle} role="alertdialog" aria-modal="true" aria-labelledby="vula-embedded-title" aria-describedby="vula-embedded-message">
