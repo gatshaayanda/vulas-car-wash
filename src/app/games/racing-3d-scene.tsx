@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { createRacingTrack, getTrackTurn } from "./racing-track";
 
 type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
 type Props = { speed: number; steer: number; lateral: number; brake: boolean; boost: boolean; phase: Phase; progress: number; countdown: number };
@@ -132,14 +133,7 @@ export default function Racing3DScene({ speed, steer, lateral, brake, boost, pha
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshStandardMaterial({ color: "#628653", roughness: 1 }));
     ground.rotation.x = -Math.PI / 2; ground.position.y = -.12; ground.receiveShadow = true; scene.add(ground);
 
-    const points = [
-      new THREE.Vector3(0, 0, 72), new THREE.Vector3(30, 0, 65), new THREE.Vector3(45, 0, 42),
-      new THREE.Vector3(40, 0, 16), new THREE.Vector3(21, 0, 2), new THREE.Vector3(38, 0, -24),
-      new THREE.Vector3(29, 0, -52), new THREE.Vector3(0, 0, -66), new THREE.Vector3(-32, 0, -54),
-      new THREE.Vector3(-43, 0, -28), new THREE.Vector3(-26, 0, -8), new THREE.Vector3(-42, 0, 17),
-      new THREE.Vector3(-32, 0, 48)
-    ];
-    const track = new THREE.CatmullRomCurve3(points, true, "centripetal", .42);
+    const track = createRacingTrack();
     const road = new THREE.Mesh(ribbon(track, 12, 600, .015), new THREE.MeshStandardMaterial({ color: "#30383e", roughness: .94, metalness: .02, side: THREE.DoubleSide }));
     road.receiveShadow = true; scene.add(road);
     // Recommended racing line: green = build speed, amber = prepare/lift, red = brake.
@@ -157,7 +151,7 @@ export default function Racing3DScene({ speed, steer, lateral, brake, boost, pha
       const tangent = track.getTangentAt(t).normalize();
       const before = track.getTangentAt((t - .004 + 1) % 1).normalize();
       const after = track.getTangentAt((t + .004) % 1).normalize();
-      const turn = before.z * after.x - before.x * after.z;
+      const turn = getTrackTurn(track, t, .004);
       const bend = clamp(Math.abs(turn) * 28, 0, 1);
       const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
       // Offset slightly toward the inside of the bend to suggest the apex line.
@@ -186,7 +180,7 @@ export default function Racing3DScene({ speed, steer, lateral, brake, boost, pha
       const t = i / 180;
       const before = track.getTangentAt((t - .006 + 1) % 1).normalize();
       const after = track.getTangentAt((t + .006) % 1).normalize();
-      const turn = before.z * after.x - before.x * after.z;
+      const turn = getTrackTurn(track, t, .006);
       const strength = Math.abs(turn);
       if (strength < .038 || (lastBoardAt >= 0 && (t - lastBoardAt + 1) % 1 < .075)) continue;
       lastBoardAt = t;
