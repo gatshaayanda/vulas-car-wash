@@ -115,6 +115,94 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
 
 
   useEffect(() => {
+    let raf = 0;
+    let previous = 0;
+    let lastUi = 0;
+    let lastCoachAt = 0;
+    let lastCollision = -1;
+    const frame = (now: number) => {
+      const race = raceRef.current;
+      const dt = previous ? Math.min((now - previous) / 1000, 0.035) : 0;
+      previous = now;
+      if (phaseRef.current === "running" && dt > 0) {
+        const controls = controlsRef.current;
+        const t = wrap(race.progress, 1);
+        const bend = Math.abs(Math.sin(t * Math.PI * 2 + 0.6) * 1.35 + Math.sin(t * Math.PI * 6) * 0.24);
+        const speedRatio = race.speed / 205;
+        const boost = controls.boost && race.nos > 0 && !controls.brake;
+        const acceleration = controls.accelerate ? 96 : 0;
+        const braking = controls.brake ? 145 : 0;
+        race.speed = clamp(race.speed + (acceleration - race.speed * 0.19 - braking + (boost ? 62 : 0)) * dt, 0, boost ? 250 : 205);
+        race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
+        const grip = 0.9 - speedRatio * 0.27 - clamp(bend / 1.8, 0, 1) * speedRatio * 0.18;
+        const steeringForce = controls.steer * (0.95 + speedRatio * 0.35);
+        const cornerForce = Math.sin(t * Math.PI * 2 + 0.6) * speedRatio * 0.16;
+        race.lateralVelocity += (steeringForce - cornerForce - race.lateralVelocity * (1.2 + speedRatio * 0.6)) * dt;
+        race.lateral = clamp(race.lateral + race.lateralVelocity * dt * (0.75 + speedRatio * 0.8), -0.95, 0.95);
+        const demand = Math.abs(controls.steer) * speedRatio * (0.3 + bend * 0.35);
+        const excess = Math.max(0, demand - grip);
+        race.drift = clamp(excess * Math.sign(controls.steer) * 2.4, -1, 1);
+        if (excess > 0) race.speed = Math.max(0, race.speed - excess * (18 + race.speed * 0.05) * dt);
+        if (Math.abs(race.lateral) > 0.7) {
+          race.speed = Math.max(0, race.speed - 38 * dt);
+          race.lapInvalid = true;
+        }
+        race.progress += race.speed * dt / 4200;
+        race.elapsed += dt;
+        race.lapTime += dt;
+        const lapNow = Math.floor(race.progress) + 1;
+        if (lapNow > race.lap) {
+          if (!race.lapInvalid && (race.bestLap === null || race.lapTime < race.bestLap)) {
+            race.bestLap = race.lapTime;
+            setBestLap(race.lapTime);
+            notify("New personal best lap!", "success");
+          } else if (race.lapInvalid) notify("Lap invalid — stay on the racing surface.", "error");
+          race.lap = lapNow;
+          race.lapTime = 0;
+          race.lapInvalid = false;
+          setLap(lapNow);
+          setEngineer("Lap complete. Pick one corner to improve on the next lap.");
+        }
+        // Practice cones are fixed to the track. A clean pass rewards line discipline;
+        // clipping one costs speed and gives a single, readable coaching cue.
+        for (let i = 0; i < 14; i++) {
+          const coneT = (i * 0.071 + 0.09) % 1;
+          const distance = Math.min(Math.abs(t - coneT), 1 - Math.abs(t - coneT));
+          const coneOffset = i % 2 ? 2.5 : -2.6;
+          if (distance < 0.0065 && Math.abs(race.lateral * 4.6 - coneOffset) < 1.25 && now - lastCollision > 1100) {
+            race.speed *= 0.72;
+            lastCollision = now;
+            notify("Cone clipped — leave a little more room.", "error");
+            setEngineer("Obstacle contact. Look farther ahead and make one smooth correction.");
+          }
+        }
+        if (now - lastCoachAt > 1700) {
+          lastCoachAt = now;
+          const currentCurve = Math.abs(Math.sin(t * Math.PI * 2 + 0.6));
+          let message = "Good pace. Keep your inputs smooth.";
+          if (currentCurve > 0.82 && !controls.brake && race.speed > 125) message = "Corner coming up — brake before turning in.";
+          else if (currentCurve > 0.72 && controls.brake) message = "Good. Release the brake progressively as you turn.";
+          else if (Math.abs(race.lateral) > 0.52) message = "You're running wide. Ease off and guide the car back.";
+          else if (boost && currentCurve < 0.48) message = "Good NOS timing. Use the clear section to build speed.";
+          else if (currentCurve < 0.38 && race.speed > 100) message = "Clear section ahead. Build speed and save NOS for the exit.";
+          else if (Math.abs(race.drift) > 0.2) message = "Grip is fading. Reduce steering angle at this speed.";
+          setEngineer(message);
+        }
+        if (now - lastUi > 50) {
+          lastUi = now;
+          setSpeed(race.speed);
+          setLapTime(race.lapTime);
+          setNos(race.nos);
+          setBoostActive(boost);
+        }
+      }
+      raf = window.requestAnimationFrame(frame);
+    };
+    raf = window.requestAnimationFrame(frame);
+    return () => window.cancelAnimationFrame(raf);
+  }, [notify]);
+
+  useEffect(() => {
     const keyDown = (e: KeyboardEvent) => {
       if (embedded && !expanded) return;
       if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "a", "d", "w", "s", " "].includes(e.key)) e.preventDefault();
