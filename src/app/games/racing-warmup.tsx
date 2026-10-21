@@ -119,19 +119,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
-    const drawCar = (x: number, y: number, angle: number, drift: number, boosting: boolean) => {
-      ctx.save(); ctx.translate(x, y); ctx.rotate(angle + drift * 0.24);
-      if (boosting) {
-        const flame = 10 + Math.sin(performance.now() / 35) * 4;
-        ctx.fillStyle = "#70eaff"; ctx.beginPath(); ctx.moveTo(-7, 12); ctx.lineTo(0, 12 + flame); ctx.lineTo(7, 12); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = "#d9ff76"; ctx.beginPath(); ctx.moveTo(-3, 12); ctx.lineTo(0, 12 + flame * .65); ctx.lineTo(3, 12); ctx.closePath(); ctx.fill();
-      }
-      ctx.fillStyle = "#101a18"; ctx.fillRect(-9, -7, 4, 9); ctx.fillRect(5, -7, 4, 9); ctx.fillRect(-9, 4, 4, 8); ctx.fillRect(5, 4, 4, 8);
-      ctx.fillStyle = "#b7ef4c"; ctx.beginPath(); ctx.roundRect(-7, -13, 14, 28, 5); ctx.fill();
-      ctx.fillStyle = "#d8f0ef"; ctx.beginPath(); ctx.roundRect(-4.5, -7, 9, 8, 2); ctx.fill();
-      ctx.fillStyle = "#ff6e64"; ctx.fillRect(-5, 10, 3, 2); ctx.fillRect(2, 10, 3, 2);
-      ctx.restore();
-    };
     const draw = (now: number) => {
       const race = raceRef.current, phaseNow = phaseRef.current;
       const dt = race.last ? Math.min((now - race.last) / 1000, 0.035) : 0;
