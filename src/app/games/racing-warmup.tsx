@@ -252,7 +252,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     <section className="vula-section warmup-game">
       <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Lap</span><strong>{lap}</strong></div><div><span>Current lap</span><strong>{fmt(lapTime)}</strong></div><div><span>Best lap</span><strong>{fmt(bestLap)}</strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
-        <Racing3DScene speed={speed} steer={controlsRef.current.steer} brake={controlsRef.current.brake} boost={boostActive} phase={phase} progress={raceRef.current.progress} countdown={countdown} />
+        <Racing3DScene speed={speed} steer={controlsRef.current.steer} lateral={raceRef.current.lateral} brake={controlsRef.current.brake} boost={boostActive} phase={phase} progress={raceRef.current.progress} countdown={countdown} />
         <div className="warmup-3d-overlay" hidden={phase === "running"} aria-live="polite">
           <span>VULA RACING · CIRCUIT PRACTICE</span>
           <strong>{phase === "ready" ? "Find your racing line" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : "Nice driving!"}</strong>
