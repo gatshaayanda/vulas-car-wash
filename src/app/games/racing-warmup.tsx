@@ -37,6 +37,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [bestLap, setBestLap] = useState<number | null>(null);
   const [lap, setLap] = useState(1);
   const [nos, setNos] = useState(100);
+  const [slip, setSlip] = useState(0);
   const [boostActive, setBoostActive] = useState(false);
   const [wheelRotation, setWheelRotation] = useState(0);
   const [engineer, setEngineer] = useState("Welcome to the circuit. Smooth inputs keep the car quick.");
@@ -63,7 +64,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const reset = useCallback((start: boolean) => {
     raceRef.current = newRace();
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-    setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setBoostActive(false); setWheelRotation(0);
+    setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setSlip(0); setBoostActive(false); setWheelRotation(0);
     setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
     setEngineer("Find your rhythm: brake before the tighter bends, then unwind the wheel on exit.");
   }, []);
@@ -174,6 +175,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           setSpeed(race.speed);
           setLapTime(race.lapTime);
           setNos(race.nos);
+          setSlip(Math.abs(race.drift));
           setBoostActive(boost);
         }
       }
@@ -242,7 +244,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       </div>
       <div className="warmup-line-legend" aria-label="Racing line guide"><span><i className="line-green" />Green · build speed</span><span><i className="line-amber" />Amber · prepare / lift</span><span><i className="line-red" />Red · brake</span></div>
       <div className="warmup-engineer" aria-live="polite"><span className="engineer-light" /> <div><strong>RACE ENGINEER</strong><p>{engineer}</p></div></div>
-      <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
+      <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div><div className="slip-readout"><strong>TYRE SLIP</strong><span>{Math.round(slip * 100)}%</span></div><div className={"slip-track" + (slip > 0.55 ? " danger" : "")}><span style={{ width: Math.min(100, slip * 100) + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
         <div className="warmup-steering"><button type="button" className="warmup-wheel" aria-label="Drag to steer" disabled={phase !== "running"} style={{ transform: `rotate(${wheelRotation}deg)` }} onPointerDown={onWheelDown} onPointerMove={onWheelMove} onPointerUp={onWheelUp} onPointerCancel={onWheelUp}><span className="wheel-ring"><span className="wheel-spoke vertical"/><span className="wheel-spoke horizontal"/><span className="wheel-hub"/></span><span className="wheel-caption">STEER</span></button><span className="steering-caption">Drag left / right</span></div>
         <div className="warmup-driving">
