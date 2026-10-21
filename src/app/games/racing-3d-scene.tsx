@@ -203,23 +203,6 @@ export default function Racing3DScene({ speed, steer, lateral, brake, boost, pha
         post.position.set(rail.position.x, .45, rail.position.z); post.rotation.y = rail.rotation.y; scene.add(post);
       }
     }
-    // Stationary cones sit on the circuit as visible practice targets.
-    const coneMat = new THREE.MeshStandardMaterial({ color: "#ff8c37", roughness: .5 });
-    const coneBand = new THREE.MeshStandardMaterial({ color: "#fff3d7", roughness: .55 });
-    const obstacles: THREE.Group[] = [];
-    for (let i = 0; i < 14; i++) {
-      const t = (i * .071 + .09) % 1;
-      const p = track.getPointAt(t), tangent = track.getTangentAt(t).normalize();
-      const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-      const offset = i % 2 ? 2.5 : -2.6;
-      const cone = new THREE.Group();
-      const base = new THREE.Mesh(new THREE.CylinderGeometry(.48, .55, .16, 10), darkBarrier); base.position.y = .08; cone.add(base);
-      const body = new THREE.Mesh(new THREE.ConeGeometry(.34, 1.05, 10), coneMat); body.position.y = .65; body.castShadow = true; cone.add(body);
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(.2, .29, .14, 10), coneBand); band.position.y = .7; cone.add(band);
-      cone.position.set(p.x + side.x * offset, .03, p.z + side.z * offset);
-      cone.rotation.y = Math.atan2(tangent.x, tangent.z); scene.add(cone); obstacles.push(cone);
-    }
-
     const car = makeCar();
     scene.add(car);
     const assetCar = new THREE.Group();
@@ -277,14 +260,23 @@ export default function Racing3DScene({ speed, steer, lateral, brake, boost, pha
       const tangent = track.getTangentAt(t).normalize();
       const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
       const carOffset = state.lateral * 4.6;
-      car.position.set(position.x + side.x * carOffset, .02 + Math.sin(clock.elapsedTime * 17) * Math.min(.035, state.speed / 5000), position.z + side.z * carOffset);
-      car.rotation.y = Math.atan2(-tangent.x, -tangent.z) + state.steer * -.09;
+      const carWorld = new THREE.Vector3(
+        position.x + side.x * carOffset,
+        .02 + Math.sin(clock.elapsedTime * 17) * Math.min(.035, state.speed / 5000),
+        position.z + side.z * carOffset
+      );
+      car.position.copy(carWorld);
+      car.rotation.y = Math.atan2(-tangent.x, -tangent.z) + state.steer * -.045;
       assetCar.position.copy(car.position);
       assetCar.rotation.copy(car.rotation);
-      const cameraTarget = new THREE.Vector3(position.x + tangent.x * 12, 1.35, position.z + tangent.z * 12);
-      const cameraPosition = new THREE.Vector3(position.x - tangent.x * 7.6, 4.2, position.z - tangent.z * 7.6);
-      cameraPosition.x += side.x * state.steer * .6; cameraPosition.z += side.z * state.steer * .6;
-      camera.position.lerp(cameraPosition, .16);
+      // Follow the car itself, not the circuit centreline: otherwise a wide steering
+      // input can leave the car outside the camera frame on mobile.
+      const cameraTarget = new THREE.Vector3(carWorld.x + tangent.x * 10, 1.25, carWorld.z + tangent.z * 10);
+      const cameraPosition = new THREE.Vector3(carWorld.x - tangent.x * 8.4, 4.7, carWorld.z - tangent.z * 8.4);
+      cameraPosition.x += side.x * state.steer * .22;
+      cameraPosition.z += side.z * state.steer * .22;
+      const frameDelta = Math.min(clock.getDelta(), .05);
+      camera.position.lerp(cameraPosition, 1 - Math.exp(-frameDelta * 5.5));
       camera.lookAt(cameraTarget);
       const flame = car.userData.flame as THREE.Mesh;
       flame.visible = state.boost && state.phase === "running";
