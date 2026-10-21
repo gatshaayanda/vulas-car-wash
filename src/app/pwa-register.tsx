@@ -65,7 +65,6 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
   const [installState, setInstallState] = useState<InstallState>(initialEmbedded ? "embedded" : "hidden");
   const [updateReady, setUpdateReady] = useState<ServiceWorker | null>(null);
   const [embeddedAndroid, setEmbeddedAndroid] = useState(initialEmbedded && initialAndroid);
-  const [installHelpOpen, setInstallHelpOpen] = useState(false);
   const [installPlatform, setInstallPlatform] = useState<"android" | "ios" | "other">("ios");
   const embeddedActionRef = useRef<HTMLButtonElement | null>(null);
   const reloadForUpdate = useRef(false);
@@ -96,7 +95,6 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
       const prompt = event as InstallPromptEvent;
       installPromptRef.current = prompt;
       setInstallState("native");
-      setInstallHelpOpen(false);
       // Retain the one-shot native event for the user's explicit Install click.
       // Do not interrupt page load with a second, custom install screen.
     };
@@ -137,12 +135,10 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
       // do nothing when this browser has not emitted beforeinstallprompt.
       const platform = current.ios ? "ios" : current.android ? "android" : "other";
       setInstallPlatform(platform);
-      setInstallHelpOpen(true);
       setInstallState("native");
     };
     const appInstalled = () => {
       installPromptRef.current = null;
-      setInstallHelpOpen(false);
       setInstallState("hidden");
       clearDismissal();
     };
@@ -211,36 +207,25 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
       if (isEmbeddedGate) document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", keepDialogFocused, true);
     };
-  }, [installState, installHelpOpen]);
+  }, [installState]);
 
   async function install() {
     const prompt = installPromptRef.current;
-    if (!prompt) {
-      // Native install events are browser-controlled. Show the same explicit
-      // platform-specific fallback as Odi rather than silently returning.
-      const env = environment();
-      setInstallPlatform(env.ios ? "ios" : env.android ? "android" : "other");
-      setInstallHelpOpen(true);
-      setInstallState("native");
-      return;
-    }
+    if (!prompt) return;
+    // Call the captured native browser prompt directly from the Install button.
     try {
       await prompt.prompt();
-      const choice = await prompt.userChoice;
-      if (choice.outcome === "dismissed") rememberDismissal();
+      await prompt.userChoice;
     } catch {
-      // The event is one-shot and browser-controlled. Do not replace it with
-      // generic Chrome-menu instructions when the native prompt fails.
+      // The browser owns the native prompt and may dismiss it.
     } finally {
       installPromptRef.current = null;
-      setInstallHelpOpen(false);
       setInstallState("hidden");
     }
   }
 
   function dismissInstall() {
     rememberDismissal();
-    setInstallHelpOpen(false);
     setInstallState("hidden");
   }
 
@@ -270,54 +255,23 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     }, 1800);
   }
 
-  const installShellStyle: CSSProperties = { position: "fixed", left: 16, right: 16, bottom: 16, zIndex: 1000, maxWidth: 720, margin: "0 auto", padding: 16, borderRadius: 18, background: "#FFFFFF", color: "#111318", boxShadow: "0 12px 40px rgba(0,0,0,.18)", border: "1px solid rgba(17,19,24,.12)" };
   const embeddedInstallStyle: CSSProperties = { position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(0,0,0,.82)", backdropFilter: "blur(4px)", overscrollBehavior: "contain" };
   const installCard = installState === "native" ? (
-    <div style={installShellStyle} role="presentation">
-      <section className="plugInstallModal" role="dialog" aria-modal="false" aria-labelledby="vula-install-title" aria-describedby="vula-install-message">
-        <div className="plugInstallTop"><span className="plugInstallMark">V</span><span className="plugInstallTag">VULA'S CAR WASH</span><button type="button" className="plugInstallClose" aria-label="Close install prompt" onClick={dismissInstall}>×</button></div>
-        <div className="plugInstallKicker">YOUR CAR WASH APP</div>
-        <h2 id="vula-install-title">Vula's Car Wash.<br/><em>One tap away.</em></h2>
-        <p id="vula-install-message">Install Vula's Car Wash on your device for quick access to the service menu, your booking requests and account.</p>
-        {installHelpOpen ? (
-          <div className="plugInstallSteps" role="status" aria-live="polite">
-            {installPlatform === "ios" ? (
-              <>
-                <strong>Add Vula's Car Wash from Safari</strong>
-                <p>Open this page in <b>Safari</b>, tap <b>Share</b>, choose <b>Add to Home Screen</b>, then tap <b>Add</b>.</p>
-              </>
-            ) : installPlatform === "android" ? (
-              <>
-                <strong>Add Vula's Car Wash from Chrome</strong>
-                <p>In Chrome, tap the <b>⋮ menu</b> and choose <b>Install app</b> or <b>Add to Home screen</b>. The wording depends on your Chrome version.</p>
-              </>
-            ) : (
-              <>
-                <strong>Install Vula's Car Wash from your browser</strong>
-                <p>In Chrome or Edge, open the browser menu and choose <b>Install Vula's Car Wash</b> or <b>Install page as app</b>, if offered.</p>
-              </>
-            )}
-            <button type="button" className="plugInstallPrimary" onClick={dismissInstall}>Got it</button>
-          </div>
-        ) : (
-          <>
-            <div className="plugInstallModalBenefits"><span><b>01</b><strong>Quick access</strong><small>Open Vula's Car Wash from your home screen.</small></span><span><b>02</b><strong>Your requests</strong><small>Return to your demo requests and account view.</small></span><span><b>03</b><strong>Private by account</strong><small>Keep your demo requests on this device.</small></span></div>
-            <button type="button" className="plugInstallPrimary" onClick={() => void install()}>Install Vula's Car Wash →</button>
-            <button type="button" className="plugInstallSecondary" onClick={dismissInstall}>Not now</button>
-          </>
-        )}
-        <p className="plugInstallFootnote">No app-store search needed. Your browser will guide the installation.</p>
-      </section>
-    </div>
+    <aside className="vula-install-card" aria-label="Install Vula's Car Wash">
+      <div className="vula-install-brand"><span className="vula-install-mark" aria-hidden="true">V</span><span><strong>VULA'S CAR WASH</strong><small>WASH · CARE · GO</small></span></div>
+      <button className="vula-install-close" type="button" aria-label="Dismiss install prompt" onClick={dismissInstall}>×</button>
+      <p className="vula-install-message">Install Vula's Car Wash on your device for quick access to services and your booking requests.</p>
+      <button className="vula-install-action" type="button" onClick={() => void install()}>Install Vula's Car Wash <span aria-hidden="true">↗</span></button>
+    </aside>
   ) : installState === "embedded" ? (
     <div style={embeddedInstallStyle} role="alertdialog" aria-modal="true" aria-labelledby="vula-embedded-title" aria-describedby="vula-embedded-message">
-      <div className="pwaInstallInfo" style={{...installShellStyle, position: "relative", left: "auto", right: "auto", bottom: "auto", width: "100%", maxWidth: 520, margin: 0}}>
+      <div className="pwaInstallInfo" style={{position:"relative",left:"auto",right:"auto",bottom:"auto",width:"100%",maxWidth:520,margin:0}}>
         <div>
           <strong id="vula-embedded-title"><span aria-hidden="true">🌐 </span>OPEN VULA'S CAR WASH IN YOUR BROWSER</strong>
-          <span id="vula-embedded-message">{embeddedAndroid ? <>Tap below to open Vula's Car Wash in Chrome. Then open the <b>⋮ menu</b> and choose <b>Install app</b>.</> : <>Vula's Car Wash opened inside another app. Use that app’s menu to open this page in your browser, then look for <b>Install app</b> in the browser menu.</>}</span>
+          <span id="vula-embedded-message">{embeddedAndroid ? <>Tap below to open Vula's Car Wash in Chrome.</> : <>Vula's Car Wash opened inside another app. Open this page in your browser to continue.</>}</span>
         </div>
         <div className="pwaInstallActions" style={{display:"flex",justifyContent:"flex-end"}}>
-          <button ref={embeddedActionRef} type="button" style={{background:"#0866FF",color:"#fff"}} onClick={openBrowser}>{embeddedAndroid ? "OPEN IN CHROME" : "OPEN IN BROWSER"}</button>
+          <button ref={embeddedActionRef} type="button" style={{background:"#14221e",color:"#fff"}} onClick={openBrowser}>{embeddedAndroid ? "OPEN IN CHROME" : "OPEN IN BROWSER"}</button>
         </div>
       </div>
     </div>
