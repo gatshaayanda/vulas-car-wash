@@ -1,6 +1,6 @@
 # Vula's Car Wash
 
-Customer-first PWA for Vula's Car Wash, built from the approved Iteration 13 foundation. The active customer journey supports site bookings, mobile-service requests, walk-in queue entries, fleet enquiries, a staff-managed service catalogue, gallery photos, booking history, loyalty balances, and push-reminder registration.
+Customer-first PWA for Vula's Car Wash, built from the approved Iteration 13 foundation. The customer journey supports service selection, booking requests, mobile-service requests, walk-in queue entries, fleet enquiries, booking history, loyalty balances, and push-reminder registration. Staff tools remain under the protected admin route; gallery management is an admin capability, not a required customer-homepage section.
 
 ## Run locally
 
@@ -24,7 +24,7 @@ Open http://localhost:3000. The public Firebase web configuration is included in
 
 ## Customer routes and data
 
-- `/`: service catalogue, booking request, mobile coverage review, walk-in queue, fleet enquiry, gallery, customer booking history, loyalty balance and reminder preferences.
+- `/`: service catalogue, booking request, mobile coverage review, walk-in queue, fleet enquiry, customer booking history, loyalty balance and reminder preferences. Keep the customer header focused on customer actions; do not add a Staff link or an unrequested Gallery section.
 - `/iphone-install`: iOS Safari Add to Home Screen guidance.
 - `/offline`: honest offline status and sync expectations.
 - `/admin`: staff operations; sign-in is protected by the server-side access word and Firebase Admin custom token.
@@ -76,12 +76,14 @@ GitHub Actions runs the type check, lint, identity/PWA verification and producti
 
 ## QA checklist
 
+- Confirm customer navigation has no Staff item and the homepage has no unrequested Gallery section.
+- Test the booking time-selection modal against the Tripple S Spa pattern on mobile, including selecting a date/time and returning to the request form.
 - Test customer booking, queue, fleet enquiry, service catalogue and customer booking history while online.
 - Disconnect the device, submit a request, confirm it is labelled device-only/pending, reconnect, and verify it appears once in staff operations.
 - Confirm staff can update booking, queue, fleet, service, gallery, business settings and loyalty balance.
 - Confirm customers cannot read another customer's records or write staff-only collections.
 - Test gallery image upload after Storage rules are published.
 - Enable push reminders after the VAPID key and reminder secrets are configured; confirm only a *confirmed* upcoming booking triggers a reminder.
-- On supported Chromium browsers, verify the branded install card appears only when `beforeinstallprompt` is available, its Install button invokes the captured native prompt, and its close control dismisses it; do not replace this with a permanent install CTA or imitation prompt.
+- On supported Chromium browsers, verify the Africhiko-approved branded install card appears only when `beforeinstallprompt` is available, its Install button invokes the captured native prompt directly from the user click, and its close control dismisses it. Preserve the event lifecycle and do not replace it with a permanent install CTA, imitation prompt or generic instructions.
 - On iPhone/iPad Safari, verify the separate Share → Add to Home Screen guidance; do not expect Chromium's `beforeinstallprompt` event.
 - Test refresh, offline shell, reconnect and installed-app behavior on actual devices.
