@@ -159,8 +159,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           if (upcomingBend > 0.62 && race.speed > 112 && !controls.brake) message = "BRAKE BOARD: brake now, before turn-in.";
           else if (currentCurve > 0.52 && race.speed > 155 && !controls.brake) message = "Late braking — ease off speed and turn smoothly toward the apex.";
           else if (upcomingBend > 0.48 && currentCurve < 0.24 && Math.abs(steering) > 0.38) message = "Early turn-in. Hold your line until the amber corner cue.";
-          else if (currentCurve > 0.4 && controls.brake && race.speed >= 95 && race.speed < 150) message = "Good braking range. Bleed off pressure as you turn in.";\n          else if (currentCurve > 0.4 && controls.brake && race.speed < 95) message = "Brake release: ease off as the car rotates toward the apex.";
-          else if (currentCurve > 0.4 && Math.abs(steering) >= 0.12 && race.speed < 155) message = "Good turn-in. Clip the apex, then unwind the wheel on exit.";\n          else if (currentCurve > 0.4 && Math.abs(steering) < 0.12) message = "Turn-in cue: steer progressively toward the apex.";
+          else if (currentCurve > 0.4 && controls.brake && race.speed >= 95 && race.speed < 150) message = "Good braking range. Bleed off pressure as you turn in.";
+          else if (currentCurve > 0.4 && controls.brake && race.speed < 95) message = "Brake release: ease off as the car rotates toward the apex.";
+          else if (currentCurve > 0.4 && Math.abs(steering) >= 0.12 && race.speed < 155) message = "Good turn-in. Clip the apex, then unwind the wheel on exit.";
+          else if (currentCurve > 0.4 && Math.abs(steering) < 0.12) message = "Turn-in cue: steer progressively toward the apex.";
           else if (Math.abs(race.lateral) > 0.52) message = "Running wide. Ease off, unwind the wheel and recover the line.";
           else if (Math.abs(race.drift) > 0.38) message = "Slip warning: grip is overloaded. Reduce steering or brake before adding power.";
           else if (boost && currentCurve < 0.3) message = "Good NOS timing. Keep it for the straight and release before braking.";
@@ -238,7 +240,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           <p>{phase === "ready" ? "Follow the green line. Brake at the boards, turn in on cue, clip the apex and unwind onto the exit." : phase === "countdown" ? "Get set. Smooth steering beats sudden corrections." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete. Take another lap and beat your time."}</p>
         </div>
       </div>
-      <div className="warmup-line-legend" aria-label="Racing line guide"><span><i className="line-green" />Green · build speed</span><span><i className="line-amber" />Amber · prepare / lift</span><span><i className="line-red" />Red · brake</span></div>\n      <div className="warmup-engineer" aria-live="polite"><span className="engineer-light" /> <div><strong>RACE ENGINEER</strong><p>{engineer}</p></div></div>
+      <div className="warmup-line-legend" aria-label="Racing line guide"><span><i className="line-green" />Green · build speed</span><span><i className="line-amber" />Amber · prepare / lift</span><span><i className="line-red" />Red · brake</span></div>
+      <div className="warmup-engineer" aria-live="polite"><span className="engineer-light" /> <div><strong>RACE ENGINEER</strong><p>{engineer}</p></div></div>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
         <div className="warmup-steering"><button type="button" className="warmup-wheel" aria-label="Drag to steer" disabled={phase !== "running"} style={{ transform: `rotate(${wheelRotation}deg)` }} onPointerDown={onWheelDown} onPointerMove={onWheelMove} onPointerUp={onWheelUp} onPointerCancel={onWheelUp}><span className="wheel-ring"><span className="wheel-spoke vertical"/><span className="wheel-spoke horizontal"/><span className="wheel-hub"/></span><span className="wheel-caption">STEER</span></button><span className="steering-caption">Drag left / right</span></div>
