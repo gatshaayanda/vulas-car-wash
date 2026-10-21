@@ -95,6 +95,8 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
       event.preventDefault();
       const prompt = event as InstallPromptEvent;
       installPromptRef.current = prompt;
+      setInstallState("native");
+      setInstallHelpOpen(false);
       // Retain the one-shot native event for the user's explicit Install click.
       // Do not interrupt page load with a second, custom install screen.
     };
@@ -324,24 +326,6 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
   return <>
     {offline && <div className="offlineBanner" role="status" aria-live="polite"><span aria-hidden="true">⚡</span> Offline · The service demo saves orders and admin edits locally on this device. Firebase-backed routes need a connection.</div>}
     {!offline && reconnecting && <div className="offlineBanner reconnectingBanner" role="status" aria-live="polite"><span aria-hidden="true">↻</span> Reconnected · Vula's Car Wash can reach the network again. Saved requests remain on this device until synced.</div>}
-    {!environment().standalone && installState !== "embedded" && (
-      <button
-        type="button"
-        className="plugPwaInstallButton"
-        onClick={() => {
-          if (installPromptRef.current) {
-            void install();
-            return;
-          }
-          const env = environment();
-          setInstallPlatform(env.ios ? "ios" : env.android ? "android" : "other");
-          setInstallHelpOpen(true);
-          setInstallState("native");
-        }}
-      >
-        Install Vula's Car Wash ↓
-      </button>
-    )}
     {installCard}
     {updateReady && <div className="pwaUpdate" role="status" aria-live="polite"><div><strong>Vula's Car Wash update is ready</strong><span>Refresh when you are ready.</span></div><button type="button" className="button buttonPrimary" onClick={applyUpdate}>Refresh</button></div>}
   </>;
