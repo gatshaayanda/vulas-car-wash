@@ -273,8 +273,8 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
   const installCard = installState === "native" ? (
     <div style={installShellStyle} role="presentation">
       <section className="plugInstallModal" role="dialog" aria-modal="false" aria-labelledby="vula-install-title" aria-describedby="vula-install-message">
-        <div className="plugInstallTop"><span className="plugInstallMark">13</span><span className="plugInstallTag">ITERATION 13 · SERVICE STUDIO</span><button type="button" className="plugInstallClose" aria-label="Close install prompt" onClick={dismissInstall}>×</button></div>
-        <div className="plugInstallKicker">YOUR SERVICE STUDIO APP</div>
+        <div className="plugInstallTop"><span className="plugInstallMark">V</span><span className="plugInstallTag">VULA'S CAR WASH</span><button type="button" className="plugInstallClose" aria-label="Close install prompt" onClick={dismissInstall}>×</button></div>
+        <div className="plugInstallKicker">YOUR CAR WASH APP</div>
         <h2 id="vula-install-title">Vula's Car Wash.<br/><em>One tap away.</em></h2>
         <p id="vula-install-message">Install Vula's Car Wash on your device for quick access to the service menu, your booking requests and account.</p>
         {installHelpOpen ? (
@@ -311,7 +311,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     <div style={embeddedInstallStyle} role="alertdialog" aria-modal="true" aria-labelledby="vula-embedded-title" aria-describedby="vula-embedded-message">
       <div className="pwaInstallInfo" style={{...installShellStyle, position: "relative", left: "auto", right: "auto", bottom: "auto", width: "100%", maxWidth: 520, margin: 0}}>
         <div>
-          <strong id="vula-embedded-title"><span aria-hidden="true">🌐 </span>OPEN ITERATION 13 IN YOUR BROWSER</strong>
+          <strong id="vula-embedded-title"><span aria-hidden="true">🌐 </span>OPEN VULA'S CAR WASH IN YOUR BROWSER</strong>
           <span id="vula-embedded-message">{embeddedAndroid ? <>Tap below to open Vula's Car Wash in Chrome. Then open the <b>⋮ menu</b> and choose <b>Install app</b>.</> : <>Vula's Car Wash opened inside another app. Use that app’s menu to open this page in your browser, then look for <b>Install app</b> in the browser menu.</>}</span>
         </div>
         <div className="pwaInstallActions" style={{display:"flex",justifyContent:"flex-end"}}>
