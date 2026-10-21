@@ -38,6 +38,10 @@ function curvatureAt(t: number): number {
   const a = tangentAt(t - 0.006, 1, 1), b = tangentAt(t + 0.006, 1, 1);
   return Math.abs(Math.atan2(a.x * b.y - a.y * b.x, a.x * b.x + a.y * b.y)) / 0.012;
 }
+function signedRoadCurveAt(t: number): number {
+  const a = centerline(t - 0.008), b = centerline(t), c = centerline(t + 0.008);
+  return clamp((c.x - 2 * b.x + a.x) * 2400, -1.4, 1.4);
+}
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -139,7 +143,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const speedFactor = 0.42 + speedRatio * 1.2;
         const gripLimit = 0.82 - speedRatio * 0.2 - curveLoad * speedRatio * 0.28;
         const turn = c.steer * speedFactor;
-        const cornerForce = Math.sign(curvatureAt(race.progress + .008)) * curveLoad * speedRatio * .42;
+        const cornerForce = signedRoadCurveAt(race.progress + .008) * curveLoad * speedRatio * .42;
         race.lateralVelocity += (turn * 1.35 - cornerForce - race.lateralVelocity * (1.05 + speedRatio * .8)) * dt;
         race.lateral += race.lateralVelocity * dt * (0.45 + speedRatio * 1.15);
         const gripDemand = Math.abs(turn) * speedRatio * (0.38 + curveLoad * 1.15);
@@ -218,17 +222,11 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       const roadAt = (depth: number) => {
         // Integrate the bends ahead so every road edge, lane dash and barrier shares one projection.
         const ahead = depth * .23;
-        let offset = 0, drift = 0;
-        const steps = Math.max(2, Math.ceil(depth * 28));
-        for (let j = 0; j < steps; j++) {
-          const q = (j + 1) / steps * ahead;
-          const c = curveAt(currentT + q);
-          drift += c / steps;
-          offset += drift / steps;
-        }
+        const future = centerline(currentT + ahead);
+        const offset = (future.x - currentCenter) * 1.75;
         const nearCurve = curveAt(currentT + ahead);
         const perspective = .22 + depth * 1.18;
-        const center = w * .5 + offset * w * 1.35 * perspective - race.lateral * w * .18 * depth;
+        const center = w * .5 + offset * w * perspective - race.lateral * w * .18 * depth;
         const roadWidth = w * (.055 + depth * .79);
         return { center, roadWidth, t: wrap(currentT + ahead, 1), bend: nearCurve };
       };
