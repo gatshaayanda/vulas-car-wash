@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
-type Props = { speed: number; steer: number; brake: boolean; boost: boolean; phase: Phase; progress: number; countdown: number };
+type Props = { speed: number; steer: number; lateral: number; brake: boolean; boost: boolean; phase: Phase; progress: number; countdown: number };
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
@@ -90,10 +90,10 @@ function makeCar() {
   return car;
 }
 
-export default function Racing3DScene({ speed, steer, brake, boost, phase, progress, countdown }: Props) {
+export default function Racing3DScene({ speed, steer, lateral, brake, boost, phase, progress, countdown }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
-  const liveRef = useRef<Props>({ speed, steer, brake, boost, phase, progress, countdown });
-  useEffect(() => { liveRef.current = { speed, steer, brake, boost, phase, progress, countdown }; });
+  const liveRef = useRef<Props>({ speed, steer, lateral, brake, boost, phase, progress, countdown });
+  useEffect(() => { liveRef.current = { speed, steer, lateral, brake, boost, phase, progress, countdown }; });
 
   useEffect(() => {
     const host = mountRef.current;
@@ -235,7 +235,7 @@ export default function Racing3DScene({ speed, steer, brake, boost, phase, progr
       const position = track.getPointAt(t);
       const tangent = track.getTangentAt(t).normalize();
       const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-      const carOffset = state.steer * 1.9;
+      const carOffset = state.lateral * 4.6;
       car.position.set(position.x + side.x * carOffset, .02 + Math.sin(clock.elapsedTime * 17) * Math.min(.035, state.speed / 5000), position.z + side.z * carOffset);
       car.rotation.y = Math.atan2(tangent.x, tangent.z) + state.steer * -.09;
       const cameraTarget = new THREE.Vector3(position.x + tangent.x * 12, 1.35, position.z + tangent.z * 12);
