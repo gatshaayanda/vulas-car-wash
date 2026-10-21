@@ -7,6 +7,15 @@ import Racing3DScene from "./racing-3d-scene";
 import { subscribeSettings } from "@/lib/firebase/vula-data";
 
 type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
+type Controls = { steer: number; accelerate: boolean; brake: boolean; boost: boolean };
+type Race = {
+  progress: number; speed: number; elapsed: number; lap: number; lapTime: number;
+  bestLap: number | null; lateral: number; lateralVelocity: number; drift: number;
+  nos: number; last: number; lapInvalid: boolean; offTrack: number;
+};
+const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+const wrap = (n: number, max: number) => ((n % max) + max) % max;
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, bestLap: null, lateral: 0, lateralVelocity: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
