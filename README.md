@@ -82,5 +82,6 @@ GitHub Actions runs the type check, lint, identity/PWA verification and producti
 - Confirm customers cannot read another customer's records or write staff-only collections.
 - Test gallery image upload after Storage rules are published.
 - Enable push reminders after the VAPID key and reminder secrets are configured; confirm only a *confirmed* upcoming booking triggers a reminder.
-- Test install prompt on supported Chromium browsers and Safari Add to Home Screen on iPhone.
+- On supported Chromium browsers, verify the branded install card appears only when `beforeinstallprompt` is available, its Install button invokes the captured native prompt, and its close control dismisses it; do not replace this with a permanent install CTA or imitation prompt.
+- On iPhone/iPad Safari, verify the separate Share → Add to Home Screen guidance; do not expect Chromium's `beforeinstallprompt` event.
 - Test refresh, offline shell, reconnect and installed-app behavior on actual devices.
