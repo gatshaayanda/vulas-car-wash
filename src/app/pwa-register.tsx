@@ -10,7 +10,7 @@ type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
-type InstallState = "hidden" | "native" | "ios" | "embedded";
+type InstallState = "hidden" | "native" | "embedded";
 
 function environment() {
   if (typeof window === "undefined") return { standalone: true, android: false, embedded: false };
@@ -20,14 +20,6 @@ function environment() {
   const embedded = /WhatsApp|Instagram|FBAN|FBAV|Messenger|Line\/|Twitter|TikTok|Snapchat/i.test(ua) ||
     (/Android/i.test(ua) && /; wv\)/i.test(ua));
   return { standalone, android, embedded };
-}
-
-function isIosSafari() {
-  if (typeof window === "undefined") return false;
-  const nav = window.navigator;
-  const ios = /iPad|iPhone|iPod/i.test(nav.userAgent) ||
-    (nav.platform === "MacIntel" && nav.maxTouchPoints > 1);
-  return ios && /Safari/i.test(nav.userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(nav.userAgent);
 }
 
 export default function PwaRegister({ initialEmbedded = false, initialAndroid = false }: { initialEmbedded?: boolean; initialAndroid?: boolean }) {
@@ -80,10 +72,6 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     } else if (embedded) {
       // Embedded browsers are a compatibility gate, not an install promotion.
       setInstallState("embedded");
-    } else if (isIosSafari()) {
-      // iOS Safari does not emit beforeinstallprompt. Give it the correct
-      // Share → Add to Home Screen route instead of waiting for a Chromium event.
-      setInstallState("ios");
     }
 
     const requestInstall = () => {
@@ -100,9 +88,6 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
       }
       // Never display a native-install card without a real captured event:
       // that would create a visible Install button that cannot invoke the browser.
-      if (isIosSafari()) {
-        window.location.assign("/iphone-install");
-      }
     };
     const appInstalled = () => {
       installPromptRef.current = null;
