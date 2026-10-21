@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
 type Props = { speed: number; steer: number; lateral: number; brake: boolean; boost: boolean; phase: Phase; progress: number; countdown: number };
@@ -221,6 +222,46 @@ export default function Racing3DScene({ speed, steer, lateral, brake, boost, pha
 
     const car = makeCar();
     scene.add(car);
+    const assetCar = new THREE.Group();
+    scene.add(assetCar);
+    assetCar.visible = false;
+    let alive = true;
+    // Prefer a real Kenney Racing Kit car; keep the procedural car as a safe fallback.
+    fetch("/game-assets/racing-kit/manifest.json")
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Racing Kit manifest unavailable")))
+      .then((manifest: { assets?: { name: string; path: string; format: string }[] }) => {
+        const assets = manifest.assets ?? [];
+        const selected = assets.find((asset) => /race.?car.?red|car.?red/i.test(asset.name))
+          ?? assets.find((asset) => /race.?car|vehicle.?race/i.test(asset.name))
+          ?? assets.find((asset) => /car|vehicle/i.test(asset.name));
+        if (!selected) throw new Error("No car model found in Racing Kit manifest");
+        new GLTFLoader().load(selected.path, (gltf) => {
+          if (!alive) {
+            gltf.scene.traverse((node) => {
+              const mesh = node as THREE.Mesh;
+              mesh.geometry?.dispose();
+              if (mesh.material) (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((material) => material.dispose());
+            });
+            return;
+          }
+          const model = gltf.scene;
+          const bounds = new THREE.Box3().setFromObject(model);
+          const size = bounds.getSize(new THREE.Vector3());
+          const center = bounds.getCenter(new THREE.Vector3());
+          const scale = 3.25 / Math.max(size.x, size.z, 0.01);
+          model.scale.setScalar(scale);
+          model.position.set(-center.x * scale, -bounds.min.y * scale + 0.07, -center.z * scale);
+          model.rotation.y = Math.PI;
+          model.traverse((node) => {
+            const mesh = node as THREE.Mesh;
+            if (mesh.isMesh) { mesh.castShadow = true; mesh.receiveShadow = true; }
+          });
+          assetCar.add(model);
+          assetCar.visible = true;
+          car.visible = false;
+        }, undefined, (error) => console.warn("Kenney racing car failed to load; using fallback car.", error));
+      })
+      .catch((error) => console.warn("Kenney Racing Kit unavailable; using fallback car.", error));
     const skyGlow = new THREE.Mesh(new THREE.SphereGeometry(320, 16, 10), new THREE.MeshBasicMaterial({ color: "#b9d4df", side: THREE.BackSide }));
     scene.add(skyGlow);
     const clock = new THREE.Clock();
@@ -238,6 +279,8 @@ export default function Racing3DScene({ speed, steer, lateral, brake, boost, pha
       const carOffset = state.lateral * 4.6;
       car.position.set(position.x + side.x * carOffset, .02 + Math.sin(clock.elapsedTime * 17) * Math.min(.035, state.speed / 5000), position.z + side.z * carOffset);
       car.rotation.y = Math.atan2(-tangent.x, -tangent.z) + state.steer * -.09;
+      assetCar.position.copy(car.position);
+      assetCar.rotation.copy(car.rotation);
       const cameraTarget = new THREE.Vector3(position.x + tangent.x * 12, 1.35, position.z + tangent.z * 12);
       const cameraPosition = new THREE.Vector3(position.x - tangent.x * 7.6, 4.2, position.z - tangent.z * 7.6);
       cameraPosition.x += side.x * state.steer * .6; cameraPosition.z += side.z * state.steer * .6;
@@ -255,6 +298,7 @@ export default function Racing3DScene({ speed, steer, lateral, brake, boost, pha
     };
     resize(); window.addEventListener("resize", resize); raf = requestAnimationFrame(render);
     return () => {
+      alive = false;
       cancelAnimationFrame(raf); window.removeEventListener("resize", resize);
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
