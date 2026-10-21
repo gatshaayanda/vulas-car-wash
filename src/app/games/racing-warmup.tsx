@@ -196,34 +196,116 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         }
         setSpeed(race.speed); setLapTime(race.lapTime); setNos(race.nos); setBoostActive(boost);
       }
+      // Cockpit-follow perspective: pseudo-3D road, layered scenery and a low, detailed F1 car.
       ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = "#75965e"; ctx.fillRect(0, 0, w, h);
-      for (let y = 0; y < h; y += 30) for (let x = 0; x < w; x += 34) {
-        if ((Math.floor(x / 34) + Math.floor(y / 30)) % 2 === 0) { ctx.fillStyle = "#6d8f58"; ctx.fillRect(x, y, 17, 15); }
+      const horizon = h * 0.285;
+      const carBaseY = h * 0.82;
+      const currentT = wrap(race.progress, 1);
+      const currentCenter = centerline(currentT).x;
+      const bendAt = (t: number) => {
+        const before = centerline(t - 0.008), after = centerline(t + 0.008);
+        return clamp((after.x - before.x) * 12, -1.25, 1.25);
+      };
+      const sky = ctx.createLinearGradient(0, 0, 0, horizon + 35);
+      sky.addColorStop(0, "#152d43"); sky.addColorStop(0.58, "#477b91"); sky.addColorStop(1, "#d7c49a");
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
+      // Distant hills and a low sun add depth without heavyweight image assets.
+      ctx.fillStyle = "#6f8b77"; ctx.beginPath(); ctx.moveTo(0, horizon + 20);
+      for (let x = 0; x <= w + 12; x += 12) ctx.lineTo(x, horizon + 8 + Math.sin(x * 0.012) * h * 0.025 + Math.sin(x * 0.027) * h * 0.012);
+      ctx.lineTo(w, horizon + 75); ctx.lineTo(0, horizon + 75); ctx.closePath(); ctx.fill();
+      const sunX = w * 0.77, sunY = horizon * 0.42;
+      const sunGlow = ctx.createRadialGradient(sunX, sunY, 2, sunX, sunY, Math.min(w, h) * 0.12);
+      sunGlow.addColorStop(0, "#ffe7ad88"); sunGlow.addColorStop(1, "#ffe7ad00");
+      ctx.fillStyle = sunGlow; ctx.fillRect(sunX - h * .15, sunY - h * .15, h * .3, h * .3);
+      ctx.fillStyle = "#c2a66f"; ctx.fillRect(0, horizon + 30, w, h - horizon - 30);
+      const rows = Math.max(36, Math.ceil((h - horizon) / 5));
+      const roadAt = (depth: number) => {
+        const t = wrap(currentT + depth * 0.2, 1);
+        const p = centerline(t);
+        const curveShift = clamp((p.x - currentCenter) * w * 1.65, -w * .43, w * .43);
+        const center = w * .5 + curveShift * (0.2 + depth * 0.95);
+        const roadWidth = w * (0.075 + depth * 0.74);
+        return { center, roadWidth, t, bend: bendAt(t) };
+      };
+      // Roadside stands, safety barriers and lamps shrink into the horizon.
+      for (let i = 0; i < 14; i++) {
+        const depth = (i + 1) / 15;
+        const y = horizon + depth * depth * (h - horizon);
+        const road = roadAt(depth);
+        const scale = 0.12 + depth * 1.1;
+        const side = i % 2 ? -1 : 1;
+        const x = road.center + side * (road.roadWidth * .66 + 18 * scale);
+        ctx.fillStyle = i % 3 === 0 ? "#d8e0d9" : "#7d8c8a";
+        ctx.fillRect(x - 2 * scale, y - 30 * scale, 4 * scale, 30 * scale);
+        ctx.fillStyle = "#f3c15e"; ctx.fillRect(x - 5 * scale, y - 32 * scale, 10 * scale, 3 * scale);
+        if (i < 9) {
+          ctx.fillStyle = i % 2 ? "#233b3a" : "#e8e6d8";
+          ctx.fillRect(road.center + side * (road.roadWidth * .72 + 10 * scale), y - 11 * scale, 19 * scale, 11 * scale);
+        }
       }
-      pathFor(0, Math.min(w, h) * 0.26, "#c3c9ba");
-      pathFor(0, Math.min(w, h) * 0.245, "#343d3c");
-      pathFor(0, Math.min(w, h) * 0.205, "#3c4644");
-      pathFor(0, 2, "#d6d9ce", [7, 8]);
-      pathFor(Math.min(w, h) * 0.084, 2, "#e9eee0");
-      pathFor(-Math.min(w, h) * 0.084, 2, "#e9eee0");
-      // Start/finish stripe and corner markers make the route readable at a glance.
-      const start = trackPoint(0, w, h), startTan = tangentAt(0, w, h);
-      ctx.save(); ctx.translate(start.x, start.y); ctx.rotate(Math.atan2(startTan.y, startTan.x));
-      for (let i = 0; i < 8; i++) { ctx.fillStyle = i % 2 ? "#f5f5ed" : "#202725"; ctx.fillRect(-5 + i * 1.3, -Math.min(w, h) * .12, 1.3, Math.min(w, h) * .24); }
-      ctx.restore();
+      // Draw back-to-front asphalt bands. The alternating shoulders create a strong speed cue.
+      for (let i = 0; i < rows; i++) {
+        const d1 = i / rows, d2 = (i + 1) / rows;
+        const y1 = horizon + d1 * d1 * (h - horizon), y2 = horizon + d2 * d2 * (h - horizon);
+        const a = roadAt(d1), b = roadAt(d2);
+        const stripe = Math.floor((race.progress * 190 + d1 * 100) / 1.8) % 2;
+        ctx.fillStyle = stripe ? "#e9e6d8" : "#d54d43";
+        ctx.beginPath(); ctx.moveTo(a.center - a.roadWidth * .56, y1); ctx.lineTo(a.center + a.roadWidth * .56, y1);
+        ctx.lineTo(b.center + b.roadWidth * .56, y2); ctx.lineTo(b.center - b.roadWidth * .56, y2); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = stripe ? "#28353b" : "#303d43";
+        ctx.beginPath(); ctx.moveTo(a.center - a.roadWidth * .5, y1); ctx.lineTo(a.center + a.roadWidth * .5, y1);
+        ctx.lineTo(b.center + b.roadWidth * .5, y2); ctx.lineTo(b.center - b.roadWidth * .5, y2); ctx.closePath(); ctx.fill();
+        // Asphalt sheen and racing-line dashes.
+        ctx.fillStyle = "#53606855";
+        ctx.beginPath(); ctx.moveTo(a.center - a.roadWidth * .12, y1); ctx.lineTo(a.center + a.roadWidth * .12, y1);
+        ctx.lineTo(b.center + b.roadWidth * .12, y2); ctx.lineTo(b.center - b.roadWidth * .12, y2); ctx.closePath(); ctx.fill();
+        const dashPhase = (race.progress * 52 + d1 * 22) % 1;
+        if (dashPhase < .45) {
+          ctx.fillStyle = "#e7e8df";
+          const laneW1 = Math.max(1, a.roadWidth * .006), laneW2 = Math.max(1, b.roadWidth * .006);
+          for (const lane of [-1 / 3, 1 / 3]) {
+            ctx.beginPath(); ctx.moveTo(a.center + a.roadWidth * lane - laneW1, y1); ctx.lineTo(a.center + a.roadWidth * lane + laneW1, y1);
+            ctx.lineTo(b.center + b.roadWidth * lane + laneW2, y2); ctx.lineTo(b.center + b.roadWidth * lane - laneW2, y2); ctx.closePath(); ctx.fill();
+          }
+        }
+      }
+      // Moving trackside posts give a sense of velocity and perspective.
       for (let i = 0; i < 18; i++) {
-        const t = i / 18, p = trackPoint(t, w, h), tan = tangentAt(t, w, h), tight = curvatureAt(t);
-        if (tight < 0.8) continue;
-        const side = i % 2 ? 1 : -1, off = Math.min(w, h) * 0.095 * side;
-        ctx.fillStyle = i % 3 === 0 ? "#f2bd52" : "#f3eee0";
-        ctx.beginPath(); ctx.arc(p.x - tan.y * off, p.y + tan.x * off, 3.2, 0, Math.PI * 2); ctx.fill();
+        const depth = ((i / 18 + race.progress * 0.7) % 1);
+        if (depth < .08) continue;
+        const y = horizon + depth * depth * (h - horizon);
+        const road = roadAt(depth);
+        const size = 2 + depth * 15;
+        for (const side of [-1, 1]) {
+          const x = road.center + side * (road.roadWidth * .58 + size * 1.4);
+          ctx.fillStyle = "#e8e7dc"; ctx.fillRect(x - size * .14, y - size, size * .28, size);
+          ctx.fillStyle = "#d94c42"; ctx.fillRect(x - size * .14, y - size, size * .28, size * .35);
+        }
       }
-      const p = trackPoint(race.progress, w, h), tan = tangentAt(race.progress, w, h);
-      const nx = -tan.y, ny = tan.x;
-      const carX = p.x + nx * race.lateral * Math.min(w, h) * 0.14;
-      const carY = p.y + ny * race.lateral * Math.min(w, h) * 0.14;
-      drawCar(carX, carY, Math.atan2(tan.y, tan.x) + Math.PI / 2, race.drift, boostActive);
+      // Speed-responsive camera bob and lateral steering make the car feel planted in the scene.
+      const bob = Math.sin(now * 0.018) * Math.min(2.5, race.speed / 70);
+      const carX = w * .5 + race.lateral * w * .25 - roadAt(.98).bend * race.speed * .13;
+      const carY = carBaseY + bob;
+      ctx.save(); ctx.translate(carX, carY); ctx.rotate(clamp(race.drift * .15 + controlsRef.current.steer * .06, -.18, .18));
+      if (boostActive) {
+        const flame = 17 + Math.sin(now / 32) * 8;
+        const flameGradient = ctx.createLinearGradient(0, 8, 0, 8 + flame);
+        flameGradient.addColorStop(0, "#d9ff76"); flameGradient.addColorStop(.5, "#57eaff"); flameGradient.addColorStop(1, "#57eaff00");
+        ctx.fillStyle = flameGradient; ctx.beginPath(); ctx.moveTo(-12, 9); ctx.lineTo(0, 9 + flame); ctx.lineTo(12, 9); ctx.closePath(); ctx.fill();
+      }
+      // Shadow and rear diffuser.
+      ctx.fillStyle = "#101c2480"; ctx.beginPath(); ctx.ellipse(0, 11, w * .14, h * .026, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#171e25"; ctx.beginPath(); ctx.moveTo(-w*.12, 7); ctx.lineTo(-w*.1, -2); ctx.lineTo(-w*.075, -12); ctx.lineTo(w*.075, -12); ctx.lineTo(w*.1, -2); ctx.lineTo(w*.12, 7); ctx.closePath(); ctx.fill();
+      // Wide front wing, sculpted sidepods and pointed nose.
+      ctx.fillStyle = "#b7ef4c"; ctx.beginPath(); ctx.moveTo(-w*.16, 4); ctx.lineTo(-w*.12, -1); ctx.lineTo(-w*.065, -5); ctx.lineTo(-w*.035, -18); ctx.lineTo(0, -h*.17); ctx.lineTo(w*.035, -18); ctx.lineTo(w*.065, -5); ctx.lineTo(w*.12, -1); ctx.lineTo(w*.16, 4); ctx.lineTo(w*.145, 10); ctx.lineTo(w*.075, 7); ctx.lineTo(-w*.075, 7); ctx.lineTo(-w*.145, 10); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#e5ff9a"; ctx.beginPath(); ctx.moveTo(-w*.025, -17); ctx.lineTo(0, -h*.165); ctx.lineTo(w*.025, -17); ctx.lineTo(w*.04, 1); ctx.lineTo(-w*.04, 1); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#1b2b35"; ctx.beginPath(); ctx.ellipse(0, -13, w*.032, h*.025, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#7f9aa6"; ctx.beginPath(); ctx.ellipse(0, -14, w*.02, h*.016, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#111a20"; ctx.fillRect(-w*.115, -4, w*.038, h*.045); ctx.fillRect(w*.077, -4, w*.038, h*.045);
+      ctx.fillRect(-w*.14, 4, w*.045, h*.025); ctx.fillRect(w*.095, 4, w*.045, h*.025);
+      ctx.fillStyle = "#ff554a"; ctx.fillRect(-w*.085, 5, w*.035, 2); ctx.fillRect(w*.05, 5, w*.035, 2);
+      ctx.fillStyle = "#d9e8ed"; ctx.fillRect(-w*.07, -1, w*.14, 1.5);
+      ctx.restore();
       if (phaseNow !== "running") {
         ctx.fillStyle = "#172820a8"; ctx.fillRect(0, 0, w, h);
         ctx.fillStyle = "#c6f36b"; ctx.font = "800 11px system-ui"; ctx.textAlign = "center";
