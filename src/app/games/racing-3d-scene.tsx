@@ -237,7 +237,7 @@ export default function Racing3DScene({ speed, steer, lateral, brake, boost, pha
       const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
       const carOffset = state.lateral * 4.6;
       car.position.set(position.x + side.x * carOffset, .02 + Math.sin(clock.elapsedTime * 17) * Math.min(.035, state.speed / 5000), position.z + side.z * carOffset);
-      car.rotation.y = Math.atan2(tangent.x, tangent.z) + state.steer * -.09;
+      car.rotation.y = Math.atan2(-tangent.x, -tangent.z) + state.steer * -.09;
       const cameraTarget = new THREE.Vector3(position.x + tangent.x * 12, 1.35, position.z + tangent.z * 12);
       const cameraPosition = new THREE.Vector3(position.x - tangent.x * 7.6, 4.2, position.z - tangent.z * 7.6);
       cameraPosition.x += side.x * state.steer * .6; cameraPosition.z += side.z * state.steer * .6;
