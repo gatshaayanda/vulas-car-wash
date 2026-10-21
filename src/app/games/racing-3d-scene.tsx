@@ -173,6 +173,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
 
     // Fixed visual references before significant bends: brake board, turn-in chevrons and apex beacon.
     let lastBoardAt = -1;
+    let boardCount = 0;
     for (let i = 0; i < 180; i++) {
       const t = i / 180;
       const before = track.getTangentAt((t - .006 + 1) % 1).normalize();
@@ -181,27 +182,40 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const strength = Math.abs(turn);
       if (strength < .038 || (lastBoardAt >= 0 && (t - lastBoardAt + 1) % 1 < .075)) continue;
       lastBoardAt = t;
-      const p = track.getPointAt(t);
-      const tangent = track.getTangentAt(t).normalize();
+      const cornerPoint = track.getPointAt(t);
+      const boardT = (t - .025 + 1) % 1;
+      const p = track.getPointAt(boardT);
+      const tangent = track.getTangentAt(boardT).normalize();
       const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
       const outside = Math.sign(turn || 1);
       const board = new THREE.Group();
       const postMat = new THREE.MeshStandardMaterial({ color: "#34443b", roughness: .85 });
-      const boardMat = new THREE.MeshStandardMaterial({ color: "#f4f2e8", roughness: .65 });
+      const boardCanvas = document.createElement("canvas");
+      boardCanvas.width = 320; boardCanvas.height = 180;
+      const ctx = boardCanvas.getContext("2d");
+      if (ctx) {
+        ctx.fillStyle = "#f8f7ef"; ctx.fillRect(0, 0, 320, 180);
+        ctx.fillStyle = "#c52f2a"; ctx.fillRect(0, 0, 320, 54);
+        ctx.fillStyle = "#ffffff"; ctx.font = "bold 30px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("BRAKE", 160, 28);
+        ctx.fillStyle = "#172820"; ctx.font = "bold 62px Arial"; ctx.fillText(boardCount % 2 === 0 ? "100 m" : "50 m", 160, 113);
+        ctx.fillStyle = "#c52f2a"; ctx.fillRect(0, 160, 320, 20);
+      }
+      boardCount++;
+      const boardTexture = new THREE.CanvasTexture(boardCanvas);
+      boardTexture.colorSpace = THREE.SRGBColorSpace;
+      const boardMat = new THREE.MeshBasicMaterial({ map: boardTexture, side: THREE.DoubleSide });
       const letteringMat = new THREE.MeshStandardMaterial({ color: "#d7473d", emissive: "#50100d", emissiveIntensity: .25 });
       const post = new THREE.Mesh(new THREE.BoxGeometry(.12, 2.2, .12), postMat);
       post.position.y = 1.1; board.add(post);
-      const face = new THREE.Mesh(new THREE.BoxGeometry(1.45, .8, .14), boardMat);
-      face.position.set(0, 1.75, 0); board.add(face);
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.2, .13, .16), letteringMat);
-      stripe.position.set(0, 1.75, .09); board.add(stripe);
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(1.45, .82), boardMat);
+      face.position.set(0, 1.75, .09); board.add(face);
       board.position.set(p.x + side.x * outside * 9.2, 0, p.z + side.z * outside * 9.2);
       board.rotation.y = Math.atan2(-side.x * outside, -side.z * outside);
       board.traverse((node) => { const mesh = node as THREE.Mesh; mesh.castShadow = true; });
       scene.add(board);
       // A small amber beacon marks the corner's turn-in reference at track edge.
       const beacon = new THREE.Mesh(new THREE.SphereGeometry(.22, 10, 8), new THREE.MeshBasicMaterial({ color: "#ffc84a" }));
-      beacon.position.set(p.x - side.x * outside * 5.4, .42, p.z - side.z * outside * 5.4);
+      beacon.position.set(cornerPoint.x - side.x * outside * 5.4, .42, cornerPoint.z - side.z * outside * 5.4);
       scene.add(beacon);
     }
     const kerb = new THREE.MeshStandardMaterial({ color: "#f4eee0", roughness: .8, side: THREE.DoubleSide });
