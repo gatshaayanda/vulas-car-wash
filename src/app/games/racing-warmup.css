@@ -116,3 +116,8 @@
 .warmup-line-legend span{display:inline-flex;align-items:center;gap:6px}
 .warmup-line-legend i{display:inline-block;width:18px;height:5px;border-radius:5px}
 .warmup-line-legend .line-green{background:#8cf06a}.warmup-line-legend .line-amber{background:#ffd45c}.warmup-line-legend .line-red{background:#ff6258}
+
+.warmup-nos .slip-readout{display:flex;justify-content:space-between;align-items:center;margin-top:2px;font-size:10px;font-weight:900;letter-spacing:.08em;color:#465447}
+.slip-track{height:6px;overflow:hidden;border-radius:99px;background:#e5eadd}
+.slip-track span{display:block;height:100%;border-radius:inherit;background:#e6b347;transition:width .1s linear}
+.slip-track.danger span{background:#df5b4f}
