@@ -9,13 +9,13 @@ import { subscribeSettings } from "@/lib/firebase/vula-data";
 type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
 type Controls = { steer: number; accelerate: boolean; brake: boolean; boost: boolean };
 type Race = {
-  progress: number; speed: number; elapsed: number; lap: number; lapTime: number;
+  progress: number; speed: number; elapsed: number; lap: number; lapTime: number; steering: number;
   bestLap: number | null; lateral: number; lateralVelocity: number; drift: number;
   nos: number; last: number; lapInvalid: boolean; offTrack: number;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, bestLap: null, lateral: 0, lateralVelocity: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0 });
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, bestLap: null, lateral: 0, lateralVelocity: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -92,13 +92,16 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     let previous = 0;
     let lastUi = 0;
     let lastCoachAt = 0;
-    let lastCollision = -1;
     const frame = (now: number) => {
       const race = raceRef.current;
       const dt = previous ? Math.min((now - previous) / 1000, 0.035) : 0;
       previous = now;
       if (phaseRef.current === "running" && dt > 0) {
         const controls = controlsRef.current;
+        // Smooth steering inputs before applying tyre force; ease back to centre on release.
+        const steerEase = 1 - Math.exp(-dt * (Math.abs(controls.steer) > Math.abs(race.steering) ? 7.5 : 4.5));
+        race.steering += (controls.steer - race.steering) * steerEase;
+        const steering = race.steering;
         const t = wrap(race.progress, 1);
         const bend = Math.abs(Math.sin(t * Math.PI * 2 + 0.6) * 1.35 + Math.sin(t * Math.PI * 6) * 0.24);
         const speedRatio = race.speed / 205;
@@ -108,13 +111,13 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.speed = clamp(race.speed + (acceleration - race.speed * 0.19 - braking + (boost ? 62 : 0)) * dt, 0, boost ? 250 : 205);
         race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
         const grip = 0.9 - speedRatio * 0.27 - clamp(bend / 1.8, 0, 1) * speedRatio * 0.18;
-        const steeringForce = controls.steer * (0.95 + speedRatio * 0.35);
+        const steeringForce = steering * (0.68 + speedRatio * 0.22);
         const cornerForce = Math.sin(t * Math.PI * 2 + 0.6) * speedRatio * 0.16;
-        race.lateralVelocity += (steeringForce - cornerForce - race.lateralVelocity * (1.2 + speedRatio * 0.6)) * dt;
-        race.lateral = clamp(race.lateral + race.lateralVelocity * dt * (0.75 + speedRatio * 0.8), -0.95, 0.95);
-        const demand = Math.abs(controls.steer) * speedRatio * (0.3 + bend * 0.35);
+        race.lateralVelocity += (steeringForce - cornerForce - race.lateralVelocity * (2.15 + speedRatio * 0.45)) * dt;
+        race.lateral = clamp(race.lateral + race.lateralVelocity * dt * (0.62 + speedRatio * 0.55), -0.95, 0.95);
+        const demand = Math.abs(steering) * speedRatio * (0.24 + bend * 0.28);
         const excess = Math.max(0, demand - grip);
-        race.drift = clamp(excess * Math.sign(controls.steer) * 2.4, -1, 1);
+        race.drift = clamp(excess * Math.sign(steering) * 2.0, -1, 1);
         if (excess > 0) race.speed = Math.max(0, race.speed - excess * (18 + race.speed * 0.05) * dt);
         if (Math.abs(race.lateral) > 0.7) {
           race.speed = Math.max(0, race.speed - 38 * dt);
@@ -135,19 +138,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           race.lapInvalid = false;
           setLap(lapNow);
           setEngineer("Lap complete. Pick one corner to improve on the next lap.");
-        }
-        // Practice cones are fixed to the track. A clean pass rewards line discipline;
-        // clipping one costs speed and gives a single, readable coaching cue.
-        for (let i = 0; i < 14; i++) {
-          const coneT = (i * 0.071 + 0.09) % 1;
-          const distance = Math.min(Math.abs(t - coneT), 1 - Math.abs(t - coneT));
-          const coneOffset = i % 2 ? 2.5 : -2.6;
-          if (distance < 0.0065 && Math.abs(race.lateral * 4.6 - coneOffset) < 1.25 && now - lastCollision > 1100) {
-            race.speed *= 0.72;
-            lastCollision = now;
-            notify("Cone clipped — leave a little more room.", "error");
-            setEngineer("Obstacle contact. Look farther ahead and make one smooth correction.");
-          }
         }
         if (now - lastCoachAt > 1700) {
           lastCoachAt = now;
@@ -225,11 +215,11 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     <section className="vula-section warmup-game">
       <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Lap</span><strong>{lap}</strong></div><div><span>Current lap</span><strong>{fmt(lapTime)}</strong></div><div><span>Best lap</span><strong>{fmt(bestLap)}</strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
-        <Racing3DScene speed={speed} steer={controlsRef.current.steer} lateral={raceRef.current.lateral} brake={controlsRef.current.brake} boost={boostActive} phase={phase} progress={raceRef.current.progress} countdown={countdown} />
+        <Racing3DScene speed={speed} steer={raceRef.current.steering} lateral={raceRef.current.lateral} brake={controlsRef.current.brake} boost={boostActive} phase={phase} progress={raceRef.current.progress} countdown={countdown} />
         <div className="warmup-3d-overlay" hidden={phase === "running"} aria-live="polite">
           <span>VULA RACING · CIRCUIT PRACTICE</span>
           <strong>{phase === "ready" ? "Find your racing line" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : "Nice driving!"}</strong>
-          <p>{phase === "ready" ? "A low chase camera, a flowing circuit and a few cones to sharpen your line." : phase === "countdown" ? "Get set. Smooth steering beats sudden corrections." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete. Take another lap and beat your time."}</p>
+          <p>{phase === "ready" ? "A low chase camera, a flowing circuit to practise smooth steering and clean exits." : phase === "countdown" ? "Get set. Smooth steering beats sudden corrections." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete. Take another lap and beat your time."}</p>
         </div>
       </div>
       <div className="warmup-engineer" aria-live="polite"><span className="engineer-light" /> <div><strong>RACE ENGINEER</strong><p>{engineer}</p></div></div>
