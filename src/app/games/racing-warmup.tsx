@@ -194,6 +194,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       const horizon = h * 0.29;
       const carBaseY = h * 0.835;
       const currentT = wrap(race.progress, 1);
+      const currentCenter = centerline(currentT).x;
       const curveAt = (t: number) => {
         const p0 = centerline(t - .008), p1 = centerline(t), p2 = centerline(t + .008);
         const dx = p2.x - p0.x;
