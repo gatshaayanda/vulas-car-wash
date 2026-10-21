@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./racing-warmup.css";
 import { subscribeSettings } from "@/lib/firebase/vula-data";
-import { showVulaToast } from "@/lib/vula-toast";
 
 type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
 type RacingWarmupProps = { embedded?: boolean };
@@ -31,6 +30,7 @@ export default function RacingWarmup({ embedded = false }: RacingWarmupProps) {
   const [distance, setDistance] = useState(0);
   const [speed, setSpeed] = useState(105);
   const [hits, setHits] = useState(0);
+  const [feedback, setFeedback] = useState<{ text: string; kind: "success" | "error" | "info" } | null>(null);
   const [boostActive, setBoostActive] = useState(false);
   const [activeSignal, setActiveSignal] = useState<"left" | "right" | null>(null);
   const signalRef = useRef<"left" | "right" | null>(null);
@@ -40,6 +40,12 @@ export default function RacingWarmup({ embedded = false }: RacingWarmupProps) {
   const [businessName, setBusinessName] = useState("Vula's Car Wash");
   const controlsRef = useRef({ accelerate: false, brake: false, boost: false, steer: 0 });
   phaseRef.current = phase;
+
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = window.setTimeout(() => setFeedback(null), 3200);
+    return () => window.clearTimeout(timer);
+  }, [feedback]);
 
   const steeringAngleAt = (event: React.PointerEvent<HTMLButtonElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -75,7 +81,7 @@ export default function RacingWarmup({ embedded = false }: RacingWarmupProps) {
     const next = signalRef.current === signal ? null : signal;
     signalRef.current = next;
     setActiveSignal(next);
-    if (next) showVulaToast((next === "left" ? "Left" : "Right") + " indicator on.", "info");
+    if (next) setFeedback({ text: (next === "left" ? "Left" : "Right") + " indicator on.", kind: "info" });
   }
 
   function startRace() {
@@ -85,7 +91,7 @@ export default function RacingWarmup({ embedded = false }: RacingWarmupProps) {
     setCountdownValue(3);
     phaseRef.current = "countdown";
     setPhase("countdown");
-    showVulaToast("Get ready — your 500 m warm-up starts in 3.", "info");
+    setFeedback({ text: "Get ready — your 500 m warm-up starts in 3.", kind: "info" });
   }
   useEffect(() => {
     if (phase !== "countdown") return;
@@ -94,7 +100,7 @@ export default function RacingWarmup({ embedded = false }: RacingWarmupProps) {
         setCountdownValue(0);
         phaseRef.current = "running";
         setPhase("running");
-        showVulaToast("Go! Steer around the road markers and use NOS when you need a burst.", "success");
+        setFeedback({ text: "Go! Steer around the road markers and use NOS when you need a burst.", kind: "success" });
       } else {
         setCountdownValue(value => value - 1);
       }
@@ -112,7 +118,7 @@ export default function RacingWarmup({ embedded = false }: RacingWarmupProps) {
   function restartRace() {
     raceRef.current = newRace(); setElapsed(0); setDistance(0); setSpeed(105); setHits(0); stopSteering(); signalRef.current = null; setActiveSignal(null); controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false;
     setCountdownValue(3); phaseRef.current = "countdown"; setPhase("countdown");
-    showVulaToast("Race reset. Get ready to try again.", "info");
+    setFeedback({ text: "Race reset. Get ready to try again.", kind: "info" });
   }
 
   useEffect(() => {
@@ -162,9 +168,9 @@ export default function RacingWarmup({ embedded = false }: RacingWarmupProps) {
           steeringStartAngle.current = null; setWheelRotation(0); setBoostActive(false); signalRef.current = null; setActiveSignal(null);
           setElapsed(0); setDistance(0); setSpeed(105); setHits(value => value + 1); setCountdownValue(3);
           phaseRef.current = "countdown"; setPhase("countdown");
-          showVulaToast("Marker hit — restarting from the beginning. Steer a little earlier next time.", "error");
+          setFeedback({ text: "Marker hit — restarting from the beginning. Steer a little earlier next time.", kind: "error" });
         }
-        if (race.distance >= finishDistance) { race.distance = finishDistance; showVulaToast("Warm-up complete — nice driving!", "success"); controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false); steeringStartAngle.current = null; setWheelRotation(0); phaseRef.current = "finished"; setPhase("finished"); }
+        if (race.distance >= finishDistance) { race.distance = finishDistance; setFeedback({ text: "Warm-up complete — nice driving!", kind: "success" }); controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false); steeringStartAngle.current = null; setWheelRotation(0); phaseRef.current = "finished"; setPhase("finished"); }
         setElapsed(race.elapsed); setDistance(race.distance); setSpeed(race.speed);
       }
       context.clearRect(0, 0, width, height); context.fillStyle = "#8aa96e"; context.fillRect(0, 0, width, height); context.fillStyle = "#76965e";
@@ -231,6 +237,7 @@ export default function RacingWarmup({ embedded = false }: RacingWarmupProps) {
       </div>
       <div className="warmup-controls"><div className="warmup-steering"><button ref={wheelRef} type="button" className="warmup-wheel" aria-label="Virtual steering wheel. Drag around the wheel to steer." aria-describedby="steering-help" disabled={phase !== "running"} style={{ transform: `rotate(${wheelRotation}deg)` }} onPointerDown={startSteering} onPointerMove={steerWheel} onPointerUp={stopSteering} onPointerCancel={stopSteering} onLostPointerCapture={stopSteering}><span className="wheel-ring"><span className="wheel-spoke vertical"/><span className="wheel-spoke horizontal"/><span className="wheel-hub"/></span><span className="wheel-caption">STEER</span></button><span id="steering-help" className="steering-caption">Drag the wheel left or right</span><div className="warmup-signals" aria-label="Turn indicators"><button type="button" aria-label="Toggle left indicator" disabled={phase !== "running"} aria-pressed={activeSignal === "left"} className={activeSignal === "left" ? "signal-active" : ""} onClick={() => toggleSignal("left")}>← Signal</button><button type="button" aria-label="Toggle right indicator" disabled={phase !== "running"} aria-pressed={activeSignal === "right"} className={activeSignal === "right" ? "signal-active" : ""} onClick={() => toggleSignal("right")}>Signal →</button></div></div><div className="warmup-driving"><button type="button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.accelerate = true; }} onPointerUp={() => { controlsRef.current.accelerate = false; }} onPointerLeave={() => { controlsRef.current.accelerate = false; }} onPointerCancel={() => { controlsRef.current.accelerate = false; }}>Accelerate ↑</button><button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.brake = true; }} onPointerUp={() => { controlsRef.current.brake = false; }} onPointerLeave={() => { controlsRef.current.brake = false; }} onPointerCancel={() => { controlsRef.current.brake = false; }}>Brake ↓</button><button type="button" className="nos-button" aria-label="NOS boost" disabled={phase !== "running"} aria-pressed={boostActive} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.boost = true; setBoostActive(true); }} onPointerUp={() => { controlsRef.current.boost = false; setBoostActive(false); }} onPointerLeave={() => { controlsRef.current.boost = false; setBoostActive(false); }} onPointerCancel={() => { controlsRef.current.boost = false; setBoostActive(false); }}>NOS ⚡</button></div><div className="warmup-actions">{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start race ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Starting {countdownValue || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause race Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume race ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Run again ↗</button>}<button type="button" className="vula-button secondary" onClick={restartRace}>Restart race ↻</button></div></div>
       <p className="warmup-help">Steer: drag the wheel on phones, or hold ← / → or A / D on desktop · Accelerate: ↑ / W · Brake: ↓ / S · NOS: hold the boost button or Shift · Indicators: ← Signal / Signal → · Pause: P / Esc.</p>
+      {feedback && <p className={"warmup-feedback " + feedback.kind} role="status" aria-live="polite">{feedback.text}</p>}
     </section>
     {!embedded && <footer className="vula-footer"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></Link><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></footer>}
   </div>;
