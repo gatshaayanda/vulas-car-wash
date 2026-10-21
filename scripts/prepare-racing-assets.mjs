@@ -61,6 +61,7 @@ const selectedDirs = new Set(models.filter((entry) => /\.gltf$/i.test(entry.name
 const selected = entries.filter((entry) => {
   if (/\.glb$/i.test(entry.name)) return true;
   if (/\.gltf$/i.test(entry.name)) return true;
+  if (/\.(bin|png|jpe?g|webp|ktx2)$/i.test(entry.name)) return true;
   return [...selectedDirs].some((dir) => dir !== "." && (path.posix.dirname(entry.name) === dir || path.posix.dirname(entry.name).startsWith(dir + "/")));
 });
 
