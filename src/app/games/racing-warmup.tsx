@@ -224,7 +224,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // Integrate the bends ahead so every road edge, lane dash and barrier shares one projection.
         const ahead = depth * .23;
         const future = centerline(currentT + ahead);
-        const offset = (future.x - currentCenter) * 1.75;
+        // Keep the projected bend inside the visible circuit; map coordinates are not screen-space offsets.
+        const offset = clamp((future.x - currentCenter) * 1.15, -0.22, 0.22);
         const nearCurve = curveAt(currentT + ahead);
         const perspective = .22 + depth * 1.18;
         const center = w * .5 + offset * w * perspective - race.lateral * w * .18 * depth;
@@ -305,7 +306,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       const carX = w * .5 + race.lateral * w * .25 + controlsRef.current.steer * w * .012 - roadAt(.98).bend * race.speed * .055;
       const carY = carBaseY + bob;
       ctx.save(); ctx.translate(carX, carY); ctx.rotate(clamp(race.drift * .12 + controlsRef.current.steer * .035, -.13, .13));
-      const cw = Math.min(w * .48, 210), ch = Math.min(h * .32, 145);
+      // Smaller low chase-camera car with a broader, less exaggerated nose.
+      const cw = Math.min(w * .34, 150), ch = Math.min(h * .21, 92);
       ctx.fillStyle = "#10191c9c"; ctx.beginPath(); ctx.ellipse(0, ch * .015, cw * .38, ch * .105, 0, 0, Math.PI * 2); ctx.fill();
       if (boostActive) {
         const flame = 19 + Math.sin(now / 28) * 10;
@@ -323,7 +325,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       ctx.fillStyle = "#141e25"; ctx.beginPath(); ctx.moveTo(-cw * .34, -ch * .015); ctx.lineTo(-cw * .32, -ch * .09); ctx.lineTo(-cw * .2, -ch * .12); ctx.lineTo(cw * .2, -ch * .12); ctx.lineTo(cw * .32, -ch * .09); ctx.lineTo(cw * .34, -ch * .015); ctx.closePath(); ctx.fill();
       ctx.fillStyle = "#b9ee4c"; ctx.fillRect(-cw * .32, -ch * .1, cw * .64, ch * .035);
       // Main chassis, broad sidepods and tapered nose.
-      ctx.fillStyle = "#b9ed4b"; ctx.beginPath(); ctx.moveTo(-cw * .25, -ch * .04); ctx.lineTo(-cw * .22, -ch * .22); ctx.lineTo(-cw * .15, -ch * .38); ctx.lineTo(-cw * .085, -ch * .45); ctx.lineTo(-cw * .045, -ch * .7); ctx.lineTo(0, -ch * .98); ctx.lineTo(cw * .045, -ch * .7); ctx.lineTo(cw * .085, -ch * .45); ctx.lineTo(cw * .15, -ch * .38); ctx.lineTo(cw * .22, -ch * .22); ctx.lineTo(cw * .25, -ch * .04); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#b9ed4b"; ctx.beginPath(); ctx.moveTo(-cw * .25, -ch * .04); ctx.lineTo(-cw * .22, -ch * .22); ctx.lineTo(-cw * .15, -ch * .38); ctx.lineTo(-cw * .085, -ch * .45); ctx.lineTo(-cw * .055, -ch * .58); ctx.lineTo(0, -ch * .78); ctx.lineTo(cw * .055, -ch * .58); ctx.lineTo(cw * .085, -ch * .45); ctx.lineTo(cw * .15, -ch * .38); ctx.lineTo(cw * .22, -ch * .22); ctx.lineTo(cw * .25, -ch * .04); ctx.closePath(); ctx.fill();
       ctx.fillStyle = "#e2ff91"; ctx.beginPath(); ctx.moveTo(-cw * .035, -ch * .7); ctx.lineTo(0, -ch * .98); ctx.lineTo(cw * .035, -ch * .7); ctx.lineTo(cw * .055, -ch * .23); ctx.lineTo(-cw * .055, -ch * .23); ctx.closePath(); ctx.fill();
       ctx.fillStyle = "#76a62d"; ctx.beginPath(); ctx.moveTo(-cw * .2, -ch * .23); ctx.lineTo(-cw * .105, -ch * .35); ctx.lineTo(-cw * .075, -ch * .19); ctx.lineTo(-cw * .15, -ch * .11); ctx.closePath(); ctx.fill();
       ctx.beginPath(); ctx.moveTo(cw * .2, -ch * .23); ctx.lineTo(cw * .105, -ch * .35); ctx.lineTo(cw * .075, -ch * .19); ctx.lineTo(cw * .15, -ch * .11); ctx.closePath(); ctx.fill();
