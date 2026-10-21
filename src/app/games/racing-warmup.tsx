@@ -132,14 +132,27 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.speed = clamp(race.speed, 0, boost ? 250 : 205);
         if (boost) race.nos = Math.max(0, race.nos - 24 * dt);
         else race.nos = Math.min(100, race.nos + (c.accelerate ? 4.5 : 10) * dt);
-        const speedFactor = 0.35 + race.speed / 130;
-        const gripLimit = 0.56 / (0.55 + bend * 0.55);
+        // Steering is lateral acceleration, not an automatic rail: speed and corner load
+        // determine how much grip remains, while the curve gently pulls the car outward.
+        const speedRatio = race.speed / 205;
+        const curveLoad = clamp(bend / 2.25, 0, 1);
+        const speedFactor = 0.42 + speedRatio * 1.2;
+        const gripLimit = 0.82 - speedRatio * 0.2 - curveLoad * speedRatio * 0.28;
         const turn = c.steer * speedFactor;
-        race.lateralVelocity += (turn * 0.9 - race.lateralVelocity * (0.9 + (race.speed / 100) * 0.65)) * dt;
-        race.lateral += race.lateralVelocity * dt * (race.speed / 90);
-        const gripDemand = Math.abs(turn) * (race.speed / 150) * (0.5 + bend);
-        race.drift = clamp((gripDemand - gripLimit) * Math.sign(turn) * 1.6, -0.8, 0.8);
-        if (Math.abs(race.drift) > 0.12) race.speed = Math.max(0, race.speed - Math.abs(race.drift) * 9 * dt);
+        const cornerForce = Math.sign(curvatureAt(race.progress + .008)) * curveLoad * speedRatio * .42;
+        race.lateralVelocity += (turn * 1.35 - cornerForce - race.lateralVelocity * (1.05 + speedRatio * .8)) * dt;
+        race.lateral += race.lateralVelocity * dt * (0.45 + speedRatio * 1.15);
+        const gripDemand = Math.abs(turn) * speedRatio * (0.38 + curveLoad * 1.15);
+        const excessGrip = Math.max(0, gripDemand - gripLimit);
+        race.drift = clamp(excessGrip * Math.sign(turn) * 2.15, -0.95, 0.95);
+        if (excessGrip > 0) {
+          race.lateral += Math.sign(turn) * excessGrip * dt * .24;
+          race.speed = Math.max(0, race.speed - excessGrip * (14 + race.speed * .06) * dt);
+        }
+        // A tidy racing line preserves speed; running wide costs grip and momentum.
+        if (Math.abs(race.lateral) > .28 && Math.abs(race.lateral) <= .46) {
+          race.speed = Math.max(0, race.speed - (Math.abs(race.lateral) - .28) * 7 * dt);
+        }
         race.progress += race.speed * dt / 4200;
         race.elapsed += dt; race.lapTime += dt;
         const t = wrap(race.progress, 1);
