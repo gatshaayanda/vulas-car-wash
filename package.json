@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run verify:identity && next build",
+    "build": "npm run verify:identity && npm run prepare:racing-assets && next build",
     "start": "next start",
     "lint": "eslint .",
-    "verify:identity": "node scripts/verify-identity.mjs"
+    "verify:identity": "node scripts/verify-identity.mjs",
+    "prepare:racing-assets": "node scripts/prepare-racing-assets.mjs"
   },
   "dependencies": {
     "@vercel/analytics": "^1.5.0",
