@@ -1,52 +1,237 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { doc, onSnapshot } from "firebase/firestore";
-import { getIdToken, GoogleAuthProvider, linkWithPopup, signInAnonymously, signInWithPopup } from "firebase/auth";
-import { auth, db, hasFirebaseWebConfig } from "@/lib/firebase/client";
-import "./racing.css";
 
-const divisions = [
- { name:"Kart Rookie", tracks:["Gaborone Dust Loop","Tlokweng Sprint","Makgadikgadi Bend"] },
- { name:"Pro Circuit", tracks:["Kgale Ridge Circuit","Okavango Run","Kalahari GP"] },
- { name:"International Series", tracks:["Alpine Ring","Riviera Sprint","Old Town Grand Prix"] },
- { name:"World Apex", tracks:["Neon Meridian","Orbital Crown","Apex Zero"] },
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import "./racing.css";
+import { subscribeSettings } from "@/lib/firebase/vula-data";
+import { showVulaToast } from "@/lib/vula-toast";
+
+type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
+type RacingHubProps = { embedded?: boolean };
+type TrafficCar = { lane: number; y: number; color: string; hit: boolean; pace?: number; targetLane?: number; switchIn?: number; name?: string };
+type RaceState = { lane: number; targetLane: number; distance: number; elapsed: number; speed: number; traffic: TrafficCar[]; opponents: TrafficCar[]; spawn: number; stripeOffset: number; last: number };
+
+const newRace = (): RaceState => ({ lane: 1, targetLane: 1, distance: 0, elapsed: 0, speed: 105, traffic: [], opponents: [], spawn: 999, stripeOffset: 0, last: 0 });
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+const finishDistance = 500;
+const roadObjects = [
+  { lane: 0, distance: 45 }, { lane: 2, distance: 95 }, { lane: 1, distance: 145 },
+  { lane: 0, distance: 195 }, { lane: 2, distance: 245 }, { lane: 1, distance: 295 },
+  { lane: 0, distance: 345 }, { lane: 2, distance: 395 }, { lane: 1, distance: 445 },
 ];
-type Result={id:string;track:string;place:number;time:number;credits:number;at:string;verified?:boolean};
-type Racer={id:string;alias:string;division:number;wins:number;credits:number;upgrade:number;best:Record<string,number>;history:Result[]};
-const key="vulas-car-wash:racing-career:v1";
-const clamp=(n:number,a:number,b:number)=>Math.max(a,Math.min(b,n));
-function mergeRacer(server:Racer,local?:Racer):Racer{if(!local)return server;const ids=new Set(server.history.map(item=>item.id));const offlineHistory=local.history.filter(item=>item.verified!==true&&!ids.has(item.id));const best={...server.best};for(const [track,time] of Object.entries(local.best||{}))best[track]=Math.min(best[track]??Infinity,time);return {...server,history:[...server.history,...offlineHistory].slice(0,50),best};}
-async function racingRequest(method:"GET"|"POST",body?:Record<string,unknown>){if(!navigator.onLine||!hasFirebaseWebConfig)throw new Error("Offline: progress stays on this device.");let user=auth.currentUser;if(!user)user=(await signInAnonymously(auth)).user;const token=await getIdToken(user);const response=await fetch("/api/racing",{method,headers:{Authorization:"Bearer "+token,...(body?{"Content-Type":"application/json"}:{})},...(body?{body:JSON.stringify(body)}:{})});const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(typeof payload.error==="string"?payload.error:"Racing sync failed.");return payload as Record<string,unknown>;}
-export default function RacingHub(){
- const [racers,setRacers]=useState<Racer[]>([]),[activeId,setActiveId]=useState(""),[alias,setAlias]=useState("");
- const [careerLoaded,setCareerLoaded]=useState(false),[serverRaceId,setServerRaceId]=useState("");
- const [divisionIndex,setDivisionIndex]=useState(0),[trackIndex,setTrackIndex]=useState(0);
- const [phase,setPhase]=useState<"garage"|"race"|"finished">("garage"),[paused,setPaused]=useState(false);
- const [position,setPosition]=useState(0),[speed,setSpeed]=useState(0),[elapsed,setElapsed]=useState(0),[steer,setSteer]=useState(0),[brake,setBrake]=useState(false),[boost,setBoost]=useState(2);
- const [message,setMessage]=useState("Progress saves on this device only. Online sync is not active yet.");
- const [businessName,setBusinessName]=useState("Vula's Car Wash"),[racingNotice,setRacingNotice]=useState("Race for virtual credits. No purchases or wagering."),[racingEnabled,setRacingEnabled]=useState(true),[settingsConnected,setSettingsConnected]=useState(false);
- const [place,setPlace]=useState<number|null>(null),[reward,setReward]=useState(0),[resetConfirm,setResetConfirm]=useState(false),[serverResults,setServerResults]=useState<Array<Result & {alias?:string;verified?:boolean}>>([]);
- const raf=useRef<number|null>(null),last=useRef(0),finished=useRef(false);
- const active=racers.find(r=>r.id===activeId)||null, track=divisions[divisionIndex].tracks[trackIndex], board=useMemo(()=>racers.flatMap(r=>r.history.map(h=>({...h,alias:r.alias}))).sort((a,b)=>a.time-b.time).slice(0,10),[racers]), trackLeaders=useMemo(()=>{const best=new Map<string,Result & {alias:string}>();for(const result of serverResults){const previous=best.get(result.track);if(!previous||result.time<previous.time)best.set(result.track,{...result,alias:result.alias||"Racer"})}return Array.from(best.values()).sort((a,b)=>a.track.localeCompare(b.track))},[serverResults]);
- useEffect(()=>{const stop=onSnapshot(doc(db,"businessSettings","main"),snap=>{const data=snap.data()||{};setBusinessName(typeof data.businessName==="string"&&data.businessName.trim()?data.businessName:"Vula's Car Wash");setRacingEnabled(data.racingEnabled!==false);setRacingNotice(typeof data.racingNotice==="string"?data.racingNotice:"Race for virtual credits. No purchases or wagering.");setSettingsConnected(true)},()=>setSettingsConnected(false));return()=>stop()},[]);
- useEffect(()=>{let cancelled=false;try{const raw=localStorage.getItem(key);if(raw){const v=JSON.parse(raw);if(Array.isArray(v.racers))setRacers(v.racers);if(v.activeId)setActiveId(v.activeId)}}catch{setMessage("Browser storage is unavailable; keep this tab open to preserve your session.")}setCareerLoaded(true);if(navigator.onLine&&hasFirebaseWebConfig)void racingRequest("GET").then(data=>{if(cancelled)return;if(Array.isArray(data.racers)&&data.racers.length){const onlineRacers=data.racers as Racer[];setRacers(current=>[...onlineRacers.map(saved=>mergeRacer(saved,current.find(local=>local.id===saved.id))),...current.filter(local=>!onlineRacers.some(saved=>saved.id===local.id))]);setMessage("Online career synchronized. Offline race history remains local; offline credits are not added to the verified balance.")}else setMessage("Connected. Existing device-only careers remain on this device; new racers can be saved online.");if(Array.isArray(data.results))setServerResults(data.results.map((r:Record<string,unknown>)=>({id:String(r.id||""),track:String(r.track||""),place:Number(r.place||3),time:Number(r.time||0),credits:Number(r.credits||0),at:String(r.createdAt||""),alias:String(r.alias||"Racer"),verified:r.verified===true})))}).catch(()=>{if(!cancelled)setMessage("Career is saved on this device. Server synchronization is not available right now.")});return()=>{cancelled=true}},[]);
- useEffect(()=>{if(!careerLoaded)return;try{localStorage.setItem(key,JSON.stringify({racers,activeId,savedAt:new Date().toISOString()}))}catch{setMessage("Could not save to browser storage. Progress may be lost when this tab closes.")}},[careerLoaded,racers,activeId]);
- useEffect(()=>{if(phase!=="race"||paused)return;const tick=(now:number)=>{if(!last.current)last.current=now;const dt=Math.min((now-last.current)/1000,.05);last.current=now;setElapsed(v=>v+dt);setSpeed(v=>clamp(v+((brake?18:44+(active?.upgrade||0)*3)-v)*dt*1.7-Math.abs(steer)*dt*5,0,62));setPosition(v=>clamp(v+(brake?1.15:2.05+(active?.upgrade||0)*.1)*dt-Math.abs(steer)*dt*.04,0,100));raf.current=requestAnimationFrame(tick)};raf.current=requestAnimationFrame(tick);return()=>{if(raf.current)cancelAnimationFrame(raf.current);last.current=0}},[phase,paused,brake,steer,active?.upgrade]);
- useEffect(()=>{if(phase!=="race"||position<100||finished.current||!active)return;finished.current=true;const a=42+Math.random()*28,b=40+Math.random()*30,score=100-elapsed*.65+(active.upgrade*2)+Math.random()*5;const p=[{score,player:true},{score:a,player:false},{score:b,player:false}].sort((x,y)=>y.score-x.score).findIndex(x=>x.player)+1;const credits=[0,150,75,45][p];const result:Result={id:String(Date.now()),track,place:p,time:Number(elapsed.toFixed(2)),credits,at:new Date().toISOString()};setPlace(p);setReward(credits);setPhase("finished");setRacers(rs=>rs.map(r=>{if(r.id!==activeId)return r;const wins=r.wins+(p===1?1:0),history=[result,...r.history].slice(0,50),best={...r.best,[track]:Math.min(r.best[track]??Infinity,result.time)};let d=r.division;if(wins>=(d+1)*3&&d<3)d++;else if(history.length>=4&&wins===0&&d>0)d--;return {...r,wins,history,best,credits:r.credits+credits,division:d}}));setMessage("Result saved locally while the server checks it.");if(serverRaceId&&navigator.onLine&&hasFirebaseWebConfig)void racingRequest("POST",{action:"finish",racerId:activeId,track,elapsed:Number(elapsed.toFixed(2)),raceId:serverRaceId}).then(saved=>{const serverResult=saved.result as Result|undefined;const serverRacer=saved.racer as Racer|undefined;if(serverRacer)setRacers(rs=>rs.map(r=>r.id===activeId?mergeRacer(serverRacer,r):r));if(serverResult){setPlace(serverResult.place);setReward(serverResult.credits);setServerResults(current=>[{...serverResult,alias:active.alias,verified:true},...current.filter(item=>item.id!==serverResult.id)].slice(0,40));setMessage("Race result verified and saved to your Vula account.")}}).catch(error=>setMessage((error instanceof Error?error.message:"Server verification failed.")+" This result remains device-only and is not on the shared leaderboard."))},[position,phase,active,elapsed,track,activeId,serverRaceId]);
- useEffect(()=>{const down=(e:KeyboardEvent)=>{if(phase!=="race")return;if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"," "].includes(e.key))e.preventDefault();if(e.key==="ArrowLeft"||e.key.toLowerCase()==="a")setSteer(-1);if(e.key==="ArrowRight"||e.key.toLowerCase()==="d")setSteer(1);if(e.key==="ArrowDown"||e.key.toLowerCase()==="s")setBrake(true);if(e.key==="ArrowUp"||e.key.toLowerCase()==="w")setBrake(false);if(e.key===" "&&!e.repeat)boostAction();if(e.key.toLowerCase()==="p"||e.key==="Escape")setPaused(v=>!v)};const up=(e:KeyboardEvent)=>{if(["arrowleft","arrowright","a","d"].includes(e.key.toLowerCase()))setSteer(0);if(["arrowdown","s"].includes(e.key.toLowerCase()))setBrake(false)};window.addEventListener("keydown",down);window.addEventListener("keyup",up);return()=>{window.removeEventListener("keydown",down);window.removeEventListener("keyup",up)}},[phase,boost,paused]);
- async function connectGoogle(){if(!navigator.onLine||!hasFirebaseWebConfig){setMessage("Connect to the internet before linking or signing in.");return}const provider=new GoogleAuthProvider();provider.setCustomParameters({prompt:"select_account"});try{const current=auth.currentUser;if(current?.isAnonymous){try{await linkWithPopup(current,provider);setMessage("Google linked to this guest identity. Your online racer IDs remain attached to this account.");}catch(error){const code=typeof error==="object"&&error!==null&&"code" in error?String((error as {code?:unknown}).code):"";if(code!=="auth/credential-already-in-use"&&code!=="auth/account-exists-with-different-credential")throw error;await signInWithPopup(auth,provider);const saved=await racingRequest("GET");if(Array.isArray(saved.racers))setRacers(saved.racers as Racer[]);if(Array.isArray(saved.results))setServerResults(saved.results.map((r:Record<string,unknown>)=>({id:String(r.id||""),track:String(r.track||""),place:Number(r.place||3),time:Number(r.time||0),credits:Number(r.credits||0),at:String(r.createdAt||""),alias:String(r.alias||"Racer"),verified:r.verified===true})));setMessage("Signed into the existing Google account. Any separate guest-only career remains local and was not merged.")}}else{await signInWithPopup(auth,provider);const saved=await racingRequest("GET");if(Array.isArray(saved.racers))setRacers(saved.racers as Racer[]);if(Array.isArray(saved.results))setServerResults(saved.results.map((r:Record<string,unknown>)=>({id:String(r.id||""),track:String(r.track||""),place:Number(r.place||3),time:Number(r.time||0),credits:Number(r.credits||0),at:String(r.createdAt||""),alias:String(r.alias||"Racer"),verified:r.verified===true})));setMessage("Signed in with Google. Your server-saved racing career is loaded.")}}catch(error){setMessage(error instanceof Error?error.message:"Google sign-in could not be completed. Your current local career remains unchanged.")}}
-async function create(){const name=alias.trim().replace(/[^\p{L}\p{N} _-]/gu,"").slice(0,18);if(name.length<2){setMessage("Choose an alias with at least two characters.");return}let r:Racer={id:crypto.randomUUID(),alias:name,division:0,wins:0,credits:250,upgrade:0,best:{},history:[]};if(navigator.onLine&&hasFirebaseWebConfig){try{const saved=await racingRequest("POST",{action:"create",alias:name});r=saved.racer as Racer;setMessage("Racer created and saved to your authenticated Vula account.")}catch(error){setMessage((error instanceof Error?error.message:"Server save failed.")+" A device-only racer was created instead.")}}else setMessage("Racer created on this device only. Connect to synchronize it.");setRacers(rs=>[...rs,r]);setActiveId(r.id);setDivisionIndex(0);setTrackIndex(0);setAlias("")}
-async function start(){if(!active||!racingEnabled)return;finished.current=false;setServerRaceId("");if(navigator.onLine&&hasFirebaseWebConfig){try{const started=await racingRequest("POST",{action:"start",racerId:active.id,track});setServerRaceId(String(started.raceId||""));setMessage("Race session started. Finish will be verified by Vula server.")}catch(error){setMessage((error instanceof Error?error.message:"Server race unavailable.")+" This race will remain device-only.")}}setPosition(0);setSpeed(0);setElapsed(0);setBoost(2);setSteer(0);setBrake(false);setPaused(false);setPhase("race")}
- function boostAction(){if(phase!=="race"||paused||boost<=0)return;setBoost(v=>v-1);setSpeed(v=>Math.min(62,v+18));setPosition(v=>Math.min(100,v+4.5))}
- async function upgrade(){if(!active||active.upgrade>=5||active.credits<(active.upgrade+1)*100)return;if(navigator.onLine&&hasFirebaseWebConfig){try{const saved=await racingRequest("POST",{action:"upgrade",racerId:active.id});const updated=saved.racer as Racer;setRacers(rs=>rs.map(r=>r.id===activeId?updated:r));setMessage("Upgrade verified and saved to your Vula account.");return}catch(error){setMessage((error instanceof Error?error.message:"Server save failed.")+" Upgrade was not applied.");return}}const cost=(active.upgrade+1)*100;setRacers(rs=>rs.map(r=>r.id===activeId?{...r,credits:r.credits-cost,upgrade:r.upgrade+1}:r));setMessage("Offline upgrade saved locally only; server credits and upgrades remain authoritative and may replace it at the next sync.")}
-async function reset(){if(!active)return;if(navigator.onLine&&hasFirebaseWebConfig){try{await racingRequest("POST",{action:"reset",racerId:active.id})}catch(error){setMessage((error instanceof Error?error.message:"Server save failed.")+" Racer was not reset online.");return}}setRacers(rs=>rs.filter(r=>r.id!==activeId));setActiveId("");setResetConfirm(false);setMessage(navigator.onLine?"Racer reset. Vula customer account, bookings and loyalty are unchanged.":"Racer removed from this device only; reconnect before using another device.")}
-return <main className="vula race-hub"><div className="vula-status"><span className="status-dot online"/>Vula Racing · Virtual credits only · No purchases or wagering</div>
- <header className="vula-nav"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>Vula&apos;s Car Wash<small>Racing garage</small></span></Link><nav><Link href="/#my-wash">My Wash</Link><Link href="/admin">Staff sign in</Link></nav></header>
- <section className="vula-section race-intro"><p className="vula-eyebrow">VULA RACING · SPONSORED BY {businessName.toUpperCase()}</p><h1>Earn your racing stripes.</h1><p>12 tracks. Four divisions. Three racers on the grid: you, Kago “The Attacker” and Neo “The Smooth One”.</p><p role="status" className="vula-notice pending">{message}</p><p className="race-sponsor-note">{racingNotice}</p><button type="button" className="vula-button secondary race-account-link" onClick={()=>void connectGoogle()}>Connect / sign in with Google to keep your career ↗</button>{settingsConnected&&!racingEnabled&&<p role="alert" className="vula-notice error">Racing is temporarily unavailable. Check back with {businessName} staff.</p>}</section>
- <section className="vula-section race-layout"><aside className="race-garage"><p className="vula-eyebrow">RACER PROFILE</p>{racers.length>0&&<label>Choose racer<select value={activeId} onChange={e=>{setActiveId(e.target.value);const r=racers.find(x=>x.id===e.target.value);if(r)setDivisionIndex(r.division)}}><option value="">Select racer</option>{racers.map(r=><option key={r.id} value={r.id}>{r.alias}</option>)}</select></label>}{!active&&<form className="race-create" onSubmit={e=>{e.preventDefault();create()}}><label>Racer alias<input value={alias} onChange={e=>setAlias(e.target.value)} required minLength={2} maxLength={18} placeholder="e.g. Dust Runner"/></label><button className="vula-button primary">Create racer</button></form>}{active&&<><div className="race-profile"><div className="race-avatar">{active.alias[0].toUpperCase()}</div><div><strong>{active.alias}</strong><span>{divisions[active.division].name}</span></div></div><div className="race-stats"><div><strong>{active.credits}</strong><span>Virtual credits</span></div><div><strong>{active.wins}</strong><span>Wins</span></div><div><strong>{active.upgrade}/5</strong><span>Engine level</span></div><div><strong>{active.history.length}</strong><span>Races</span></div></div><div className="race-upgrade"><div><strong>Engine tune · {active.upgrade}/5</strong><p>Upgrade cost: {(active.upgrade+1)*100} credits.</p></div><button className="vula-button secondary" disabled={active.upgrade>=5||active.credits<(active.upgrade+1)*100} onClick={upgrade}>Upgrade</button></div><button className="vula-button secondary race-reset" onClick={()=>setResetConfirm(true)}>Reset this racer…</button>{resetConfirm&&<div className="race-confirm"><p>Delete this racer&apos;s credits, upgrades, personal bests and history? Vula account data stays untouched.</p><button className="vula-button secondary" onClick={()=>setResetConfirm(false)}>Cancel</button><button className="vula-button primary" onClick={reset}>Confirm reset</button></div>}</>}</aside>
- <div className="race-main">{phase==="garage"&&<><p className="vula-eyebrow">CHOOSE A CIRCUIT</p><div className="race-track-grid">{divisions.map((d,di)=><article key={d.name} className={"race-division "+(divisionIndex===di?"selected":"")+(active&&active.division<di?" locked":"")}><span>DIVISION {di+1}</span><h2>{d.name}</h2><p>{["Learn the line and boost timing.","Technical bends and faster pace.","Tighter margins and international circuits.","Elite tracks for experienced racers."][di]}</p>{d.tracks.map((t,ti)=><button key={t} type="button" disabled={!active||active.division<di} className={divisionIndex===di&&trackIndex===ti?"active":""} onClick={()=>{setDivisionIndex(di);setTrackIndex(ti)}}><span>{String(di*3+ti+1).padStart(2,"0")}</span>{t}</button>)}</article>)}</div><button className="vula-button primary race-start" disabled={!active||!racingEnabled} onClick={start}>Start race · {track} ↗</button></>}{phase==="race"&&<div className="race-play"><div className="race-play-head"><div><p className="vula-eyebrow">LIVE RACE</p><h2>{track}</h2></div><div className="race-timer">{elapsed.toFixed(1)}s<small>elapsed</small></div></div><div className="race-scene"><div className="race-sky"/><div className="race-hills"/><div className="race-track-surface"><div className="race-lane"/><div className="race-car rival rival-a" style={{left:(25+Math.sin(elapsed*1.3)*7)+"%"}}>K</div><div className="race-car rival rival-b" style={{left:(58+Math.cos(elapsed*.8)*8)+"%"}}>N</div><div className="race-car player-car" style={{left:clamp(50+steer*10,10,82)+"%",bottom:8+position*.55+"%"}}>YOU</div></div><div className="race-hud"><span>PACE<b>{Math.round(speed)} km/h</b></span><span>PROGRESS<b>{Math.round(position)}%</b></span><span>BOOST<b>{boost} left</b></span></div></div><div className="race-controls"><div><button aria-label="Steer left" onPointerDown={()=>setSteer(-1)} onPointerUp={()=>setSteer(0)} onPointerLeave={()=>setSteer(0)}>←</button><button aria-label="Steer right" onPointerDown={()=>setSteer(1)} onPointerUp={()=>setSteer(0)} onPointerLeave={()=>setSteer(0)}>→</button></div><div><button onPointerDown={()=>setBrake(true)} onPointerUp={()=>setBrake(false)} onPointerLeave={()=>setBrake(false)}>Brake</button><button className="boost-button" disabled={boost===0} onClick={boostAction}>Boost ⚡</button></div><button className="vula-button secondary" onClick={()=>setPaused(v=>!v)}>{paused?"Resume":"Pause"} (P)</button></div>{paused&&<div className="race-paused"><strong>Race paused</strong><p>Timer stopped.</p><button className="vula-button primary" onClick={()=>setPaused(false)}>Resume race</button><button className="vula-button secondary" onClick={()=>{setPhase("garage");setPaused(false)}}>Retire</button></div>}<p className="race-help">Keyboard: A/D or ←/→ steer · W/↑ release brake · S/↓ brake · Space boost · P pause. Touch: hold the controls.</p></div>}{phase==="finished"&&<div className="race-result"><p className="vula-eyebrow">FINISH LINE</p><h2>{place===1?"P1. Clean racing.":place===2?"P2. A podium finish.":"P3. Keep pushing."}</h2><p>Finished {track} in {elapsed.toFixed(2)} seconds.</p><div className="race-reward"><strong>+{reward}</strong><span>virtual credits</span></div><p>Saved locally only; this result is not server-verified or on a public leaderboard.</p><button className="vula-button primary" onClick={()=>setPhase("garage")}>Back to garage</button><button className="vula-button secondary" onClick={start}>Race again</button></div>}</div></section>
- <section className="vula-section race-history"><div className="section-title"><p className="vula-eyebrow">CAREER RECORD</p><h2>Personal bests.</h2><p>Saved on this device; not shared online yet.</p></div><div className="race-record-grid"><article><h3>Track records</h3>{active&&Object.entries(active.best).sort((a,b)=>a[1]-b[1]).map(([t,time])=><p key={t}><strong>{t}</strong><span>{time.toFixed(2)}s</span></p>)}{(!active||!Object.keys(active.best).length)&&<p className="race-empty">Finish a race to set a personal best.</p>}</article><article><h3>Race history</h3>{active?.history.slice(0,8).map(r=><p key={r.id}><strong>{r.track}</strong><span>P{r.place} · {r.time.toFixed(2)}s · +{r.credits} · {r.verified===true?"verified":"local only"}</span></p>)}{!active?.history.length&&<p className="race-empty">Your results appear here.</p>}</article><article><h3>This-device leaderboard</h3>{board.map((r,i)=><p key={r.id}><strong>#{i+1} {r.alias}</strong><span>{r.track} · {r.time.toFixed(2)}s</span></p>)}{!board.length&&<p className="race-empty">Race to populate this local board.</p>}</article><article><h3>Shared race feed</h3>{serverResults.map((r,i)=><p key={r.id}><strong>#{i+1} {r.alias||"Racer"} · {r.track}</strong><span>P{r.place} · {r.time.toFixed(2)}s {r.verified?"· verified":""}</span></p>)}{!serverResults.length&&<p className="race-empty">Verified online race results appear here.</p>}</article><article><h3>Verified track leaders</h3>{trackLeaders.map(r=><p key={r.track}><strong>{r.track}</strong><span>{r.alias} · {r.time.toFixed(2)}s</span></p>)}{!trackLeaders.length&&<p className="race-empty">Verified track records appear after online races.</p>}</article></div></section>
- <section className="vula-section race-history"><div className="section-title"><p className="vula-eyebrow">HELP THE GARAGE</p><h2>Report a racing issue.</h2><p>Send a short report to Vula staff. Reports need a connection and are separate from your car-wash bookings.</p></div><form className="race-report-form" onSubmit={async e=>{e.preventDefault();const form=e.currentTarget;const data=new FormData(form);try{await racingRequest("POST",{action:"report",category:String(data.get("category")||"other"),description:String(data.get("description")||""),racerId:active?.id||"",track});setMessage("Issue report sent to Vula staff.");form.reset()}catch(error){setMessage(error instanceof Error?error.message:"Issue report could not be sent.")}}}><label>Issue type<select name="category" defaultValue="bug"><option value="bug">Bug / unexpected behaviour</option><option value="controls">Steering or controls</option><option value="save-sync">Save or synchronization</option><option value="other">Other</option></select></label><label>What happened?<textarea name="description" minLength={8} maxLength={1000} required rows={4} placeholder="Describe what you expected and what happened."/></label><button className="vula-button primary" type="submit">Send issue report</button></form></section>
- <footer className="vula-footer"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>Vula&apos;s Car Wash<small>Wash. Care. Go.</small></span></Link><Link href="/#request">Book a wash</Link><Link href="/admin">Staff sign in</Link></footer></main>
+
+export default function RacingHub({ embedded = false }: RacingHubProps) {
+  const [expanded, setExpanded] = useState(!embedded);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const raceRef = useRef<RaceState>(newRace());
+  const phaseRef = useRef<Phase>("ready");
+  const [phase, setPhase] = useState<Phase>("ready");
+  const [countdownValue, setCountdownValue] = useState(3);
+  const [elapsed, setElapsed] = useState(0);
+  const [distance, setDistance] = useState(0);
+  const [speed, setSpeed] = useState(105);
+  const [hits, setHits] = useState(0);
+  const [boostActive, setBoostActive] = useState(false);
+  const [activeSignal, setActiveSignal] = useState<"left" | "right" | null>(null);
+  const signalRef = useRef<"left" | "right" | null>(null);
+  const [wheelRotation, setWheelRotation] = useState(0);
+  const wheelRef = useRef<HTMLButtonElement>(null);
+  const steeringStartAngle = useRef<number | null>(null);
+  const [businessName, setBusinessName] = useState("Vula's Car Wash");
+  const controlsRef = useRef({ accelerate: false, brake: false, boost: false, steer: 0 });
+  phaseRef.current = phase;
+
+  const steeringAngleAt = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - (rect.left + rect.width / 2);
+    const y = event.clientY - (rect.top + rect.height / 2);
+    return Math.atan2(y, x);
+  };
+  const startSteering = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    steeringStartAngle.current = steeringAngleAt(event);
+  };
+  const steerWheel = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (steeringStartAngle.current === null) return;
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - (rect.left + rect.width / 2);
+    const y = event.clientY - (rect.top + rect.height / 2);
+    if (Math.hypot(x, y) < 7) return;
+    let delta = steeringAngleAt(event) - steeringStartAngle.current;
+    while (delta > Math.PI) delta -= Math.PI * 2;
+    while (delta < -Math.PI) delta += Math.PI * 2;
+    const steering = clamp(delta / (Math.PI * 0.62), -1, 1);
+    controlsRef.current.steer = steering;
+    setWheelRotation(steering * 125);
+  };
+  const stopSteering = () => {
+    steeringStartAngle.current = null;
+    controlsRef.current.steer = 0;
+    setWheelRotation(0);
+  };
+  function toggleSignal(signal: "left" | "right") {
+    const next = signalRef.current === signal ? null : signal;
+    signalRef.current = next;
+    setActiveSignal(next);
+    if (next) showVulaToast((next === "left" ? "Left" : "Right") + " indicator on.", "info");
+  }
+
+  function startRace() {
+    if (phaseRef.current === "finished") { raceRef.current = newRace(); setElapsed(0); setDistance(0); setSpeed(105); setHits(0); }
+    controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false); signalRef.current = null; setActiveSignal(null); steeringStartAngle.current = null; setWheelRotation(0);
+    raceRef.current.last = 0;
+    setCountdownValue(3);
+    phaseRef.current = "countdown";
+    setPhase("countdown");
+    showVulaToast("Get ready — your 500 m warm-up starts in 3.", "info");
+  }
+  useEffect(() => {
+    if (phase !== "countdown") return;
+    const timer = window.setTimeout(() => {
+      if (countdownValue <= 1) {
+        setCountdownValue(0);
+        phaseRef.current = "running";
+        setPhase("running");
+        showVulaToast("Go! Steer around the road markers and use NOS when you need a burst.", "success");
+      } else {
+        setCountdownValue(value => value - 1);
+      }
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [phase, countdownValue]);
+
+  const pauseRace = useCallback(() => {
+    if (phaseRef.current === "running") {
+      controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false);
+      steeringStartAngle.current = null; setWheelRotation(0);
+      phaseRef.current = "paused"; setPhase("paused");
+    } else if (phaseRef.current === "paused") { raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running"); }
+  }, []);
+  function restartRace() {
+    raceRef.current = newRace(); setElapsed(0); setDistance(0); setSpeed(105); setHits(0); stopSteering(); signalRef.current = null; setActiveSignal(null); controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false;
+    setCountdownValue(3); phaseRef.current = "countdown"; setPhase("countdown");
+    showVulaToast("Race reset. Get ready to try again.", "info");
+  }
+
+  useEffect(() => {
+    const stop = subscribeSettings(settings => {
+      const value = settings?.businessName;
+      if (typeof value === "string" && value.trim()) setBusinessName(value.trim());
+    }, () => {});
+    return stop;
+  }, []);
+  useEffect(() => { if (!embedded) document.title = businessName + " · Racing warm-up"; }, [businessName, embedded]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    let frame = 0; let width = 0; let height = 0; let dpr = 1;
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect(); dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = Math.max(320, rect.width); height = Math.max(360, rect.height);
+      canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr); context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    const drawCar = (x: number, y: number, color: string, label = "", signal: "left" | "right" | null = null, blink = false) => {
+      const carWidth = Math.min(40, width * .09); const carHeight = carWidth * 1.65;
+      context.fillStyle = "rgba(0,0,0,.22)"; context.beginPath(); context.ellipse(x + carWidth / 2, y + carHeight - 2, carWidth * .58, 6, 0, 0, Math.PI * 2); context.fill();
+      context.fillStyle = "#151b18"; context.fillRect(x - 3, y + 8, 5, 12); context.fillRect(x + carWidth - 2, y + 8, 5, 12); context.fillRect(x - 3, y + carHeight - 20, 5, 12); context.fillRect(x + carWidth - 2, y + carHeight - 20, 5, 12);
+      context.fillStyle = color; context.beginPath(); context.roundRect(x, y, carWidth, carHeight, 8); context.fill();
+      context.fillStyle = "#dce9e7"; context.beginPath(); context.roundRect(x + carWidth * .19, y + carHeight * .19, carWidth * .62, carHeight * .25, 4); context.fill();
+      context.fillStyle = "#fff4bd"; context.fillRect(x + 5, y + 3, 5, 3); context.fillRect(x + carWidth - 10, y + 3, 5, 3);
+      context.fillStyle = "#ff7166"; context.fillRect(x + 5, y + carHeight - 5, 5, 3); context.fillRect(x + carWidth - 10, y + carHeight - 5, 5, 3);
+      context.fillStyle = signal && blink ? "#ffb52e" : "#a86d24";
+      if (signal === "left") { context.fillRect(x + 2, y + carHeight * .35, 4, 5); context.fillRect(x + 2, y + carHeight - 11, 4, 5); }
+      if (signal === "right") { context.fillRect(x + carWidth - 6, y + carHeight * .35, 4, 5); context.fillRect(x + carWidth - 6, y + carHeight - 11, 4, 5); }
+      if (label) { context.fillStyle = "#ffffff"; context.font = "bold 8px system-ui"; context.textAlign = "center"; context.fillText(label, x + carWidth / 2, y + carHeight * .65); }
+    };
+    const draw = (now: number) => {
+      const race = raceRef.current; const currentPhase = phaseRef.current;
+      const dt = race.last ? Math.min((now - race.last) / 1000, .04) : 0; race.last = now;
+      if (currentPhase === "running") {
+        race.elapsed += dt;
+        race.speed = controlsRef.current.brake ? Math.max(55, race.speed - dt * 58) : controlsRef.current.boost ? Math.min(225, race.speed + dt * 105) : controlsRef.current.accelerate ? Math.min(175, race.speed + dt * 38) : Math.min(155, race.speed + dt * 1.6);
+        race.lane = clamp(race.lane + controlsRef.current.steer * dt * (0.95 + race.speed / 210), 0.03, 2.97); race.distance += race.speed * dt / 8; race.stripeOffset = (race.stripeOffset + race.speed * dt * 1.3) % 72;
+        const hitObject = roadObjects.find(object => Math.abs(object.distance - race.distance) < 2.4 && Math.abs(object.lane - race.lane) < 0.48);
+        if (hitObject) {
+          raceRef.current = newRace();
+          raceRef.current.last = now;
+          controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false;
+          steeringStartAngle.current = null; setWheelRotation(0); setBoostActive(false); signalRef.current = null; setActiveSignal(null);
+          setElapsed(0); setDistance(0); setSpeed(105); setHits(value => value + 1); setCountdownValue(3);
+          phaseRef.current = "countdown"; setPhase("countdown");
+          showVulaToast("Marker hit — restarting from the beginning. Steer a little earlier next time.", "error");
+        }
+        if (race.distance >= finishDistance) { race.distance = finishDistance; showVulaToast("Warm-up complete — nice driving!", "success"); controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false); steeringStartAngle.current = null; setWheelRotation(0); phaseRef.current = "finished"; setPhase("finished"); }
+        setElapsed(race.elapsed); setDistance(race.distance); setSpeed(race.speed);
+      }
+      context.clearRect(0, 0, width, height); context.fillStyle = "#8aa96e"; context.fillRect(0, 0, width, height); context.fillStyle = "#76965e";
+      for (let y = -40; y < height + 40; y += 72) { const offset = currentPhase === "running" ? race.stripeOffset : 0; context.fillRect(width * .035, y + offset, width * .045, 26); context.fillRect(width * .92, y + offset, width * .045, 26); }
+      const roadLeft = width * .15; const roadWidth = width * .7; context.fillStyle = "#3c4544"; context.fillRect(roadLeft, 0, roadWidth, height); context.fillStyle = "#f5f0d9"; context.fillRect(roadLeft, 0, 4, height); context.fillRect(roadLeft + roadWidth - 4, 0, 4, height);
+      context.fillStyle = "#d4d5c6"; for (let laneIndex = 1; laneIndex < 3; laneIndex++) { const x = roadLeft + roadWidth * laneIndex / 3; for (let y = -72 + race.stripeOffset; y < height; y += 72) context.fillRect(x - 2, y, 4, 36); }
+      const playerWidth = Math.min(40, width * .09); const playerY = height - 100;
+      for (const object of roadObjects) {
+        const delta = object.distance - race.distance;
+        if (delta < -4 || delta > 72) continue;
+        const objectY = playerY - delta * 8;
+        const objectX = roadLeft + roadWidth / 3 * (object.lane + .5);
+        const radius = Math.max(7, Math.min(12, width * .026));
+        context.fillStyle = "#2a332d"; context.beginPath(); context.ellipse(objectX, objectY + radius, radius * 1.1, radius * .35, 0, 0, Math.PI * 2); context.fill();
+        context.fillStyle = "#f0a83d"; context.beginPath(); context.moveTo(objectX, objectY - radius); context.lineTo(objectX + radius, objectY + radius); context.lineTo(objectX - radius, objectY + radius); context.closePath(); context.fill();
+        context.strokeStyle = "#fff0d2"; context.lineWidth = 2; context.beginPath(); context.moveTo(objectX - radius * .45, objectY + 2); context.lineTo(objectX + radius * .45, objectY + 2); context.stroke();
+      }
+      drawCar(roadLeft + roadWidth / 3 * (race.lane + .5) - playerWidth / 2, playerY, "#a7d84d", "YOU", signalRef.current, Math.floor(now / 350) % 2 === 0);
+      frame = window.requestAnimationFrame(draw);
+    };
+    const visibilityChange = () => {
+      if (document.hidden && phaseRef.current === "running") {
+        controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false;
+        steeringStartAngle.current = null; setWheelRotation(0);
+        phaseRef.current = "paused"; setPhase("paused"); raceRef.current.last = 0;
+      }
+    };
+    resize(); window.addEventListener("resize", resize); document.addEventListener("visibilitychange", visibilityChange); frame = window.requestAnimationFrame(draw);
+    return () => { window.cancelAnimationFrame(frame); window.removeEventListener("resize", resize); document.removeEventListener("visibilitychange", visibilityChange); };
+  }, [expanded]);
+
+  useEffect(() => {
+    const keyDown = (event: KeyboardEvent) => {
+      if (embedded && !expanded) return;
+      if (["ArrowLeft", "ArrowRight", "a", "A", "d", "D", "ArrowUp", "ArrowDown", "w", "W", "s", "S"].includes(event.key)) event.preventDefault();
+      if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") controlsRef.current.steer = -1;
+      if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") controlsRef.current.steer = 1;
+      if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") controlsRef.current.accelerate = true;
+      if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") controlsRef.current.brake = true;
+      if (event.key === "Shift") { controlsRef.current.boost = true; setBoostActive(true); }
+      if ((event.key.toLowerCase() === "p" || event.key === "Escape") && !event.repeat) pauseRace();
+    };
+    const keyUp = (event: KeyboardEvent) => {
+      if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a" || event.key === "ArrowRight" || event.key.toLowerCase() === "d") controlsRef.current.steer = 0;
+      if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") controlsRef.current.accelerate = false;
+      if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") controlsRef.current.brake = false;
+      if (event.key === "Shift") { controlsRef.current.boost = false; setBoostActive(false); }
+    };
+    const releaseInputs = () => { controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false); steeringStartAngle.current = null; setWheelRotation(0); };
+    window.addEventListener("keydown", keyDown); window.addEventListener("keyup", keyUp); window.addEventListener("blur", releaseInputs);
+    return () => { window.removeEventListener("keydown", keyDown); window.removeEventListener("keyup", keyUp); window.removeEventListener("blur", releaseInputs); controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; };
+  }, [pauseRace, embedded, expanded]);
+
+  if (embedded && !expanded) return <div className="race-inline-promo"><div><p className="vula-eyebrow">VULA RACING · QUICK BREAK</p><h2>Got a minute? Take a lap.</h2><p>A quick 500 m drive. Find your rhythm and get back to your wash booking whenever you&apos;re ready.</p></div><button type="button" className="vula-button primary" onClick={() => setExpanded(true)}>Play now ↗</button></div>;
+  return <div className={"vula race-hub" + (embedded ? " race-hub-embedded" : "")}>
+    {!embedded && <><div className="vula-status"><span className="status-dot online" />Vula Racing · 2D warm-up · local test only</div>
+    <header className="vula-nav"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Racing warm-up</small></span></Link><nav><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></nav></header>
+    <section className="vula-section warmup-intro"><p className="vula-eyebrow">VULA RACING · MECHANICS TEST</p><h1>Take the warm-up lap.</h1><p>A simple top-down 2D driving test. Steer freely, hit NOS for a burst of speed, and finish 500 m. We can tune these mechanics before bringing them into the in-account racing experience.</p><p className="warmup-boundary">This prototype does not use accounts, credits, upgrades, bookings, loyalty or receipts. Your controls and race run only in this open page.</p></section></>}
+    {embedded && <div className="race-inline-heading"><div><p className="vula-eyebrow">VULA RACING · 500 M</p><h2>Take the warm-up lap.</h2><p>Steer freely and use NOS. Finish the run, then get back to your car wash.</p></div><button type="button" className="vula-button secondary" onClick={() => { if (phaseRef.current === "running") pauseRace(); setExpanded(false); }}>Close game ×</button></div>}
+    <section className="vula-section warmup-game">
+      <div className="warmup-hud" aria-live="polite"><div><span>Distance</span><strong>{Math.round(distance)} <small>/ {finishDistance} m</small></strong></div><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Time</span><strong>{elapsed.toFixed(1)} <small>s</small></strong></div><div><span>Markers hit</span><strong>{hits}</strong></div></div>
+      <div className="warmup-canvas-wrap"><canvas ref={canvasRef} aria-label="Top-down 2D road racing warm-up. Drag the virtual steering wheel on mobile or hold the left and right keys on desktop." role="img" />
+        {phase !== "running" && <div className="warmup-overlay"><span>{phase === "ready" ? "READY ON THE GRID" : phase === "countdown" ? "GET READY" : phase === "paused" ? "RACE PAUSED" : "FINISH LINE"}</span><strong>{phase === "ready" ? "Start when you are." : phase === "countdown" ? String(countdownValue || 1) : phase === "paused" ? "Take your time." : "Warm-up complete."}</strong><p>{phase === "ready" ? "Drag the steering wheel to turn, or hold ← / → on desktop." : phase === "countdown" ? "Take your position. The road is clear ahead." : phase === "paused" ? "Your timer is stopped." : "You finished in " + elapsed.toFixed(1) + " seconds."}</p></div>}
+      </div>
+      <div className="warmup-controls"><div className="warmup-steering"><button ref={wheelRef} type="button" className="warmup-wheel" aria-label="Virtual steering wheel. Drag around the wheel to steer." aria-describedby="steering-help" disabled={phase !== "running"} style={{ transform: `rotate(${wheelRotation}deg)` }} onPointerDown={startSteering} onPointerMove={steerWheel} onPointerUp={stopSteering} onPointerCancel={stopSteering} onLostPointerCapture={stopSteering}><span className="wheel-ring"><span className="wheel-spoke vertical"/><span className="wheel-spoke horizontal"/><span className="wheel-hub"/></span><span className="wheel-caption">STEER</span></button><span id="steering-help" className="steering-caption">Drag the wheel left or right</span><div className="warmup-signals" aria-label="Turn indicators"><button type="button" aria-label="Toggle left indicator" disabled={phase !== "running"} aria-pressed={activeSignal === "left"} className={activeSignal === "left" ? "signal-active" : ""} onClick={() => toggleSignal("left")}>← Signal</button><button type="button" aria-label="Toggle right indicator" disabled={phase !== "running"} aria-pressed={activeSignal === "right"} className={activeSignal === "right" ? "signal-active" : ""} onClick={() => toggleSignal("right")}>Signal →</button></div></div><div className="warmup-driving"><button type="button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.accelerate = true; }} onPointerUp={() => { controlsRef.current.accelerate = false; }} onPointerLeave={() => { controlsRef.current.accelerate = false; }} onPointerCancel={() => { controlsRef.current.accelerate = false; }}>Accelerate ↑</button><button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.brake = true; }} onPointerUp={() => { controlsRef.current.brake = false; }} onPointerLeave={() => { controlsRef.current.brake = false; }} onPointerCancel={() => { controlsRef.current.brake = false; }}>Brake ↓</button><button type="button" className="nos-button" aria-label="NOS boost" disabled={phase !== "running"} aria-pressed={boostActive} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.boost = true; setBoostActive(true); }} onPointerUp={() => { controlsRef.current.boost = false; setBoostActive(false); }} onPointerLeave={() => { controlsRef.current.boost = false; setBoostActive(false); }} onPointerCancel={() => { controlsRef.current.boost = false; setBoostActive(false); }}>NOS ⚡</button></div><div className="warmup-actions">{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start race ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Starting {countdownValue || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause race Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume race ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Run again ↗</button>}<button type="button" className="vula-button secondary" onClick={restartRace}>Restart race ↻</button></div></div>
+      <p className="warmup-help">Steer: drag the wheel on phones, or hold ← / → or A / D on desktop · Accelerate: ↑ / W · Brake: ↓ / S · NOS: hold the boost button or Shift · Indicators: ← Signal / Signal → · Pause: P / Esc.</p>
+    </section>
+    {!embedded && <footer className="vula-footer"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></Link><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></footer>}
+  </div>;
 }
