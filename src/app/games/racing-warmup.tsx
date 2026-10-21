@@ -289,6 +289,39 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           }
         }
       }
+      // The ideal racing line is projected through the same camera as the road.
+      // Red warns of a braking zone; amber marks turn-in; mint marks the cleaner exit.
+      const racingPoint = (depth: number) => {
+        const road = roadAt(depth);
+        const curve = road.bend;
+        const cornerLoad = Math.abs(curve);
+        const lineOffset = clamp(-curve * 0.105, -0.24, 0.24);
+        const x = road.center + road.roadWidth * lineOffset;
+        const y = horizon + depth * depth * (h - horizon);
+        const braking = cornerLoad > 0.22 && depth > 0.42 && depth < 0.82;
+        const turnIn = cornerLoad > 0.12;
+        return { x, y, width: Math.max(1.2, road.roadWidth * (0.008 + depth * 0.009)), color: braking ? "#ff554b" : turnIn ? "#ffd36b" : "#c8ff83" };
+      };
+      for (let i = 0; i < 72; i++) {
+        const d1 = 0.035 + i / 72 * 0.965;
+        const d2 = 0.035 + (i + 1) / 72 * 0.965;
+        const p1 = racingPoint(d1), p2 = racingPoint(d2);
+        ctx.save();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.globalAlpha = 0.2 + d1 * 0.72;
+        ctx.strokeStyle = p1.color;
+        ctx.lineWidth = p1.width * 2.8;
+        ctx.shadowColor = p1.color;
+        ctx.shadowBlur = 5 * d1;
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        ctx.globalAlpha = 0.9;
+        ctx.shadowBlur = 0;
+        ctx.lineWidth = Math.max(1, p1.width * 0.72);
+        ctx.strokeStyle = "#fffde8";
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        ctx.restore();
+      }
       // Trackside boards and safety barriers follow the same road projection.
       for (let i = 0; i < 15; i++) {
         const depth = ((i / 15 + race.progress * .65) % 1);
@@ -301,43 +334,82 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           ctx.fillStyle = "#d74b43"; ctx.fillRect(x - size * .14, y - size * 1.25, size * .28, size * .36);
         }
       }
-      // The car is a sculpted formula silhouette with visible tyres, wings, cockpit, highlights and ground shadow.
-      const bob = Math.sin(now * .018) * Math.min(2.1, race.speed / 90);
+      // Rear-facing formula car: broad rear tyres and wing nearest the player,
+      // a compact cockpit, and a short blunt nose toward the horizon.
+      const bob = Math.sin(now * .018) * Math.min(1.4, race.speed / 120);
       const carX = w * .5 + race.lateral * w * .25 + controlsRef.current.steer * w * .012 - roadAt(.98).bend * race.speed * .055;
       const carY = carBaseY + bob;
-      ctx.save(); ctx.translate(carX, carY); ctx.rotate(clamp(race.drift * .12 + controlsRef.current.steer * .035, -.13, .13));
-      // Smaller low chase-camera car with a broader, less exaggerated nose.
-      const cw = Math.min(w * .34, 150), ch = Math.min(h * .21, 92);
-      ctx.fillStyle = "#10191c9c"; ctx.beginPath(); ctx.ellipse(0, ch * .015, cw * .38, ch * .105, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      ctx.translate(carX, carY);
+      ctx.rotate(clamp(race.drift * .1 + controlsRef.current.steer * .025, -.1, .1));
+      const cw = Math.min(w * .36, 158), ch = Math.min(h * .205, 94);
+      // Ground shadow and speed glow.
+      ctx.fillStyle = "#071014a8";
+      ctx.beginPath(); ctx.ellipse(0, ch * .015, cw * .39, ch * .15, 0, 0, Math.PI * 2); ctx.fill();
       if (boostActive) {
-        const flame = 19 + Math.sin(now / 28) * 10;
-        const fg = ctx.createLinearGradient(0, 2, 0, flame + 3);
-        fg.addColorStop(0, "#f8ffac"); fg.addColorStop(.38, "#72efff"); fg.addColorStop(1, "#48baff00");
-        ctx.fillStyle = fg; ctx.beginPath(); ctx.moveTo(-cw * .09, 5); ctx.lineTo(0, flame + 5); ctx.lineTo(cw * .09, 5); ctx.closePath(); ctx.fill();
+        const flame = ch * (.3 + Math.sin(now / 24) * .1);
+        const fg = ctx.createLinearGradient(0, 0, 0, flame);
+        fg.addColorStop(0, "#fffbd0"); fg.addColorStop(.32, "#70f2ff"); fg.addColorStop(1, "#40aaff00");
+        ctx.fillStyle = fg;
+        ctx.beginPath(); ctx.moveTo(-cw * .075, -ch * .02); ctx.lineTo(0, flame); ctx.lineTo(cw * .075, -ch * .02); ctx.closePath(); ctx.fill();
       }
-      // Rear wheels and side tyres.
-      ctx.fillStyle = "#0b1115";
-      ctx.beginPath(); ctx.roundRect(-cw * .34, -ch * .03, cw * .13, ch * .19, 5); ctx.roundRect(cw * .21, -ch * .03, cw * .13, ch * .19, 5); ctx.fill();
-      ctx.fillStyle = "#4a555c"; ctx.fillRect(-cw * .315, ch * .005, cw * .08, ch * .09); ctx.fillRect(cw * .235, ch * .005, cw * .08, ch * .09);
-      ctx.fillStyle = "#0c1216"; ctx.beginPath(); ctx.roundRect(-cw * .29, -ch * .32, cw * .12, ch * .2, 5); ctx.roundRect(cw * .17, -ch * .32, cw * .12, ch * .2, 5); ctx.fill();
-      ctx.fillStyle = "#59636a"; ctx.fillRect(-cw * .265, -ch * .29, cw * .07, ch * .14); ctx.fillRect(cw * .195, -ch * .29, cw * .07, ch * .14);
-      // Rear wing with endplates and diffuser.
-      ctx.fillStyle = "#141e25"; ctx.beginPath(); ctx.moveTo(-cw * .34, -ch * .015); ctx.lineTo(-cw * .32, -ch * .09); ctx.lineTo(-cw * .2, -ch * .12); ctx.lineTo(cw * .2, -ch * .12); ctx.lineTo(cw * .32, -ch * .09); ctx.lineTo(cw * .34, -ch * .015); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = "#b9ee4c"; ctx.fillRect(-cw * .32, -ch * .1, cw * .64, ch * .035);
-      // Main chassis, broad sidepods and tapered nose.
-      ctx.fillStyle = "#b9ed4b"; ctx.beginPath(); ctx.moveTo(-cw * .25, -ch * .04); ctx.lineTo(-cw * .22, -ch * .22); ctx.lineTo(-cw * .15, -ch * .38); ctx.lineTo(-cw * .085, -ch * .45); ctx.lineTo(-cw * .055, -ch * .58); ctx.lineTo(0, -ch * .78); ctx.lineTo(cw * .055, -ch * .58); ctx.lineTo(cw * .085, -ch * .45); ctx.lineTo(cw * .15, -ch * .38); ctx.lineTo(cw * .22, -ch * .22); ctx.lineTo(cw * .25, -ch * .04); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = "#e2ff91"; ctx.beginPath(); ctx.moveTo(-cw * .035, -ch * .7); ctx.lineTo(0, -ch * .98); ctx.lineTo(cw * .035, -ch * .7); ctx.lineTo(cw * .055, -ch * .23); ctx.lineTo(-cw * .055, -ch * .23); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = "#76a62d"; ctx.beginPath(); ctx.moveTo(-cw * .2, -ch * .23); ctx.lineTo(-cw * .105, -ch * .35); ctx.lineTo(-cw * .075, -ch * .19); ctx.lineTo(-cw * .15, -ch * .11); ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(cw * .2, -ch * .23); ctx.lineTo(cw * .105, -ch * .35); ctx.lineTo(cw * .075, -ch * .19); ctx.lineTo(cw * .15, -ch * .11); ctx.closePath(); ctx.fill();
-      // Cockpit and helmet, plus glints on the carbon-fibre halo.
-      ctx.fillStyle = "#182832"; ctx.beginPath(); ctx.ellipse(0, -ch * .38, cw * .075, ch * .115, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#526a73"; ctx.beginPath(); ctx.ellipse(0, -ch * .405, cw * .052, ch * .073, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#f1f5e8"; ctx.fillRect(-cw * .04, -ch * .455, cw * .08, ch * .012);
-      ctx.strokeStyle = "#eaffb2"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-cw * .105, -ch * .43); ctx.lineTo(-cw * .07, -ch * .31); ctx.lineTo(cw * .07, -ch * .31); ctx.lineTo(cw * .105, -ch * .43); ctx.stroke();
-      // Front wing is broad and low, with contrasting endplates and a central nose stripe.
-      ctx.fillStyle = "#17232a"; ctx.beginPath(); ctx.moveTo(-cw * .43, -ch * .015); ctx.lineTo(-cw * .39, -ch * .065); ctx.lineTo(-cw * .17, -ch * .12); ctx.lineTo(-cw * .06, -ch * .16); ctx.lineTo(cw * .06, -ch * .16); ctx.lineTo(cw * .17, -ch * .12); ctx.lineTo(cw * .39, -ch * .065); ctx.lineTo(cw * .43, -ch * .015); ctx.lineTo(cw * .36, ch * .025); ctx.lineTo(cw * .1, -ch * .055); ctx.lineTo(-cw * .1, -ch * .055); ctx.lineTo(-cw * .36, ch * .025); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = "#d4fa73"; ctx.beginPath(); ctx.moveTo(-cw * .32, -ch * .055); ctx.lineTo(-cw * .12, -ch * .105); ctx.lineTo(cw * .12, -ch * .105); ctx.lineTo(cw * .32, -ch * .055); ctx.lineTo(cw * .28, -ch * .035); ctx.lineTo(-cw * .28, -ch * .035); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = "#ff584c"; ctx.fillRect(-cw * .25, -ch * .055, cw * .035, ch * .04); ctx.fillRect(cw * .215, -ch * .055, cw * .035, ch * .04);
+      // Rear tyres sit outside the body; tread and sidewalls make the silhouette read clearly.
+      ctx.fillStyle = "#090e12";
+      ctx.beginPath();
+      ctx.roundRect(-cw * .405, -ch * .015, cw * .145, ch * .31, 5);
+      ctx.roundRect(cw * .26, -ch * .015, cw * .145, ch * .31, 5);
+      ctx.fill();
+      ctx.fillStyle = "#69757b";
+      ctx.fillRect(-cw * .376, ch * .045, cw * .085, ch * .17);
+      ctx.fillRect(cw * .291, ch * .045, cw * .085, ch * .17);
+      // Rear wing, the widest and closest part of the car.
+      ctx.fillStyle = "#121b21";
+      ctx.beginPath();
+      ctx.moveTo(-cw * .46, ch * .19); ctx.lineTo(-cw * .43, ch * .105);
+      ctx.lineTo(-cw * .29, ch * .075); ctx.lineTo(cw * .29, ch * .075);
+      ctx.lineTo(cw * .43, ch * .105); ctx.lineTo(cw * .46, ch * .19);
+      ctx.lineTo(cw * .34, ch * .225); ctx.lineTo(-cw * .34, ch * .225); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#b9ed4b"; ctx.fillRect(-cw * .39, ch * .12, cw * .78, ch * .035);
+      ctx.fillStyle = "#eaffb0"; ctx.fillRect(-cw * .34, ch * .19, cw * .68, ch * .018);
+      // Main rear body: wide shoulders, curved sidepods and a rounded taper instead of a spike.
+      const body = new Path2D();
+      body.moveTo(-cw * .34, ch * .17);
+      body.quadraticCurveTo(-cw * .37, ch * .06, -cw * .29, -ch * .04);
+      body.lineTo(-cw * .205, -ch * .24);
+      body.quadraticCurveTo(-cw * .16, -ch * .33, -cw * .105, -ch * .36);
+      body.lineTo(-cw * .075, -ch * .43);
+      body.quadraticCurveTo(0, -ch * .49, cw * .075, -ch * .43);
+      body.lineTo(cw * .105, -ch * .36);
+      body.quadraticCurveTo(cw * .16, -ch * .33, cw * .205, -ch * .24);
+      body.lineTo(cw * .29, -ch * .04);
+      body.quadraticCurveTo(cw * .37, ch * .06, cw * .34, ch * .17);
+      body.closePath();
+      const paint = ctx.createLinearGradient(-cw * .35, 0, cw * .35, 0);
+      paint.addColorStop(0, "#6f9f2b"); paint.addColorStop(.2, "#a9df40"); paint.addColorStop(.52, "#d6ff76"); paint.addColorStop(.8, "#a9df40"); paint.addColorStop(1, "#658f29");
+      ctx.fillStyle = paint; ctx.fill(body);
+      ctx.strokeStyle = "#e8ffae"; ctx.lineWidth = 1.2; ctx.stroke(body);
+      // Rear diffuser and exhaust details.
+      ctx.fillStyle = "#1b272d";
+      ctx.beginPath(); ctx.moveTo(-cw * .22, ch * .16); ctx.lineTo(-cw * .17, ch * .07); ctx.lineTo(cw * .17, ch * .07); ctx.lineTo(cw * .22, ch * .16); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#4e5b61";
+      for (let i = -2; i <= 2; i++) ctx.fillRect(i * cw * .055 - cw * .012, ch * .095, cw * .024, ch * .055);
+      // Cockpit viewed from behind: dark halo, glass and a visible helmet.
+      ctx.fillStyle = "#17252d";
+      ctx.beginPath(); ctx.ellipse(0, -ch * .255, cw * .105, ch * .105, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#4f707b";
+      ctx.beginPath(); ctx.ellipse(0, -ch * .275, cw * .071, ch * .072, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#f4f6e9";
+      ctx.beginPath(); ctx.ellipse(0, -ch * .3, cw * .035, ch * .035, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#eaffb5"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-cw * .125, -ch * .3); ctx.lineTo(-cw * .09, -ch * .18); ctx.lineTo(cw * .09, -ch * .18); ctx.lineTo(cw * .125, -ch * .3); ctx.stroke();
+      // Brake lights and rear bodywork accents make the camera orientation unmistakable.
+      ctx.fillStyle = controlsRef.current.brake ? "#ff554b" : "#e8473f";
+      ctx.shadowColor = "#ff554b"; ctx.shadowBlur = controlsRef.current.brake ? 12 : 3;
+      ctx.fillRect(-cw * .275, ch * .035, cw * .09, ch * .045);
+      ctx.fillRect(cw * .185, ch * .035, cw * .09, ch * .045);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#25343b"; ctx.fillRect(-cw * .17, -ch * .005, cw * .34, ch * .045);
+      ctx.fillStyle = "#e8ffb0"; ctx.fillRect(-cw * .12, ch * .01, cw * .24, ch * .012);
       ctx.restore();
       if (phaseNow !== "running") {
         ctx.fillStyle = "#172820a8"; ctx.fillRect(0, 0, w, h);
