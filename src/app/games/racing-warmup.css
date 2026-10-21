@@ -97,3 +97,17 @@
   .warmup-circuit-controls .warmup-driving{gap:4px}
   .warmup-circuit-controls .warmup-driving button{font-size:9px}
 }
+
+
+/* Three.js chase-camera racing scene: GPU canvas stays inside the existing protected layout. */
+.racing-3d-root{position:absolute;inset:0;overflow:hidden;background:linear-gradient(#8fb8cf 0%,#d8d8b0 44%,#5f8150 45%,#466d40 100%);touch-action:none}
+.racing-3d-root canvas{display:block;width:100%;height:100%;touch-action:none}
+.racing-3d-root[data-webgl="unavailable"]::after{content:"This browser could not start 3D graphics. Try opening the game in Chrome.";position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:#fff;background:#172820e8;font-weight:800}
+.warmup-3d-overlay{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;padding:24px;text-align:center;color:#fff;background:linear-gradient(180deg,#10233355,#102333a8);backdrop-filter:blur(2px);pointer-events:none}
+.warmup-3d-overlay[hidden]{display:none}
+.warmup-3d-overlay>span{font-size:10px;letter-spacing:.18em;font-weight:900;color:#d4ff78}
+.warmup-3d-overlay strong{font:800 clamp(28px,5vw,44px)/1.05 "Space Grotesk",system-ui,sans-serif;text-shadow:0 3px 18px #08151b99}
+.warmup-3d-overlay p{max-width:420px;margin:0;color:#f0f4e9;font-size:13px;line-height:1.6}
+.warmup-circuit-wrap{position:relative;isolation:isolate;background:#628653}
+.warmup-circuit-wrap canvas{touch-action:none}
+@media(max-width:640px){.warmup-3d-overlay{padding:18px}.warmup-3d-overlay p{font-size:12px}}
