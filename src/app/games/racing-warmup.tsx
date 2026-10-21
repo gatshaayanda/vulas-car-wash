@@ -119,17 +119,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
-    const pathFor = (offset: number, lineWidth: number, stroke: string, dash: number[] = []) => {
-      ctx.beginPath();
-      for (let i = 0; i <= 260; i++) {
-        const t = i / 260;
-        const p = trackPoint(t, w, h);
-        const tangent = tangentAt(t, w, h);
-        const pX = p.x - tangent.y * offset, pY = p.y + tangent.x * offset;
-        if (i === 0) ctx.moveTo(pX, pY); else ctx.lineTo(pX, pY);
-      }
-      ctx.closePath(); ctx.lineWidth = lineWidth; ctx.strokeStyle = stroke; ctx.setLineDash(dash); ctx.stroke(); ctx.setLineDash([]);
-    };
     const drawCar = (x: number, y: number, angle: number, drift: number, boosting: boolean) => {
       ctx.save(); ctx.translate(x, y); ctx.rotate(angle + drift * 0.24);
       if (boosting) {
