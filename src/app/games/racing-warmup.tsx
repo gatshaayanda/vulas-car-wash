@@ -5,10 +5,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 import { subscribeSettings } from "@/lib/firebase/vula-data";
+import { createRacingTrack, getTrackTurn } from "./racing-track";
 
-type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
-type Controls = { steer: number; accelerate: boolean; brake: boolean; boost: boolean };
-type Race = {
+export type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
+export type Controls = { steer: number; accelerate: boolean; brake: boolean; boost: boolean };
+export type Race = {
   progress: number; speed: number; elapsed: number; lap: number; lapTime: number; steering: number; throttle: number; brakePressure: number;
   bestLap: number | null; lateral: number; lateralVelocity: number; drift: number;
   nos: number; last: number; lapInvalid: boolean; offTrack: number;
@@ -24,6 +25,8 @@ function fmt(seconds: number | null): string {
 export default function RacingWarmup({ embedded = false }: { embedded?: boolean }) {
   const [expanded, setExpanded] = useState(!embedded);
   const raceRef = useRef<Race>(newRace());
+  const trackRef = useRef<ReturnType<typeof createRacingTrack> | null>(null);
+  if (!trackRef.current) trackRef.current = createRacingTrack();
   const controlsRef = useRef<Controls>({ steer: 0, accelerate: false, brake: false, boost: false });
   const phaseRef = useRef<Phase>("ready");
   const wheelStart = useRef<number | null>(null);
@@ -103,7 +106,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.steering += (controls.steer - race.steering) * steerEase;
         const steering = race.steering;
         const t = wrap(race.progress, 1);
-        const bend = Math.abs(Math.sin(t * Math.PI * 2 + 0.6) * 1.35 + Math.sin(t * Math.PI * 6) * 0.24);
+        const trackTurn = getTrackTurn(trackRef.current!, t, .006);
+        const bend = clamp(Math.abs(trackTurn) * 28, 0, 1);
+        const upcomingTurn = getTrackTurn(trackRef.current!, t + .018, .006);
+        const upcomingBend = clamp(Math.abs(upcomingTurn) * 28, 0, 1);
         const speedRatio = race.speed / 205;
         const throttleTarget = controls.accelerate && !controls.brake ? 1 : 0;
         const brakeTarget = controls.brake ? 1 : 0;
@@ -116,15 +122,16 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const braking = 205 * race.brakePressure;
         race.speed = clamp(race.speed + (acceleration - race.speed * 0.145 - braking + (boost ? 76 : 0)) * dt, 0, boost ? 250 : 205);
         race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
-        const grip = 0.9 - speedRatio * 0.27 - clamp(bend / 1.8, 0, 1) * speedRatio * 0.18;
+        const grip = 0.94 - speedRatio * 0.22 - bend * speedRatio * 0.12 - race.brakePressure * 0.08;
         const steeringForce = steering * (0.68 + speedRatio * 0.22);
-        const cornerForce = Math.sin(t * Math.PI * 2 + 0.6) * speedRatio * 0.16;
+        const cornerForce = trackTurn * speedRatio * 2.5;
         race.lateralVelocity += (steeringForce - cornerForce - race.lateralVelocity * (2.15 + speedRatio * 0.45)) * dt;
         race.lateral = clamp(race.lateral + race.lateralVelocity * dt * (0.62 + speedRatio * 0.55), -0.95, 0.95);
-        const demand = Math.abs(steering) * speedRatio * (0.24 + bend * 0.28);
+        const demand = Math.abs(steering) * speedRatio * (0.62 + bend * 0.55) + race.brakePressure * 0.12 + race.throttle * speedRatio * 0.1;
         const excess = Math.max(0, demand - grip);
-        race.drift = clamp(excess * Math.sign(steering) * 2.0, -1, 1);
-        if (excess > 0) race.speed = Math.max(0, race.speed - excess * (18 + race.speed * 0.05) * dt);
+        race.drift = clamp(excess * Math.sign(steering || trackTurn) * 1.65 + race.lateralVelocity * 0.28, -1, 1);
+        if (excess > 0) race.speed = Math.max(0, race.speed - excess * (24 + race.speed * 0.065) * dt);
+        if (bend > 0.42 && speedRatio > 0.62 && !controls.brake) race.lateralVelocity += Math.sign(trackTurn) * bend * speedRatio * 0.22 * dt;
         if (Math.abs(race.lateral) > 0.7) {
           race.speed = Math.max(0, race.speed - 38 * dt);
           race.lapInvalid = true;
@@ -147,17 +154,20 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         }
         if (now - lastCoachAt > 1700) {
           lastCoachAt = now;
-          const currentCurve = Math.abs(Math.sin(t * Math.PI * 2 + 0.6));
+          const currentCurve = bend;
           let message = "Good pace. Keep your inputs smooth.";
-          if (currentCurve > 0.82 && !controls.brake && race.speed > 125) message = "Corner coming up — brake before turning in.";
-          else if (currentCurve > 0.72 && controls.brake) message = "Good. Release the brake progressively as you turn.";
-          else if (Math.abs(race.lateral) > 0.52) message = "You're running wide. Ease off and guide the car back.";
-          else if (boost && currentCurve < 0.48) message = "Good NOS timing. Use the clear section to build speed.";
-          else if (currentCurve < 0.38 && race.speed > 100) message = "Clear section ahead. Build speed and save NOS for the exit.";
-          else if (Math.abs(race.drift) > 0.2) message = "Grip is fading. Reduce steering angle at this speed.";
+          if (upcomingBend > 0.62 && race.speed > 112 && !controls.brake) message = "BRAKE BOARD: brake now, before turn-in.";
+          else if (currentCurve > 0.52 && race.speed > 155 && !controls.brake) message = "Late braking — ease off speed and turn smoothly toward the apex.";
+          else if (upcomingBend > 0.48 && currentCurve < 0.24 && Math.abs(steering) > 0.38) message = "Early turn-in. Hold your line until the amber corner cue.";
+          else if (currentCurve > 0.4 && controls.brake && race.speed < 95) message = "Brake release: ease off as the car rotates toward the apex.";
+          else if (currentCurve > 0.4 && Math.abs(steering) < 0.12) message = "Turn-in cue: steer progressively toward the apex.";
+          else if (Math.abs(race.lateral) > 0.52) message = "Running wide. Ease off, unwind the wheel and recover the line.";
+          else if (Math.abs(race.drift) > 0.38) message = "Slip warning: grip is overloaded. Reduce steering or brake before adding power.";
+          else if (boost && currentCurve < 0.3) message = "Good NOS timing. Keep it for the straight and release before braking.";
+          else if (currentCurve < 0.28 && race.speed > 100) message = "Clear exit. Unwind the wheel, build throttle and save NOS for the straight.";
           setEngineer(message);
         }
-        if (now - lastUi > 50) {
+        if (now - lastUi > 33) {
           lastUi = now;
           setSpeed(race.speed);
           setLapTime(race.lapTime);
@@ -221,7 +231,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     <section className="vula-section warmup-game">
       <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Lap</span><strong>{lap}</strong></div><div><span>Current lap</span><strong>{fmt(lapTime)}</strong></div><div><span>Best lap</span><strong>{fmt(bestLap)}</strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
-        <Racing3DScene speed={speed} steer={raceRef.current.steering} lateral={raceRef.current.lateral} brake={controlsRef.current.brake} boost={boostActive} phase={phase} progress={raceRef.current.progress} countdown={countdown} />
+        <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} />
         <div className="warmup-3d-overlay" hidden={phase === "running"} aria-live="polite">
           <span>VULA RACING · CIRCUIT PRACTICE</span>
           <strong>{phase === "ready" ? "Find your racing line" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : "Nice driving!"}</strong>
