@@ -227,12 +227,6 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
       <button className="vula-install-close" type="button" aria-label="Dismiss install prompt" onClick={dismissInstall}>×</button>
       <button className="vula-install-action" type="button" onClick={() => void install()}>Install Vula's Car Wash <span aria-hidden="true">↗</span></button>
     </aside>
-  ) : installState === "ios" ? (
-    <aside className="vula-install-card" aria-label="Add Vula's Car Wash to your Home Screen">
-      <div className="vula-install-brand"><span className="vula-install-mark" aria-hidden="true">V</span><span><strong>VULA'S CAR WASH</strong><small>WASH · CARE · GO</small></span></div>
-      <button className="vula-install-close" type="button" aria-label="Dismiss install prompt" onClick={dismissInstall}>×</button>
-      <a className="vula-install-action" href="/iphone-install">Add to Home Screen <span aria-hidden="true">↗</span></a>
-    </aside>
   ) : installState === "embedded" ? (
     <div style={embeddedInstallStyle} role="alertdialog" aria-modal="true" aria-labelledby="vula-embedded-title" aria-describedby="vula-embedded-message">
       <div className="pwaInstallInfo" style={{position:"relative",left:"auto",right:"auto",bottom:"auto",width:"100%",maxWidth:520,margin:0}}>
