@@ -126,13 +126,18 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const grip = 0.94 - speedRatio * 0.22 - bend * speedRatio * 0.12 - race.brakePressure * 0.08;
         const steeringForce = steering * (0.68 + speedRatio * 0.22);
         const cornerForce = trackTurn * speedRatio * 2.5;
-        race.lateralVelocity += (steeringForce - cornerForce - race.lateralVelocity * (2.15 + speedRatio * 0.45)) * dt;
+        // Restore lateral position toward the road centre when steering is released.
+        // Without this spring force, a small offset could persist indefinitely and feel
+        // like the car was permanently leaning/pulling to one side.
+        const lateralRecovery = race.lateral * (1.35 + speedRatio * 0.45);
+        race.lateralVelocity += (steeringForce - cornerForce - lateralRecovery - race.lateralVelocity * (2.15 + speedRatio * 0.45)) * dt;
         race.lateral = clamp(race.lateral + race.lateralVelocity * dt * (0.62 + speedRatio * 0.55), -0.95, 0.95);
         const demand = Math.abs(steering) * speedRatio * (0.62 + bend * 0.55) + race.brakePressure * 0.12 + race.throttle * speedRatio * 0.1;
         const excess = Math.max(0, demand - grip);
         race.drift = clamp(excess * Math.sign(steering || trackTurn) * 1.65 + race.lateralVelocity * 0.28, -1, 1);
         if (excess > 0) race.speed = Math.max(0, race.speed - excess * (24 + race.speed * 0.065) * dt);
-        if (bend > 0.42 && speedRatio > 0.62 && !controls.brake) race.lateralVelocity += Math.sign(trackTurn) * bend * speedRatio * 0.22 * dt;
+        // Cornering load is already represented by cornerForce and grip above;
+        // do not inject a second one-way lateral push just because the road bends.
         if (Math.abs(race.lateral) > 0.7) {
           race.speed = Math.max(0, race.speed - 38 * dt);
           race.lapInvalid = true;
