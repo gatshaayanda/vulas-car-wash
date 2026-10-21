@@ -140,7 +140,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const gripDemand = Math.abs(turn) * (race.speed / 150) * (0.5 + bend);
         race.drift = clamp((gripDemand - gripLimit) * Math.sign(turn) * 1.6, -0.8, 0.8);
         if (Math.abs(race.drift) > 0.12) race.speed = Math.max(0, race.speed - Math.abs(race.drift) * 9 * dt);
-        race.progress += race.speed * dt / 1250;
+        race.progress += race.speed * dt / 4200;
         race.elapsed += dt; race.lapTime += dt;
         const t = wrap(race.progress, 1);
         const coachKey = t < .04 || t > .96 ? "start" : Math.floor(t * 18);
@@ -160,7 +160,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           race.offTrack += dt; race.lapInvalid = true; race.speed = Math.max(35, race.speed - 48 * dt);
           if (race.offTrack > 0.55) { race.lateral *= 0.985; race.lateralVelocity *= -0.25; }
         } else race.offTrack = Math.max(0, race.offTrack - dt * 2);
-        const oldLap = Math.floor((race.progress - race.speed * dt / 1250));
+        const oldLap = Math.floor((race.progress - race.speed * dt / 4200));
         const newLap = Math.floor(race.progress);
         if (newLap > oldLap) {
           const valid = !race.lapInvalid;
