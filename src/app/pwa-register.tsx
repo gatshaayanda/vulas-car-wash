@@ -65,7 +65,6 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
   const [installState, setInstallState] = useState<InstallState>(initialEmbedded ? "embedded" : "hidden");
   const [updateReady, setUpdateReady] = useState<ServiceWorker | null>(null);
   const [embeddedAndroid, setEmbeddedAndroid] = useState(initialEmbedded && initialAndroid);
-  const [installPlatform, setInstallPlatform] = useState<"android" | "ios" | "other">("ios");
   const embeddedActionRef = useRef<HTMLButtonElement | null>(null);
   const reloadForUpdate = useRef(false);
 
@@ -74,7 +73,6 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     const env = environment();
     const embedded = initialEmbedded || env.embedded;
     setEmbeddedAndroid((initialEmbedded && initialAndroid) || (env.embedded && env.android));
-    setInstallPlatform(env.ios ? "ios" : env.android ? "android" : "other");
 
     const online = () => {
       setOffline(false);
