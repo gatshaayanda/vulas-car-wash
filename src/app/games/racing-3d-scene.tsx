@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { createRacingTrack, getTrackTurn } from "./racing-track";
+import type { Controls, Phase, Race } from "./racing-warmup";
 
 type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
-type Props = { speed: number; steer: number; lateral: number; brake: boolean; boost: boolean; phase: Phase; progress: number; countdown: number };
+type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase> };
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
@@ -92,11 +93,8 @@ function makeCar() {
   return car;
 }
 
-export default function Racing3DScene({ speed, steer, lateral, brake, boost, phase, progress, countdown }: Props) {
+export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
-  const liveRef = useRef<Props>({ speed, steer, lateral, brake, boost, phase, progress, countdown });
-  useEffect(() => { liveRef.current = { speed, steer, lateral, brake, boost, phase, progress, countdown }; });
-
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
@@ -339,40 +337,42 @@ export default function Racing3DScene({ speed, steer, lateral, brake, boost, pha
       renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
     };
     const render = () => {
-      const state = liveRef.current;
-      const t = ((state.progress % 1) + 1) % 1;
+      const race = raceRef.current;
+      const controls = controlsRef.current;
+      const currentPhase = phaseRef.current;
+      const t = ((race.progress % 1) + 1) % 1;
       const position = track.getPointAt(t);
       const tangent = track.getTangentAt(t).normalize();
       const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-      const carOffset = state.lateral * 4.6;
+      const carOffset = race.lateral * 4.6;
       const carWorld = new THREE.Vector3(
         position.x + side.x * carOffset,
-        .02 + Math.sin(clock.elapsedTime * 17) * Math.min(.035, state.speed / 5000),
+        .02 + Math.sin(clock.elapsedTime * 17) * Math.min(.035, race.speed / 5000),
         position.z + side.z * carOffset
       );
       car.position.copy(carWorld);
-      car.rotation.y = Math.atan2(-tangent.x, -tangent.z) + state.steer * -.045;
+      car.rotation.y = Math.atan2(-tangent.x, -tangent.z) + race.steering * -.045;
       assetCar.position.copy(car.position);
       assetCar.rotation.copy(car.rotation);
       // Follow the car itself, not the circuit centreline: otherwise a wide steering
       // input can leave the car outside the camera frame on mobile.
       const cameraTarget = new THREE.Vector3(carWorld.x + tangent.x * 10, 1.25, carWorld.z + tangent.z * 10);
       const cameraPosition = new THREE.Vector3(carWorld.x - tangent.x * 8.4, 4.7, carWorld.z - tangent.z * 8.4);
-      cameraPosition.x += side.x * state.steer * .22;
-      cameraPosition.z += side.z * state.steer * .22;
+      cameraPosition.x += side.x * race.steering * .22;
+      cameraPosition.z += side.z * race.steering * .22;
       const frameDelta = Math.min(clock.getDelta(), .05);
       camera.position.lerp(cameraPosition, 1 - Math.exp(-frameDelta * 5.5));
       camera.lookAt(cameraTarget);
       const flame = (assetCar.visible ? assetCar.userData.flame : car.userData.flame) as THREE.Object3D | undefined;
       if (flame) {
-        flame.visible = state.boost && state.phase === "running";
+        flame.visible = controls.boost && race.nos > 0 && !controls.brake && currentPhase === "running";
         const pulse = .82 + Math.sin(clock.elapsedTime * 42) * .18;
         flame.scale.setScalar(pulse);
         const outer = assetCar.userData.flameOuter as THREE.Mesh | undefined;
         if (outer) outer.scale.setScalar(.86 + Math.sin(clock.elapsedTime * 55) * .2);
       }
-      if (state.phase === "running") {
-        camera.fov = 63 + Math.min(8, state.speed / 28) + (state.boost ? 5 : 0);
+      if (currentPhase === "running") {
+        camera.fov = 63 + Math.min(8, race.speed / 28) + (controls.boost && race.nos > 0 && !controls.brake ? 5 : 0);
       } else camera.fov = 63;
       camera.updateProjectionMatrix();
       renderer.render(scene, camera);
@@ -395,5 +395,5 @@ export default function Racing3DScene({ speed, steer, lateral, brake, boost, pha
     };
   }, []);
 
-  return <div ref={mountRef} className="racing-3d-root" data-phase={phase} data-braking={brake ? "true" : "false"} />;
+  return <div ref={mountRef} className="racing-3d-root" data-phase={phaseRef.current} data-braking={controlsRef.current.brake ? "true" : "false"} />;
 }
