@@ -1,154 +1,246 @@
-# Vula's Car Wash Racing Game — Product and Gameplay Plan
+# Vula's Car Wash Racing Game — Product and Gameplay Roadmap
 
-**Status:** Approved direction for implementation planning; not a claim that these mechanics are already implemented or QA-passed.  
-**Repository:** `gatshaayanda/vulas-car-wash`  
-**Planning principle:** Build and QA the landing-page warm-up as the driving-mechanics foundation before layering in the championship.
+**Status:** Product direction documented; phases and economy require implementation and QA. This document is not a claim that every listed mechanic, leaderboard, multiplayer mode, or reward is already implemented.
+**Repository:** `gatshaayanda/vulas-car-wash`
+**Primary rule:** Build and get product-owner approval for the solo warm-up driving foundation before expanding the championship or online competition.
+**Protected infrastructure:** Do not alter the approved PWA installation mechanism without explicit authorization.
 
-## 1. Product goal
+## 1. Product vision
 
-Create a compact, satisfying, F1-inspired arcade racing game inside Vula's Car Wash PWA. Customers should be able to practise for a few minutes while waiting for their vehicle, with meaningful driving skill, an inviting visual presentation, and a reason to return through personal records and later championship progression.
+Vula Racing is a mobile-first, F1-inspired arcade racing game inside Vula's Car Wash PWA. It gives customers something genuinely fun to play while waiting for their vehicle, then offers a long-term progression loop: learn to drive, qualify, race, earn prize money, improve the car, advance through four divisions, win championships, and continue competing for personal and shared records.
 
-The game must remain an optional customer-engagement feature. It must not interfere with wash bookings, service requests, customer accounts, admin workflows, offline behaviour, or the approved PWA installation experience.
+The game should reward both **driver skill** and **car development**. Upgrades should be visible and materially change driving; good driving should still matter more than blindly buying power. The aspirational flagship car in warm-up defines the reference feel for handling and feedback. Career divisions intentionally restrict the car, equipment, and assistance available to create meaningful progression.
 
-## 2. Implementation sequence: warm-up first
+Keep racing optional and isolated from wash bookings, queue requests, accounts, admin operations, notifications, and offline customer workflows.
 
-### Phase 1 — landing-page Warm-up (the QA gate)
+## 2. Current implementation versus intended target
 
-Build one polished, self-contained practice experience accessible directly from the landing page. Do not begin by building out all divisions, tracks, qualifying sessions, rewards, or advanced race systems.
+The current README describes `/games` as a **500 m traffic-and-obstacle warm-up with collision retry, steering, acceleration, braking, and NOS**, and `/games/career` as a separate career route. The intended driving-school warm-up in this roadmap is a repeatable circuit with corner craft, apexes, braking zones, lap timing, and a best-lap record.
 
-The warm-up uses **one carefully art-directed top-division car model** as the player's practice car. This is the only car model whose warm-up lap records/high scores are recorded. The car should feel like the aspirational flagship of the game: clearly readable from the gameplay camera, recognisable at small mobile sizes, and supported by polished acceleration, braking, steering, boost, and upgrade animations.
+Treat that difference as a known product/implementation gap to inspect and close deliberately. Do not claim the circuit, realistic line coaching, all upgrade categories, shared leaderboards, or live player-versus-player racing exists until the code is implemented and verified. Inspect the actual game components before changing the current warm-up, and preserve working behaviour where practical.
 
-The warm-up must include:
+## 3. Phase 1 — solo flagship warm-up (the QA gate)
 
-- A complete, repeatable track with straights, varied corners, braking zones, apexes, corner exits, kerbs/track boundaries, and a start/finish line.
-- Touch-first mobile controls and keyboard support where practical: accelerate, brake/reverse as appropriate, steer, boost, pause/resume, and restart.
-- A clear speed readout and useful feedback for braking, grip, cornering, and boost.
-- A driving model with acceleration, momentum, braking distance, steering response that depends on speed, grip loss, and recoverable slides. A fast car should not be able to take every corner at full throttle without consequence.
-- A racing-line learning loop: approach/braking point → turn-in → apex → exit. If a suggested line is displayed, it should teach these phases without forcing the player to follow it.
-- A polished boost system with an unmistakable visual and motion response (for example, rear glow/trails, a brief speed effect, and a boost meter). Boost should change the car's actual performance, not be cosmetic only.
-- A compact garage/setup panel showing upgrades and the actual effect of each selected upgrade on visible stats and driving behaviour.
-- A high-score experience based on recorded warm-up performance, especially best lap time. Show current lap, best lap, and improvement/sector feedback where supported.
-- Clear loading, pause, resume, restart, first-run instructions, and error/offline states. Do not claim a record was saved if persistence failed.
+The warm-up is a **solo practice session**. It has no Kago, no Neo, no AI rivals, no qualifying, no division restrictions, and no career prize money. Its job is to teach the controls and let the player experience the best reference car without having to grind or buy upgrades.
 
-**The warm-up is the gameplay test bench.** The product owner will QA it before any broader game layers are added. Driving feel, touch control reliability, readable visuals, track boundaries, lap timing, boost, upgrade effects, and truthful high-score persistence must be solid first.
+### Car and track
 
-### High-score fairness
+- One polished top-division flagship car model, at full reference specification: power, brakes, tyres/grip, steering/handling, and boost are all at their intended 100% baseline.
+- A repeatable circuit with straights, varied corners, braking zones, turn-in points, apexes, corner exits, kerbs/track limits, and a start/finish line.
+- Mobile-first camera framing, car silhouette, track contrast, HUD, and controls that remain readable on small screens.
+- Touch controls for steering, accelerate, brake/reverse where appropriate, boost, pause/resume, and restart; keyboard controls where practical.
+- Smooth acceleration, momentum, braking distance, speed-dependent steering, grip loss, and recoverable slides. The flagship is capable, not magical: poor lines and late braking still cost time.
+- Clear speed, lap, current/best time, and boost feedback without cluttering the driving view.
 
-Keep the warm-up leaderboard tied to the one flagship car model. Do not introduce alternative car models into warm-up records. Because upgrades change performance, save the active upgrade/loadout with each result and make the setup visible when comparing records. Prefer a clearly explained comparison policy (such as separate bests by setup or a leaderboard that records the setup alongside each time) over silently comparing materially different configurations as if they were identical.
+### Corner craft and driving feedback
 
-Records must be tied to the app's real persistence capabilities. If the player is offline or a save fails, preserve the local result where feasible, clearly label it as local/pending, and never claim it is shared or synced until verified. Avoid excessive Firestore reads/writes; save meaningful lap results rather than every frame or control input.
+The learning loop is **approach → braking point → turn-in → apex → corner exit**.
 
-## 3. Driving model and corner craft
+- **Racing line:** teach a smooth path through a corner rather than random steering. If a suggested line is shown, it should be a useful guide, not an invisible rail that drives the car for the player.
+- **Braking points and distance:** braking early enough to maintain control is usually safer; late braking can gain time but can cause a missed apex or run-wide exit. Speed, momentum, and brake performance must visibly affect stopping distance.
+- **Turn-in and steering:** steering response changes with speed; abrupt steering at high speed can overload available grip.
+- **Apex:** reward aiming for the useful inside point of a corner and maintaining control through it.
+- **Corner exit:** reward unwinding the steering and progressively applying power to carry speed onto the straight.
+- **Tyres and grip:** braking, cornering, and acceleration compete for finite grip. Excess demand can produce understeer, oversteer, sliding, or lost time.
+- **Kerbs and track limits:** legal kerb use may help the line; corner cutting must not create illegitimate records. Use a clear invalid-lap rule, time penalty, or understandable warning.
+- **Boost/NOS:** full flagship warm-up capacity and duration from the start. Boost has a visible meter and strong visual response (rear glow/trails or restrained speed effect) and changes actual acceleration/speed. Good timing matters; the boost should not erase cornering mistakes.
+- **Lap feedback:** current lap, best lap, improvement, and sector splits where reliably implemented. A best-lap ghost is a later enhancement if it can run smoothly and fairly.
+- **Actionable coaching:** short prompts such as “Brake earlier”, “Apex missed”, “Good exit”, or “Clean lap”, preferably after the relevant corner or lap rather than over the action.
 
-The goal is approachable arcade handling with skill depth—not a professional simulator.
+The warm-up provides the best available driving assistance and accurate corner guidance by default. It does not ask players to buy staff support or any performance upgrades. The point is to learn the complete driving system in the reference car and set meaningful lap-time benchmarks.
 
-### Core driving mechanics
+### Staff / race-engineer assistance
 
-1. **Acceleration and momentum:** speed builds over time and does not change instantly.
-2. **Braking zones:** braking before turn-in preserves control; late braking can gain time but risks running wide.
-3. **Turn-in:** steering response changes with speed. Sharp steering at high speed should be harder to sustain.
-4. **Apex:** the player aims for the inside point of a corner.
-5. **Corner exit:** unwind steering and accelerate progressively to build speed onto the next straight.
-6. **Grip:** braking, turning, and acceleration compete for tyre grip. Overloading grip can create understeer or oversteer.
-7. **Track limits and kerbs:** legal kerb use can help a racing line; corner cutting or leaving the track should cost time or trigger a fair warning/penalty.
-8. **Boost:** strategically timed acceleration with real handling/performance consequences and clear visual feedback.
-9. **Slipstream (later phase):** following a rival on a straight can create a modest tow, making a pull-out and overtake possible.
-10. **Race starts, tyre wear/temperature, sector strategy, and deeper race rules** are later additions, only after the warm-up foundation is accepted.
+Add a **race engineer / spotter coaching system** as a progression feature. It can remind players of upcoming braking points, corner direction, apexes, and useful boost opportunities—similar to timely race-engineer guidance in real racing.
 
-### Teaching and feedback
+- In warm-up, coaching is fully enabled and accurate for every player: no upgrade button, paywall, deliberate mistakes, or reduced assistance.
+- In career, lower tiers may start with limited, less timely, or less detailed coaching. A staff-attentiveness/effectiveness upgrade improves the timing, relevance, and breadth of guidance.
+- Coaching must be generated from the known track layout and player position, not random guesses. It must never confidently announce the wrong turn. If position or track state is uncertain, omit the call rather than invent one.
+- Higher-division promotion unlocks a stronger baseline staff package, so players do not need to spend currency to buy back basic competence at the top level. The best divisions should feel more capable by default.
+- Keep calls concise, readable, and non-intrusive on mobile. Use a visual cue and optional sound/voice later; never rely on audio alone.
+- Coaching helps the player make a decision; it does not steer, brake, or race automatically for them.
 
-Keep feedback short and actionable, for example: “Brake earlier,” “Apex missed,” “Good exit,” or “Clean lap.” Use lap/sector times or a best-lap ghost when reliable. Avoid cluttering the screen during a corner; post-corner or post-lap feedback is preferable.
+## 4. The upgrade model: connect each purchase to driving
 
-## 4. Upgrades and visual response
+Every upgrade must change the underlying car handling or coaching system, show a before/after comparison, and be felt in gameplay. A displayed stat increase without a real effect is not an upgrade.
 
-Upgrades should be understandable and measurable. Each upgrade must affect the underlying driving model and have an obvious, appropriately designed response in both the garage and gameplay.
-
-Potential upgrade categories:
-
-- **Power / acceleration:** improves acceleration and the rate at which speed builds.
-- **Brakes:** improves deceleration and/or makes braking control more forgiving.
-- **Grip / tyres:** improves cornering traction and recovery from slides.
-- **Boost system:** changes boost capacity, duration, recharge, or efficiency, with matching meter/animation changes.
-
-Requirements:
-
-- Show before/after stats and concise plain-language effects.
-- Reflect the equipped setup in the car's appearance where practical and in the car's actual physics.
-- Animate boost clearly while active, then transition smoothly back to normal driving.
-- Do not let upgrades eliminate the need to brake or choose a racing line.
-- Record the setup with high-score results so performance differences are transparent.
-- Keep currency, upgrade purchases, and remote persistence out of the critical driving loop; handle save failures honestly.
-
-## 5. AI rivals — later championship phase
-
-The two named rivals should have recognisable default personalities, but should not behave like predictable scripts. On each meaningful AI decision, use a 50/50 choice between the rival's signature behaviour and the contrasting behaviour. Across four listed situation types, this produces an expected two signature choices and two contrasting choices—not a guaranteed exact two per race.
-
-**Important implementation detail:** roll the behaviour at a decision point (such as the approach to a corner or an overtaking opportunity), then hold that choice for the decision window. Do not randomly flip the choice every frame; that would look broken rather than human. Use a seeded/replayable random source in tests where possible so QA can reproduce cases.
-
-| Situation | Kago — The Attacker (default personality) | Neo — The Smooth One (default personality) |
+| Upgrade family | Actual effect | Difference on a weak car |
 |---|---|---|
-| Approaching a corner | Brakes late | Brakes earlier |
-| Overtaking | Looks for aggressive openings | Waits for safer opportunities |
-| Corner exit | May lose speed after pushing too hard | Usually exits consistently |
-| Defending | Tries to hold position | Favours a clean racing line |
-| Player's advantage | Exploit his mistakes | Beat his consistency with better pace |
+| Engine / power | Acceleration and top speed | Slow acceleration and weaker pace on straights |
+| Brakes | Deceleration and braking control | Longer stopping distance; earlier braking needed |
+| Tyres / grip | Cornering grip, traction, slide recovery | More understeer/sliding and poorer corner exits |
+| Steering / handling | Steering response and precision | Less confidence through linked or tight corners |
+| Suspension / stability | Kerb response and stability during direction changes | More unsettled handling on rough or technical sections |
+| NOS / boost system | Capacity, duration, recharge, or efficiency | Less boost available or a shorter useful burst |
+| Race engineer / staff | Accuracy, timing, detail, and coverage of useful reminders | Fewer proactive cues; player must read the track more independently |
 
-For each decision, the AI has a 50% chance to use the behaviour in its column and a 50% chance to use the contrasting behaviour. Example: Kago may occasionally brake early or wait for a safer pass; Neo may occasionally brake late or attempt an aggressive opening. Keep their overall driving feel recognisable through other stable traits (such as risk tolerance, consistency, and recovery), even when a particular action is atypical.
+A physical steering-wheel cosmetic may be collectible later, but it must not be confused with a steering/handling upgrade unless it changes the control system in a meaningful way.
 
-AI must account for nearby cars and avoid deliberately turning through the player's car. Mistakes should emerge from understandable decisions and driving limits, not arbitrary speed cheating. Tune difficulty by driving skill/consistency rather than making rivals unfairly fast.
+### Upgrade and division rules
 
-## 6. Track and progression roadmap
+- Warm-up flagship uses the full reference setup and full boost from the outset. There is no warm-up upgrade shop or upgrade CTA for those performance elements.
+- Career begins at a deliberately inferior but playable specification. Lower-tier cars should visibly and behaviourally feel less capable, and lower-tier tracks should test those weaknesses.
+- Promotion grants a meaningful baseline improvement in car specification and race-engineer/staff capability. A player should not be forced to grind currency just to make a newly promoted car viable.
+- Optional paid upgrades let the player tune or accelerate development within the career's permitted specification. They must not erase all division identity or make driving skill irrelevant.
+- Championship event rules determine which car/specification and assistance package is legal. When a champion revisits a lower-division event, make the chosen format explicit: a division-legal challenge uses that division's limits; an open-spec or champion challenge can retain the better car/support and must be recorded in a separate comparison category.
+- Keep the garage out of the critical driving loop. Save purchases and loadouts at meaningful boundaries, not on every frame.
 
-After the warm-up is QA-approved, layer the game in this order:
+## 5. Career structure: four divisions, three tracks each
 
-1. **Competitive race loop:** player versus Kago and Neo, starting positions, position/order, lap counting, finish/results, restart and pause.
-2. **Three initial circuit identities:**
-   - **Gaborone Dust Loop:** approachable track for learning braking, basic corners, and limits.
-   - **Tlokweng Sprint:** straights and linked corners that reward momentum and boost timing.
-   - **Makgadikgadi Bend:** technical layout with a hairpin, multiple braking zones, and demanding exits.
-3. **Race weekend:** practice/warm-up, qualifying, then division races.
-4. **Championship:** four divisions × three tracks, for 12 tracks total.
-5. **Rewards and progression:** planned race rewards are P2,000 for first and P1,000 for second; qualifying rewards are P1,000 / P500 / P250 for first / second / third. Verify the existing economy before implementing or changing amounts.
-6. **Later depth:** slipstreaming, sector times, best-lap ghost, track challenges, tyre wear/temperature, race starts and expanded AI behaviours.
-7. **Optional social layer:** leaderboards and race feed only with real, access-controlled persistence and clear online/offline status.
+There are **four divisions × three tracks = 12 division/track combinations**. Track identities should have different driving lessons and layouts, with difficulty increasing without relying only on faster rivals.
 
-Do not build all these layers before the warm-up is stable and approved.
+Initial track concepts:
 
-## 7. Persistence, privacy, and app integration
+1. **Gaborone Dust Loop** — entry circuit for braking basics, simple corners, track limits, and corner exits.
+2. **Tlokweng Sprint** — longer straights and linked corners that reward momentum, line discipline, and boost timing.
+3. **Makgadikgadi Bend** — a technical circuit with a hairpin, multiple braking zones, and demanding exits.
 
-- Keep racing data isolated from wash bookings, service requests, receipts, and appointment records.
-- Inspect existing Firebase configuration and Firestore rules before adding or changing collections.
-- Use owner-scoped profiles/results where applicable and least-privilege rules for any shared leaderboard.
-- Never make a database public to bypass permission errors.
-- Keep gameplay responsive if Firebase is unavailable. Clearly distinguish unsaved local results from successfully saved/shared records.
-- Do not write telemetry every frame. Persist meaningful events such as a completed lap, a changed setup, or a finished race.
-- Integrate the warm-up with the landing page without obstructing the primary car-wash customer journey.
-- Preserve the established app identity, responsive behaviour, offline support, service-worker/cache isolation, and all existing customer/admin functionality.
+These are initial identities, not a requirement to duplicate the same geometry twelve times. Each division may use the three core circuits with distinct layouts/conditions or progressively demanding variants, but variants must be clearly identified and timed separately where they affect fairness.
 
-## 8. Protected PWA installation — do not modify for this work
+### Weekend and event loop
 
-The approved installation mechanism is protected infrastructure. Racing-game work must not redesign, rewrite, refactor, replace, remove, or otherwise alter the installation UI, `beforeinstallprompt` lifecycle, event listeners, install-card behaviour, responsive positioning, service-worker installation behaviour, manifest, icons, or cache namespaces. Touch installation files only if the product owner explicitly authorizes that specific change. Prefer to identify protected files before editing unrelated application code.
+For each division and track, the intended sequence is:
 
-## 9. Warm-up QA acceptance checklist
+1. **Practice / warm-up:** practise the layout and improve personal understanding; no qualifying/championship prize money. Practice records may contribute to a separate speculative performance feed.
+2. **Qualifying:** a timed session that establishes championship starting positions and awards qualifying prize money.
+3. **Championship race:** race against the field, earn race prize money based on finishing position, and accumulate championship progress.
+4. **Results and garage:** show finish position, lap/sector performance where available, earnings, points/progression, and any upgrade or promotion unlocked.
 
-Do not start the championship layer until the product owner can verify these items on a real phone and desktop where available:
+Qualifying times must genuinely determine starting positions. Championship results, qualifying results, and practice times must be separate record types and never be blended into one misleading score.
 
-- [ ] Warm-up is discoverable from the landing page and does not obstruct the car-wash journey.
-- [ ] Car movement is stable, responsive, and predictable at low and high speed.
-- [ ] Acceleration, braking distance, steering, grip, slides, apexes, and corner exits create meaningful choices.
-- [ ] Touch controls work without obscuring the track; pause/resume/restart are reliable.
-- [ ] Track boundaries and lap detection work, including across the start/finish line.
-- [ ] Best-lap timing is accurate enough to compare attempts; invalid/cut laps are handled honestly.
-- [ ] Boost has a clear animation and meter and measurably changes acceleration/speed.
-- [ ] Every upgrade shows an understandable effect and changes actual driving behaviour.
-- [ ] The single flagship warm-up car is visually polished and legible on small screens.
-- [ ] High scores save correctly; failures/offline results are labelled accurately and do not silently disappear.
-- [ ] High-score comparisons disclose the active upgrade setup or separate records fairly.
-- [ ] Loading, empty, error, offline, pause, and completion states are designed and readable.
-- [ ] Existing PWA install behaviour is unchanged.
-- [ ] Existing booking, service, account, admin, and offline functionality still works.
-- [ ] Lint and production build pass; no unverified deployment or device test is claimed.
+### AI rivals — championship only
 
-## 10. Delivery rule
+Kago and Neo do not appear in the solo warm-up.
 
-The immediate deliverable is **the warm-up foundation only**. Inspect the current repository before coding, confirm the protected installation files, implement the smallest coherent gameplay slice, run available checks, and report exact branch/commit and test status. The product owner performs QA. Only after approval should the next game layer begin.
+- **Kago — The Attacker:** tends to brake late, look for aggressive passing opportunities, and may lose time after overcommitting on a corner exit.
+- **Neo — The Smooth One:** tends to brake earlier, choose safer overtakes, and maintain consistent exits and a clean racing line.
+- At each meaningful AI decision, there is a 50/50 chance of signature behaviour versus contrasting behaviour. This means approximately half of decision opportunities use the signature style in expectation; it does not guarantee exactly half per race.
+- Choose behaviour at a decision window and hold it for that window. Never randomize the choice every frame. Seed randomness in tests where possible.
+- Keep each rival recognizable through stable traits while allowing occasional surprises. Avoid arbitrary speed cheating and avoid deliberately turning through the player.
+
+## 6. Economy and progression — confirm values before implementation
+
+The intended economy includes **P250, P500, and P1,000 upgrade purchases**, plus prize money for qualifying and championship results. The existing plan has also mentioned the following provisional payouts:
+
+- Qualifying: P1,000 / P500 / P250 for 1st / 2nd / 3rd.
+- Championship race: P2,000 for 1st and P1,000 for 2nd.
+
+These amounts are provisional until reconciled with the product owner's final rules and the existing career implementation. Do not silently treat conflicting values as approved.
+
+Design rules:
+
+- Clearly distinguish race winnings, qualifying winnings, and purchase costs.
+- Show the reward before a session and the actual reward after server-verified results.
+- A P1,000 purchase should have a meaningful, explainable effect.
+- Promotion should award baseline equipment/support and feel like an achievement; optional upgrades should offer choices rather than compulsory repair of an intentionally unusable car.
+- Prevent duplicate reward claims, client-forged results, negative balances, and replayed race-session rewards. Server-side validation is authoritative for online career currency and progression.
+- Practice/warm-up does not award qualifying or championship money. Any later practice rewards need explicit anti-abuse rules.
+
+## 7. Performance feeds, records, and competitive fairness
+
+The warm-up feed is a **speculative performance/odds signal**, not a claim that practice time predicts the winner with certainty. It should use available lap times and other verified performance indicators to communicate who appears quick, while acknowledging that it does not know a driver's full skill, decision-making, loadout, or future race conditions.
+
+The product should eventually support distinct categories such as:
+
+- Personal bests and practice lap records per track/layout.
+- Practice/speculative feed and estimated contenders, clearly labelled as estimates.
+- Qualifying times and resulting starting positions.
+- Championship race results, standings, titles, and career achievements.
+- Stock/spec or division-legal time rankings, where entrants use comparable equipment.
+- Open-upgrades rankings, where different earned loadouts are permitted and shown.
+- Online head-to-head/multiplayer results once real-time multiplayer is implemented and verified.
+- All-time top times and champions, with track/version, car/spec, upgrade loadout, and event type attached to each record.
+
+Never compare times from materially different tracks, track versions, game physics, event types, or car classes as if they were equivalent. The ranking UI must make the category obvious and allow players to inspect the car and upgrades behind a result. A player who has reached the top division should be easy to identify and challenge, but titles, lap records, and current rankings are distinct achievements.
+
+### Shared feed and privacy
+
+Only publish player information intended for the feed, such as a chosen display alias and permitted result summaries. Do not expose private account details, tokens, booking information, or internal racing profiles. Define a clear opt-in/visibility policy before public profile or social features. Offline results remain local and must not be described as shared, verified, or eligible for online rewards.
+
+## 8. Online play: staged, real, and honest
+
+“Online player versus player” means actual players competing, not only AI rivals or a locally simulated result. Treat this as a later technical milestone after solo driving, career progression, and secure results are stable.
+
+- First ship server-backed profiles, validated race sessions, qualifying/race results, progression, and leaderboard summaries using the existing `/api/racing` architecture where appropriate.
+- Then implement real-time multiplayer as a distinct milestone: room/match creation, joining by invite and matchmaking, authoritative or validated race state, disconnect/rejoin handling, result validation, and abuse/race-integrity protections.
+- Do not label ghost/time challenges as real-time multiplayer. Ghosts and recorded challenges can be useful earlier and cheaper, but must be named accurately.
+- Keep a clear distinction between device-local offline play, submitted/pending state, server-confirmed results, and real-time live matches.
+- Do not write telemetry every frame. Persist meaningful events such as completed laps, qualifying results, completed races, purchases, and progression changes.
+- Keep racing collections server-owned where the current architecture requires it. Inspect Firebase rules and API validation before changing data contracts; never make collections public to bypass permission errors.
+
+## 9. Later modes: document now, build after core racing
+
+Once the warm-up and championship have passed QA, the shared driving foundation can support additional arcade modes:
+
+- **Getaway Driver:** route choices, timed escape objectives, traffic/obstacles, and control under pressure.
+- **Police Escape:** pursuit pressure, evasive driving, boost management, and escape objectives.
+- Other short, optional waiting-time games may be considered after evidence from actual use.
+
+These modes should reuse proven controls/physics where appropriate but have their own rules, scoring, records, and acceptance tests. They are not part of the first warm-up delivery and must not delay it.
+
+## 10. Mobile-first UX and research principles
+
+Research should inform decisions, but it must be validated against real playtests rather than treated as a substitute for QA.
+
+- Make the next action obvious. Start practice quickly; put deep setup and stats outside the live driving view.
+- Prioritize thumb reach, large reliable touch targets, no accidental browser scrolling/zooming while controlling the car, and controls that do not obscure upcoming corners.
+- Maintain readable contrast between track surface, racing line, kerbs, hazards, car, HUD, and feedback.
+- Keep critical cues concise and timely. Avoid flashing effects or screen shake that impair control; respect reduced-motion settings where feasible.
+- Make failures understandable: missed apex, late braking, invalid lap, offline save, and failed submission should each have specific feedback.
+- Test on representative low- and mid-range Android devices, installed PWA and browser, and desktop/keyboard where practical. Track frame rate, control latency, layout clipping, and battery/thermal issues.
+- Use usability evidence and suitable research on mobile game controls, feedback timing, cognitive load, and motivation. Do not add dark patterns, forced installation, or manipulative pay-to-win mechanics.
+- The car-wash booking journey remains primary. The game must be easy to enter and leave without losing customer context.
+
+## 11. Protected PWA installation — do not modify for racing work
+
+The approved installation mechanism is protected infrastructure. Racing work must not redesign, rewrite, refactor, replace, remove, or otherwise alter installation UI, `beforeinstallprompt` lifecycle, event listeners, branded install-card behaviour, responsive positioning, service-worker installation behaviour, manifest, icons, or cache namespaces. Identify protected files before code changes and leave them untouched unless the product owner explicitly authorizes a specific installation change.
+
+## 12. Delivery phases and QA gates
+
+### Phase A — inspect and stabilize solo warm-up
+
+Inspect current `/games` implementation and its relationship to the intended circuit-based warm-up. Preserve working controls where appropriate; build the lap-based driving school as the smallest coherent, testable slice.
+
+Acceptance:
+- [ ] One flagship reference car; no AI rivals, Kago, Neo, career restrictions, or prize money.
+- [ ] Repeatable circuit with braking zones, apexes, corner exits, kerbs/limits, and start/finish.
+- [ ] Stable mobile controls and responsive visual hierarchy.
+- [ ] Acceleration, braking distance, steering, grip, slides, boost, and lap timing are meaningful.
+- [ ] Accurate, always-available corner coaching; no coaching upgrade purchase in warm-up.
+- [ ] Full baseline performance and boost are available immediately.
+- [ ] Invalid/cut laps and timing are handled fairly.
+- [ ] Personal records and save/error/offline states are truthful.
+- [ ] Install mechanism and all existing customer/admin functionality remain unchanged.
+- [ ] Lint, typecheck, identity verification, and production build pass where feasible; owner tests on actual devices.
+
+### Phase B — garage and career car specifications
+
+Implement real upgrade effects, costs, before/after stats, loadouts, baseline spec by division, promotion packages, and staff/race-engineer assistance levels. Confirm economy rules before awarding money.
+
+### Phase C — qualifying and championship
+
+Add the three circuit identities/variants across four divisions, qualifying, grid order, race loop, Kago and Neo, rewards, standings, and champion progression.
+
+### Phase D — server-verified competitive records
+
+Verify profile ownership, race sessions, anti-replay protections, record categories, visible loadouts, speculative feed wording, and staff/admin visibility. Keep offline results local unless a separately secure reconciliation design is approved.
+
+### Phase E — real-time multiplayer
+
+Build actual live player-versus-player matches, then validate disconnect/reconnect, match integrity, results, and ranking rules. Do not present this as complete until end-to-end tests prove it.
+
+### Phase F — additional modes
+
+Only after the above core has been approved, build Getaway Driver, Police Escape, and other documented modes.
+
+## 13. Data, app integration, and delivery rules
+
+- Keep racing data isolated from wash bookings, receipts, customer requests, and staff operations.
+- Preserve server-owned career progression/rewards and existing ownership checks. Inspect `src/app/api/racing/route.ts`, Firebase configuration, and rules before changing data contracts.
+- Keep the game responsive if Firebase or network services are unavailable; label local and server-confirmed data accurately.
+- Avoid frame-by-frame database writes and expensive repeated reads.
+- Integrate access from the landing page without making the game dominate or obstruct the core car-wash journey.
+- Never claim tests, synchronization, multiplayer, deployment, or device behaviour that has not been verified.
+- Product owner handles Vercel deployment unless explicitly delegated.
+
+At each checkpoint report separately: changed/committed code or docs; pushed branch and exact commit; tests/build results; production deployment status; outstanding configuration; and exact QA steps.
