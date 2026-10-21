@@ -12,18 +12,14 @@ type InstallPromptEvent = Event & {
 };
 type InstallState = "hidden" | "native" | "ios" | "embedded";
 
-const INSTALL_DISMISSED_KEY = "vulas-car-wash:install:dismissed-at";
-const INSTALL_DISMISS_MS = 7 * 24 * 60 * 60 * 1000;
-
 function environment() {
-  if (typeof window === "undefined") return { standalone: true, ios: false, android: false, embedded: false };
+  if (typeof window === "undefined") return { standalone: true, android: false, embedded: false };
   const ua = navigator.userAgent || "";
   const standalone = window.matchMedia("(display-mode: standalone)").matches || Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
-  const ios = /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const android = /Android/i.test(ua);
   const embedded = /WhatsApp|Instagram|FBAN|FBAV|Messenger|Line\/|Twitter|TikTok|Snapchat/i.test(ua) ||
     (/Android/i.test(ua) && /; wv\)/i.test(ua));
-  return { standalone, ios, android, embedded };
+  return { standalone, android, embedded };
 }
 
 function isIosSafari() {
@@ -32,30 +28,6 @@ function isIosSafari() {
   const ios = /iPad|iPhone|iPod/i.test(nav.userAgent) ||
     (nav.platform === "MacIntel" && nav.maxTouchPoints > 1);
   return ios && /Safari/i.test(nav.userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(nav.userAgent);
-}
-
-function dismissedRecently() {
-  try {
-    const value = window.localStorage.getItem(INSTALL_DISMISSED_KEY);
-    if (!value) return false;
-    const at = Date.parse(value);
-    if (!Number.isFinite(at)) return false;
-    return Date.now() - at < INSTALL_DISMISS_MS;
-  } catch {
-    return false;
-  }
-}
-
-function rememberDismissal() {
-  try {
-    window.localStorage.setItem(INSTALL_DISMISSED_KEY, new Date().toISOString());
-  } catch {
-    // Installation remains optional when storage is unavailable.
-  }
-}
-
-function clearDismissal() {
-  try { window.localStorage.removeItem(INSTALL_DISMISSED_KEY); } catch {}
 }
 
 export default function PwaRegister({ initialEmbedded = false, initialAndroid = false }: { initialEmbedded?: boolean; initialAndroid?: boolean }) {
@@ -135,7 +107,6 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     const appInstalled = () => {
       installPromptRef.current = null;
       setInstallState("hidden");
-      clearDismissal();
     };
     window.addEventListener("vula-open-install", requestInstall);
     window.addEventListener("appinstalled", appInstalled);
@@ -220,7 +191,6 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
   }
 
   function dismissInstall() {
-    rememberDismissal();
     setInstallState("hidden");
   }
 
