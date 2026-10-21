@@ -7,42 +7,6 @@ import Racing3DScene from "./racing-3d-scene";
 import { subscribeSettings } from "@/lib/firebase/vula-data";
 
 type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
-type Point = { x: number; y: number };
-type Controls = { steer: number; accelerate: boolean; brake: boolean; boost: boolean };
-type Race = {
-  progress: number; speed: number; elapsed: number; lap: number; lapTime: number;
-  bestLap: number | null; lateral: number; lateralVelocity: number; drift: number;
-  nos: number; last: number; lapInvalid: boolean; offTrack: number;
-};
-const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
-const wrap = (n: number, max: number) => ((n % max) + max) % max;
-const trackLength = 1;
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, bestLap: null, lateral: 0, lateralVelocity: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0 });
-
-function centerline(t: number): Point {
-  const a = t * Math.PI * 2;
-  return {
-    x: 0.5 + 0.365 * Math.cos(a) + 0.035 * Math.cos(3 * a + 0.3),
-    y: 0.5 + 0.405 * Math.sin(a) + 0.025 * Math.sin(2 * a + 0.4),
-  };
-}
-function trackPoint(t: number, width: number, height: number): Point {
-  const p = centerline(wrap(t, trackLength));
-  return { x: p.x * width, y: p.y * height };
-}
-function tangentAt(t: number, width: number, height: number): Point {
-  const a = trackPoint(t - 0.001, width, height), b = trackPoint(t + 0.001, width, height);
-  const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
-  return { x: dx / len, y: dy / len };
-}
-function curvatureAt(t: number): number {
-  const a = tangentAt(t - 0.006, 1, 1), b = tangentAt(t + 0.006, 1, 1);
-  return Math.abs(Math.atan2(a.x * b.y - a.y * b.x, a.x * b.x + a.y * b.y)) / 0.012;
-}
-function signedRoadCurveAt(t: number): number {
-  const a = centerline(t - 0.008), b = centerline(t), c = centerline(t + 0.008);
-  return clamp((c.x - 2 * b.x + a.x) * 2400, -1.4, 1.4);
-}
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
