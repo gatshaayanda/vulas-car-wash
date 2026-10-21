@@ -172,115 +172,158 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         }
         setSpeed(race.speed); setLapTime(race.lapTime); setNos(race.nos); setBoostActive(boost);
       }
-      // Cockpit-follow perspective: pseudo-3D road, layered scenery and a low, detailed F1 car.
+      // Low chase camera, rendered as a layered pseudo-3D arcade road.
       ctx.clearRect(0, 0, w, h);
-      const horizon = h * 0.285;
-      const carBaseY = h * 0.82;
+      const horizon = h * 0.29;
+      const carBaseY = h * 0.835;
       const currentT = wrap(race.progress, 1);
-      const currentCenter = centerline(currentT).x;
-      const bendAt = (t: number) => {
-        const before = centerline(t - 0.008), after = centerline(t + 0.008);
-        return clamp((after.x - before.x) * 12, -1.25, 1.25);
+      const curveAt = (t: number) => {
+        const p0 = centerline(t - .008), p1 = centerline(t), p2 = centerline(t + .008);
+        const dx = p2.x - p0.x;
+        const ddx = p2.x - 2 * p1.x + p0.x;
+        return clamp(ddx * 150 - dx * 1.5, -1.5, 1.5);
       };
-      const sky = ctx.createLinearGradient(0, 0, 0, horizon + 35);
-      sky.addColorStop(0, "#152d43"); sky.addColorStop(0.58, "#477b91"); sky.addColorStop(1, "#d7c49a");
+      const sky = ctx.createLinearGradient(0, 0, 0, horizon + 65);
+      sky.addColorStop(0, "#0e2033"); sky.addColorStop(.42, "#31556c"); sky.addColorStop(.78, "#8da4a0"); sky.addColorStop(1, "#e4cda3");
       ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
-      // Distant hills and a low sun add depth without heavyweight image assets.
-      ctx.fillStyle = "#6f8b77"; ctx.beginPath(); ctx.moveTo(0, horizon + 20);
-      for (let x = 0; x <= w + 12; x += 12) ctx.lineTo(x, horizon + 8 + Math.sin(x * 0.012) * h * 0.025 + Math.sin(x * 0.027) * h * 0.012);
-      ctx.lineTo(w, horizon + 75); ctx.lineTo(0, horizon + 75); ctx.closePath(); ctx.fill();
-      const sunX = w * 0.77, sunY = horizon * 0.42;
-      const sunGlow = ctx.createRadialGradient(sunX, sunY, 2, sunX, sunY, Math.min(w, h) * 0.12);
-      sunGlow.addColorStop(0, "#ffe7ad88"); sunGlow.addColorStop(1, "#ffe7ad00");
-      ctx.fillStyle = sunGlow; ctx.fillRect(sunX - h * .15, sunY - h * .15, h * .3, h * .3);
-      ctx.fillStyle = "#c2a66f"; ctx.fillRect(0, horizon + 30, w, h - horizon - 30);
-      const rows = Math.max(36, Math.ceil((h - horizon) / 5));
+      // Soft sun, mountain silhouettes and layered hills.
+      const sunX = w * .78, sunY = horizon * .37, sunR = Math.min(w, h) * .105;
+      const glow = ctx.createRadialGradient(sunX, sunY, 2, sunX, sunY, sunR);
+      glow.addColorStop(0, "#fff0c5a8"); glow.addColorStop(.35, "#ffdca455"); glow.addColorStop(1, "#ffdca400");
+      ctx.fillStyle = glow; ctx.fillRect(sunX - sunR, sunY - sunR, sunR * 2, sunR * 2);
+      ctx.fillStyle = "#415f61"; ctx.beginPath(); ctx.moveTo(0, horizon + 38);
+      for (let x = 0; x <= w + 8; x += 8) {
+        const peak = Math.sin(x * .009 + .8) * 13 + Math.sin(x * .021) * 6 + Math.cos(x * .004) * 18;
+        ctx.lineTo(x, horizon + 13 + peak);
+      }
+      ctx.lineTo(w, horizon + 95); ctx.lineTo(0, horizon + 95); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#728b6d"; ctx.beginPath(); ctx.moveTo(0, horizon + 58);
+      for (let x = 0; x <= w + 8; x += 8) ctx.lineTo(x, horizon + 43 + Math.sin(x * .015 + 1.4) * 13 + Math.cos(x * .031) * 5);
+      ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#b4a078"; ctx.fillRect(0, horizon + 75, w, h - horizon - 75);
+      const rows = Math.max(48, Math.ceil((h - horizon) / 3.5));
       const roadAt = (depth: number) => {
-        const t = wrap(currentT + depth * 0.2, 1);
-        const p = centerline(t);
-        const curveShift = clamp((p.x - currentCenter) * w * 1.65, -w * .43, w * .43);
-        const center = w * .5 + curveShift * (0.2 + depth * 0.95);
-        const roadWidth = w * (0.075 + depth * 0.74);
-        return { center, roadWidth, t, bend: bendAt(t) };
+        // Integrate the bends ahead so every road edge, lane dash and barrier shares one projection.
+        const ahead = depth * .23;
+        let offset = 0, drift = 0;
+        const steps = Math.max(2, Math.ceil(depth * 28));
+        for (let j = 0; j < steps; j++) {
+          const q = (j + 1) / steps * ahead;
+          const c = curveAt(currentT + q);
+          drift += c / steps;
+          offset += drift / steps;
+        }
+        const nearCurve = curveAt(currentT + ahead);
+        const perspective = .22 + depth * 1.18;
+        const center = w * .5 + offset * w * 1.35 * perspective - race.lateral * w * .18 * depth;
+        const roadWidth = w * (.055 + depth * .79);
+        return { center, roadWidth, t: wrap(currentT + ahead, 1), bend: nearCurve };
       };
-      // Roadside stands, safety barriers and lamps shrink into the horizon.
-      for (let i = 0; i < 14; i++) {
-        const depth = (i + 1) / 15;
-        const y = horizon + depth * depth * (h - horizon);
+      // Ground bands create parallax even on slower devices.
+      for (let i = 0; i < rows; i++) {
+        const d1 = i / rows, d2 = (i + 1) / rows;
+        const y1 = horizon + d1 * d1 * (h - horizon), y2 = horizon + d2 * d2 * (h - horizon);
+        ctx.fillStyle = Math.floor((race.progress * 240 + i) / 8) % 2 ? "#728b62" : "#7b9468";
+        ctx.fillRect(0, y1, w, Math.max(1, y2 - y1 + 1));
+      }
+      // Roadside silhouettes: grandstands, fencing, marshal lights and boards, drawn from far to near.
+      for (let i = 0; i < 22; i++) {
+        const depth = (i + 1) / 23;
         const road = roadAt(depth);
-        const scale = 0.12 + depth * 1.1;
-        const side = i % 2 ? -1 : 1;
-        const x = road.center + side * (road.roadWidth * .66 + 18 * scale);
-        ctx.fillStyle = i % 3 === 0 ? "#d8e0d9" : "#7d8c8a";
-        ctx.fillRect(x - 2 * scale, y - 30 * scale, 4 * scale, 30 * scale);
-        ctx.fillStyle = "#f3c15e"; ctx.fillRect(x - 5 * scale, y - 32 * scale, 10 * scale, 3 * scale);
-        if (i < 9) {
-          ctx.fillStyle = i % 2 ? "#233b3a" : "#e8e6d8";
-          ctx.fillRect(road.center + side * (road.roadWidth * .72 + 10 * scale), y - 11 * scale, 19 * scale, 11 * scale);
+        const y = horizon + depth * depth * (h - horizon);
+        const scale = .12 + depth * 1.05;
+        const side = i % 2 === 0 ? -1 : 1;
+        const x = road.center + side * (road.roadWidth * .66 + 17 * scale);
+        if (i % 4 === 1) {
+          const sw = 29 * scale, sh = 17 * scale;
+          ctx.fillStyle = "#25383a"; ctx.fillRect(x - sw / 2, y - sh, sw, sh);
+          ctx.fillStyle = "#526766"; ctx.fillRect(x - sw / 2, y - sh, sw, sh * .25);
+          for (let k = 0; k < 4; k++) {
+            ctx.fillStyle = k % 2 ? "#e9dfc8" : "#d24a43";
+            ctx.fillRect(x - sw / 2 + k * sw / 4, y - sh * .7, sw / 4 - 1, sh * .7);
+          }
+        } else if (i % 3 === 0) {
+          // Stylised trees have a trunk and two overlapping foliage layers.
+          ctx.fillStyle = "#514b3c"; ctx.fillRect(x - 2 * scale, y - 20 * scale, 4 * scale, 20 * scale);
+          ctx.fillStyle = "#294b40"; ctx.beginPath(); ctx.moveTo(x, y - 43 * scale); ctx.lineTo(x - 13 * scale, y - 10 * scale); ctx.lineTo(x + 13 * scale, y - 10 * scale); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = "#3b6650"; ctx.beginPath(); ctx.moveTo(x, y - 32 * scale); ctx.lineTo(x - 11 * scale, y - 5 * scale); ctx.lineTo(x + 11 * scale, y - 5 * scale); ctx.closePath(); ctx.fill();
+        } else {
+          ctx.fillStyle = "#b8c4b9"; ctx.fillRect(x - 1.4 * scale, y - 29 * scale, 2.8 * scale, 29 * scale);
+          ctx.fillStyle = "#f3c96d"; ctx.fillRect(x - 4.5 * scale, y - 31 * scale, 9 * scale, 3.4 * scale);
+          ctx.fillStyle = "#3d5553"; ctx.fillRect(x - 8 * scale, y - 9 * scale, 16 * scale, 9 * scale);
         }
       }
-      // Draw back-to-front asphalt bands. The alternating shoulders create a strong speed cue.
+      // Draw each road slice back-to-front: red/ivory kerbs, dark asphalt, shoulder and racing-line sheen.
       for (let i = 0; i < rows; i++) {
         const d1 = i / rows, d2 = (i + 1) / rows;
         const y1 = horizon + d1 * d1 * (h - horizon), y2 = horizon + d2 * d2 * (h - horizon);
         const a = roadAt(d1), b = roadAt(d2);
-        const stripe = Math.floor((race.progress * 190 + d1 * 100) / 1.8) % 2;
-        ctx.fillStyle = stripe ? "#e9e6d8" : "#d54d43";
-        ctx.beginPath(); ctx.moveTo(a.center - a.roadWidth * .56, y1); ctx.lineTo(a.center + a.roadWidth * .56, y1);
-        ctx.lineTo(b.center + b.roadWidth * .56, y2); ctx.lineTo(b.center - b.roadWidth * .56, y2); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = stripe ? "#28353b" : "#303d43";
-        ctx.beginPath(); ctx.moveTo(a.center - a.roadWidth * .5, y1); ctx.lineTo(a.center + a.roadWidth * .5, y1);
-        ctx.lineTo(b.center + b.roadWidth * .5, y2); ctx.lineTo(b.center - b.roadWidth * .5, y2); ctx.closePath(); ctx.fill();
-        // Asphalt sheen and racing-line dashes.
-        ctx.fillStyle = "#53606855";
-        ctx.beginPath(); ctx.moveTo(a.center - a.roadWidth * .12, y1); ctx.lineTo(a.center + a.roadWidth * .12, y1);
-        ctx.lineTo(b.center + b.roadWidth * .12, y2); ctx.lineTo(b.center - b.roadWidth * .12, y2); ctx.closePath(); ctx.fill();
-        const dashPhase = (race.progress * 52 + d1 * 22) % 1;
-        if (dashPhase < .45) {
-          ctx.fillStyle = "#e7e8df";
-          const laneW1 = Math.max(1, a.roadWidth * .006), laneW2 = Math.max(1, b.roadWidth * .006);
+        const stripe = Math.floor((race.progress * 205 + d1 * 105) / 2) % 2;
+        const poly = (leftA: number, rightA: number, leftB: number, rightB: number, fill: string) => {
+          ctx.fillStyle = fill; ctx.beginPath(); ctx.moveTo(leftA, y1); ctx.lineTo(rightA, y1); ctx.lineTo(rightB, y2); ctx.lineTo(leftB, y2); ctx.closePath(); ctx.fill();
+        };
+        poly(a.center - a.roadWidth * .59, a.center + a.roadWidth * .59, b.center - b.roadWidth * .59, b.center + b.roadWidth * .59, stripe ? "#f0eadb" : "#d44a42");
+        poly(a.center - a.roadWidth * .52, a.center + a.roadWidth * .52, b.center - b.roadWidth * .52, b.center + b.roadWidth * .52, stripe ? "#303b42" : "#26333b");
+        poly(a.center - a.roadWidth * .13, a.center + a.roadWidth * .13, b.center - b.roadWidth * .13, b.center + b.roadWidth * .13, "#5c68704a");
+        // White edge lines and dashed lane guides fade naturally with perspective.
+        poly(a.center - a.roadWidth * .49, a.center - a.roadWidth * .477, b.center - b.roadWidth * .49, b.center - b.roadWidth * .477, "#f2f0e6");
+        poly(a.center + a.roadWidth * .477, a.center + a.roadWidth * .49, b.center + b.roadWidth * .477, b.center + b.roadWidth * .49, "#f2f0e6");
+        const dash = (race.progress * 48 + d1 * 18) % 1;
+        if (dash < .42) {
           for (const lane of [-1 / 3, 1 / 3]) {
-            ctx.beginPath(); ctx.moveTo(a.center + a.roadWidth * lane - laneW1, y1); ctx.lineTo(a.center + a.roadWidth * lane + laneW1, y1);
-            ctx.lineTo(b.center + b.roadWidth * lane + laneW2, y2); ctx.lineTo(b.center + b.roadWidth * lane - laneW2, y2); ctx.closePath(); ctx.fill();
+            const widthA = Math.max(.6, a.roadWidth * .006), widthB = Math.max(.6, b.roadWidth * .006);
+            poly(a.center + a.roadWidth * lane - widthA, a.center + a.roadWidth * lane + widthA, b.center + b.roadWidth * lane - widthB, b.center + b.roadWidth * lane + widthB, "#d7ddd9b8");
           }
         }
       }
-      // Moving trackside posts give a sense of velocity and perspective.
-      for (let i = 0; i < 18; i++) {
-        const depth = ((i / 18 + race.progress * 0.7) % 1);
-        if (depth < .08) continue;
-        const y = horizon + depth * depth * (h - horizon);
-        const road = roadAt(depth);
-        const size = 2 + depth * 15;
+      // Trackside boards and safety barriers follow the same road projection.
+      for (let i = 0; i < 15; i++) {
+        const depth = ((i / 15 + race.progress * .65) % 1);
+        if (depth < .09) continue;
+        const road = roadAt(depth), y = horizon + depth * depth * (h - horizon);
+        const size = 2 + depth * 17;
         for (const side of [-1, 1]) {
-          const x = road.center + side * (road.roadWidth * .58 + size * 1.4);
-          ctx.fillStyle = "#e8e7dc"; ctx.fillRect(x - size * .14, y - size, size * .28, size);
-          ctx.fillStyle = "#d94c42"; ctx.fillRect(x - size * .14, y - size, size * .28, size * .35);
+          const x = road.center + side * (road.roadWidth * .61 + size * .65);
+          ctx.fillStyle = "#cbd4ce"; ctx.fillRect(x - size * .14, y - size * 1.25, size * .28, size * 1.25);
+          ctx.fillStyle = "#d74b43"; ctx.fillRect(x - size * .14, y - size * 1.25, size * .28, size * .36);
         }
       }
-      // Speed-responsive camera bob and lateral steering make the car feel planted in the scene.
-      const bob = Math.sin(now * 0.018) * Math.min(2.5, race.speed / 70);
-      const carX = w * .5 + race.lateral * w * .25 - roadAt(.98).bend * race.speed * .13;
+      // The car is a sculpted formula silhouette with visible tyres, wings, cockpit, highlights and ground shadow.
+      const bob = Math.sin(now * .018) * Math.min(2.1, race.speed / 90);
+      const carX = w * .5 + race.lateral * w * .25 + controlsRef.current.steer * w * .012 - roadAt(.98).bend * race.speed * .055;
       const carY = carBaseY + bob;
-      ctx.save(); ctx.translate(carX, carY); ctx.rotate(clamp(race.drift * .15 + controlsRef.current.steer * .06, -.18, .18));
+      ctx.save(); ctx.translate(carX, carY); ctx.rotate(clamp(race.drift * .12 + controlsRef.current.steer * .035, -.13, .13));
+      const cw = Math.min(w * .48, 210), ch = Math.min(h * .32, 145);
+      ctx.fillStyle = "#10191c9c"; ctx.beginPath(); ctx.ellipse(0, ch * .015, cw * .38, ch * .105, 0, 0, Math.PI * 2); ctx.fill();
       if (boostActive) {
-        const flame = 17 + Math.sin(now / 32) * 8;
-        const flameGradient = ctx.createLinearGradient(0, 8, 0, 8 + flame);
-        flameGradient.addColorStop(0, "#d9ff76"); flameGradient.addColorStop(.5, "#57eaff"); flameGradient.addColorStop(1, "#57eaff00");
-        ctx.fillStyle = flameGradient; ctx.beginPath(); ctx.moveTo(-12, 9); ctx.lineTo(0, 9 + flame); ctx.lineTo(12, 9); ctx.closePath(); ctx.fill();
+        const flame = 19 + Math.sin(now / 28) * 10;
+        const fg = ctx.createLinearGradient(0, 2, 0, flame + 3);
+        fg.addColorStop(0, "#f8ffac"); fg.addColorStop(.38, "#72efff"); fg.addColorStop(1, "#48baff00");
+        ctx.fillStyle = fg; ctx.beginPath(); ctx.moveTo(-cw * .09, 5); ctx.lineTo(0, flame + 5); ctx.lineTo(cw * .09, 5); ctx.closePath(); ctx.fill();
       }
-      // Shadow and rear diffuser.
-      ctx.fillStyle = "#101c2480"; ctx.beginPath(); ctx.ellipse(0, 11, w * .14, h * .026, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#171e25"; ctx.beginPath(); ctx.moveTo(-w*.12, 7); ctx.lineTo(-w*.1, -2); ctx.lineTo(-w*.075, -12); ctx.lineTo(w*.075, -12); ctx.lineTo(w*.1, -2); ctx.lineTo(w*.12, 7); ctx.closePath(); ctx.fill();
-      // Wide front wing, sculpted sidepods and pointed nose.
-      ctx.fillStyle = "#b7ef4c"; ctx.beginPath(); ctx.moveTo(-w*.16, 4); ctx.lineTo(-w*.12, -1); ctx.lineTo(-w*.065, -5); ctx.lineTo(-w*.035, -18); ctx.lineTo(0, -h*.17); ctx.lineTo(w*.035, -18); ctx.lineTo(w*.065, -5); ctx.lineTo(w*.12, -1); ctx.lineTo(w*.16, 4); ctx.lineTo(w*.145, 10); ctx.lineTo(w*.075, 7); ctx.lineTo(-w*.075, 7); ctx.lineTo(-w*.145, 10); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = "#e5ff9a"; ctx.beginPath(); ctx.moveTo(-w*.025, -17); ctx.lineTo(0, -h*.165); ctx.lineTo(w*.025, -17); ctx.lineTo(w*.04, 1); ctx.lineTo(-w*.04, 1); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = "#1b2b35"; ctx.beginPath(); ctx.ellipse(0, -13, w*.032, h*.025, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#7f9aa6"; ctx.beginPath(); ctx.ellipse(0, -14, w*.02, h*.016, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#111a20"; ctx.fillRect(-w*.115, -4, w*.038, h*.045); ctx.fillRect(w*.077, -4, w*.038, h*.045);
-      ctx.fillRect(-w*.14, 4, w*.045, h*.025); ctx.fillRect(w*.095, 4, w*.045, h*.025);
-      ctx.fillStyle = "#ff554a"; ctx.fillRect(-w*.085, 5, w*.035, 2); ctx.fillRect(w*.05, 5, w*.035, 2);
-      ctx.fillStyle = "#d9e8ed"; ctx.fillRect(-w*.07, -1, w*.14, 1.5);
+      // Rear wheels and side tyres.
+      ctx.fillStyle = "#0b1115";
+      ctx.beginPath(); ctx.roundRect(-cw * .34, -ch * .03, cw * .13, ch * .19, 5); ctx.roundRect(cw * .21, -ch * .03, cw * .13, ch * .19, 5); ctx.fill();
+      ctx.fillStyle = "#4a555c"; ctx.fillRect(-cw * .315, ch * .005, cw * .08, ch * .09); ctx.fillRect(cw * .235, ch * .005, cw * .08, ch * .09);
+      ctx.fillStyle = "#0c1216"; ctx.beginPath(); ctx.roundRect(-cw * .29, -ch * .32, cw * .12, ch * .2, 5); ctx.roundRect(cw * .17, -ch * .32, cw * .12, ch * .2, 5); ctx.fill();
+      ctx.fillStyle = "#59636a"; ctx.fillRect(-cw * .265, -ch * .29, cw * .07, ch * .14); ctx.fillRect(cw * .195, -ch * .29, cw * .07, ch * .14);
+      // Rear wing with endplates and diffuser.
+      ctx.fillStyle = "#141e25"; ctx.beginPath(); ctx.moveTo(-cw * .34, -ch * .015); ctx.lineTo(-cw * .32, -ch * .09); ctx.lineTo(-cw * .2, -ch * .12); ctx.lineTo(cw * .2, -ch * .12); ctx.lineTo(cw * .32, -ch * .09); ctx.lineTo(cw * .34, -ch * .015); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#b9ee4c"; ctx.fillRect(-cw * .32, -ch * .1, cw * .64, ch * .035);
+      // Main chassis, broad sidepods and tapered nose.
+      ctx.fillStyle = "#b9ed4b"; ctx.beginPath(); ctx.moveTo(-cw * .25, -ch * .04); ctx.lineTo(-cw * .22, -ch * .22); ctx.lineTo(-cw * .15, -ch * .38); ctx.lineTo(-cw * .085, -ch * .45); ctx.lineTo(-cw * .045, -ch * .7); ctx.lineTo(0, -ch * .98); ctx.lineTo(cw * .045, -ch * .7); ctx.lineTo(cw * .085, -ch * .45); ctx.lineTo(cw * .15, -ch * .38); ctx.lineTo(cw * .22, -ch * .22); ctx.lineTo(cw * .25, -ch * .04); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#e2ff91"; ctx.beginPath(); ctx.moveTo(-cw * .035, -ch * .7); ctx.lineTo(0, -ch * .98); ctx.lineTo(cw * .035, -ch * .7); ctx.lineTo(cw * .055, -ch * .23); ctx.lineTo(-cw * .055, -ch * .23); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#76a62d"; ctx.beginPath(); ctx.moveTo(-cw * .2, -ch * .23); ctx.lineTo(-cw * .105, -ch * .35); ctx.lineTo(-cw * .075, -ch * .19); ctx.lineTo(-cw * .15, -ch * .11); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(cw * .2, -ch * .23); ctx.lineTo(cw * .105, -ch * .35); ctx.lineTo(cw * .075, -ch * .19); ctx.lineTo(cw * .15, -ch * .11); ctx.closePath(); ctx.fill();
+      // Cockpit and helmet, plus glints on the carbon-fibre halo.
+      ctx.fillStyle = "#182832"; ctx.beginPath(); ctx.ellipse(0, -ch * .38, cw * .075, ch * .115, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#526a73"; ctx.beginPath(); ctx.ellipse(0, -ch * .405, cw * .052, ch * .073, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#f1f5e8"; ctx.fillRect(-cw * .04, -ch * .455, cw * .08, ch * .012);
+      ctx.strokeStyle = "#eaffb2"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-cw * .105, -ch * .43); ctx.lineTo(-cw * .07, -ch * .31); ctx.lineTo(cw * .07, -ch * .31); ctx.lineTo(cw * .105, -ch * .43); ctx.stroke();
+      // Front wing is broad and low, with contrasting endplates and a central nose stripe.
+      ctx.fillStyle = "#17232a"; ctx.beginPath(); ctx.moveTo(-cw * .43, -ch * .015); ctx.lineTo(-cw * .39, -ch * .065); ctx.lineTo(-cw * .17, -ch * .12); ctx.lineTo(-cw * .06, -ch * .16); ctx.lineTo(cw * .06, -ch * .16); ctx.lineTo(cw * .17, -ch * .12); ctx.lineTo(cw * .39, -ch * .065); ctx.lineTo(cw * .43, -ch * .015); ctx.lineTo(cw * .36, ch * .025); ctx.lineTo(cw * .1, -ch * .055); ctx.lineTo(-cw * .1, -ch * .055); ctx.lineTo(-cw * .36, ch * .025); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#d4fa73"; ctx.beginPath(); ctx.moveTo(-cw * .32, -ch * .055); ctx.lineTo(-cw * .12, -ch * .105); ctx.lineTo(cw * .12, -ch * .105); ctx.lineTo(cw * .32, -ch * .055); ctx.lineTo(cw * .28, -ch * .035); ctx.lineTo(-cw * .28, -ch * .035); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#ff584c"; ctx.fillRect(-cw * .25, -ch * .055, cw * .035, ch * .04); ctx.fillRect(cw * .215, -ch * .055, cw * .035, ch * .04);
       ctx.restore();
       if (phaseNow !== "running") {
         ctx.fillStyle = "#172820a8"; ctx.fillRect(0, 0, w, h);
