@@ -173,7 +173,6 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
 
     // Fixed visual references before significant bends: brake board, turn-in chevrons and apex beacon.
     let lastBoardAt = -1;
-    let boardCount = 0;
     for (let i = 0; i < 180; i++) {
       const t = i / 180;
       const turn = getTrackTurn(track, t, .006);
@@ -195,10 +194,9 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
         ctx.fillStyle = "#f8f7ef"; ctx.fillRect(0, 0, 320, 180);
         ctx.fillStyle = "#c52f2a"; ctx.fillRect(0, 0, 320, 54);
         ctx.fillStyle = "#ffffff"; ctx.font = "bold 30px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("BRAKE", 160, 28);
-        ctx.fillStyle = "#172820"; ctx.font = "bold 62px Arial"; ctx.fillText(boardCount % 2 === 0 ? "100 m" : "50 m", 160, 113);
+        ctx.fillStyle = "#172820"; ctx.font = "bold 38px Arial"; ctx.fillText("TURN IN", 160, 113);
         ctx.fillStyle = "#c52f2a"; ctx.fillRect(0, 160, 320, 20);
       }
-      boardCount++;
       const boardTexture = new THREE.CanvasTexture(boardCanvas);
       boardTexture.colorSpace = THREE.SRGBColorSpace;
       const boardMat = new THREE.MeshBasicMaterial({ map: boardTexture, side: THREE.DoubleSide });
