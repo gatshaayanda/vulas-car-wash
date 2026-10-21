@@ -6,7 +6,6 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { createRacingTrack, getTrackTurn } from "./racing-track";
 import type { Controls, Phase, Race } from "./racing-warmup";
 
-type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
 type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase> };
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
