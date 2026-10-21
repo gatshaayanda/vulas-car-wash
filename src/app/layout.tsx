@@ -3,12 +3,30 @@ import {headers} from "next/headers";
 import {Analytics} from "@vercel/analytics/next";
 import {SpeedInsights} from "@vercel/speed-insights/next";
 import PwaRegister from "@/app/pwa-register";
+import ToastHost from "@/app/ToastHost";
 import Script from "next/script";
-import "./globals.css"; import "./pwa.css";
-const siteUrl=process.env.NEXT_PUBLIC_BASE_URL||"https://iteration13.vercel.app";
+import { getPublicBusinessName } from "@/lib/server/vula-public-settings";
+import "./globals.css"; import "./pwa.css"; import "./vula.css";
+const siteUrl=process.env.NEXT_PUBLIC_BASE_URL||"http://localhost:3000";
+const FALLBACK_BUSINESS_NAME = "Vula's Car Wash";
 const EMBEDDED_BROWSER_PATTERN=/WhatsApp|Instagram|FBAN|FBAV|Messenger|Line[/]|Twitter|TikTok|Snapchat/i;
-export const metadata:Metadata={metadataBase:new URL(siteUrl),title:{default:"Iteration 13 | PWA Prototype",template:"%s | Iteration 13"},description:"Install Iteration 13 for one-tap access to a reusable mobile-first app experience.",applicationName:"Iteration 13",keywords:["Iteration 13","sneakers","apparel","Botswana","sourcing"],alternates:{canonical:"/"},openGraph:{type:"website",url:siteUrl,siteName:"Iteration 13",title:"Iteration 13 | PWA Prototype",description:"A reliable app experience, online and offline."},twitter:{card:"summary",title:"Iteration 13 | PWA Prototype",description:"A reliable app experience, online and offline."},icons:{icon:"/plug-icon.svg",apple:"/plug-icon.svg"},manifest:"/manifest.webmanifest",appleWebApp:{capable:true,title:"Iteration 13",statusBarStyle:"default"}};
-export const viewport:Viewport={themeColor:"#0866FF",colorScheme:"light"};
+export async function generateMetadata(): Promise<Metadata> {
+ const businessName = (await getPublicBusinessName()) || FALLBACK_BUSINESS_NAME;
+ return {
+  metadataBase: new URL(siteUrl),
+  title: { default: businessName, template: "%s | " + businessName },
+  description: "Book a car wash, request mobile service, and follow requests online or offline.",
+  applicationName: businessName,
+  keywords: [businessName, "PWA", "mobile app", "offline", "installation"],
+  alternates: { canonical: "/" },
+  openGraph: { type: "website", url: siteUrl, siteName: businessName, title: businessName, description: "Car wash bookings, mobile-service requests and live staff operations." },
+  twitter: { card: "summary", title: businessName, description: "Car wash bookings, mobile-service requests and live staff operations." },
+  icons: { icon: [{ url: "/vula-icon-192.png", sizes: "192x192", type: "image/png" }, { url: "/vula-icon-512.png", sizes: "512x512", type: "image/png" }, { url: "/vula-icon.svg", type: "image/svg+xml" }], apple: { url: "/vula-icon-180.png", sizes: "180x180", type: "image/png" } },
+  manifest: "/api/manifest",
+  appleWebApp: { capable: true, title: businessName, statusBarStyle: "default" },
+ };
+}
+export const viewport:Viewport={themeColor:"#c6f36b",colorScheme:"light"};
 export default async function RootLayout({children}:{children:React.ReactNode}){
  const requestHeaders=await headers();
  const userAgent=requestHeaders.get("user-agent")||"";
@@ -19,14 +37,14 @@ export default async function RootLayout({children}:{children:React.ReactNode}){
    || (/Android/i.test(userAgent)&&/\bwv\b/i.test(userAgent))
    || /^(com\.whatsapp|com\.instagram\.android|com\.facebook\.katana|com\.facebook\.lite|com\.facebook\.orca)$/i.test(requestedWith);
  const android=/Android/i.test(userAgent);
- return <html lang="en"><body style={embedded?{overflow:"hidden"}:undefined}><Script id="iteration13-early-install-capture" strategy="beforeInteractive">{`
+ return <html lang="en"><body style={embedded?{overflow:"hidden"}:undefined}><Script id="vula-early-install-capture" strategy="beforeInteractive">{`
 (function () {
   window.addEventListener("beforeinstallprompt", function (event) {
     var standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-    if (standalone || window.__iteration13PwaListenerReady === true) return;
+    if (standalone || window.__vulaPwaListenerReady === true) return;
     event.preventDefault();
-    window.__iteration13InstallPrompt = event;
+    window.__vulaInstallPrompt = event;
   });
 })();
-`}</Script><PwaRegister initialEmbedded={embedded} initialAndroid={android}/>{children}<Analytics/><SpeedInsights/></body></html>
+`}</Script><PwaRegister initialEmbedded={embedded} initialAndroid={android}/>{children}<ToastHost/><Analytics/><SpeedInsights/></body></html>
 }

@@ -1,59 +1,24 @@
 import fs from "node:fs";
 import path from "node:path";
-
 const root = process.cwd();
-const forbiddenText = [
-  /\bboemo\b/i,
-  /meating[ -]?place/i,
-  /namane[ -]?tyres/i,
-  /atlas[ -]?service[ -]?centre/i,
-  /tutorme/i,
-  /namane-tyres\.vercel\.app/i,
-  /boemo-joos-food-deals/i,
-  /#FFC800/i,
-  /#FF7B00/i,
-  /#FF2A85/i,
-  /#00E5FF/i
-];
-
-const ignoredDirs = new Set([".git","node_modules",".next","coverage"]);
-const ignoredFiles = new Set(["AGENTS.md","scripts/verify-identity.mjs","docs/PWA-FOUNDATION.md"]);
-const textExtensions = new Set([".ts",".tsx",".js",".mjs",".css",".json",".webmanifest",".md",".yml",".yaml",".txt",".html",".svg"]);
-
-function walk(dir){
-  const files=[];
-  for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
-    if(ignoredDirs.has(entry.name)) continue;
-    const full=path.join(dir,entry.name);
-    if(entry.isDirectory()) files.push(...walk(full));
-    else files.push(full);
-  }
-  return files;
-}
-
-const failures=[];
-for(const file of walk(root)){
-  const rel=path.relative(root,file).replaceAll(path.sep,"/");
-  if(ignoredFiles.has(rel)) continue;
-  if(!textExtensions.has(path.extname(file).toLowerCase())) continue;
-  const content=fs.readFileSync(file,"utf8").replaceAll("BOEMO_REMINDER_CRON_SECRET","__REMINDER_CRON_SECRET__");
-  for(const pattern of forbiddenText){
-    if(pattern.test(content)) failures.push(`${rel}: inherited identity match ${pattern}`);
-  }
-}
-
-const manifest=JSON.parse(fs.readFileSync(path.join(root,"public/manifest.webmanifest"),"utf8"));
-if(manifest.name!=="The Plug | Sneakers & Apparel") failures.push("public/manifest.webmanifest: wrong name");
-if(manifest.short_name!=="The Plug") failures.push("public/manifest.webmanifest: wrong short_name");
-if(manifest.theme_color!=="#0866FF") failures.push("public/manifest.webmanifest: wrong theme color");
-if(!manifest.icons?.some(icon=>icon.src==="/plug-icon.svg")) failures.push("public/manifest.webmanifest: canonical The Plug icon missing");
-if(!fs.existsSync(path.join(root,"public/plug-icon.svg"))) failures.push("public/plug-icon.svg: missing");
-const sw=fs.readFileSync(path.join(root,"public/sw.js"),"utf8");
-if(!/theplug-shell-v\d+/.test(sw)) failures.push("public/sw.js: missing The Plug cache namespace");
-if(!sw.includes("/plug-icon.svg")) failures.push("public/sw.js: canonical icon missing from app shell");
-if(failures.length){
-  console.error("IDENTITY VERIFICATION FAILED");
-  for(const failure of failures) console.error(" - "+failure);
-  process.exit(1);
-}
-console.log("IDENTITY VERIFIED — The Plug identity is isolated from the BOEMO foundation.");
+const failures = [];
+function read(relative) { return fs.readFileSync(path.join(root, relative), "utf8"); }
+const manifest = JSON.parse(read("public/manifest.webmanifest"));
+if (manifest.name !== "Vula's Car Wash" || manifest.short_name !== "Vula's") failures.push("web manifest does not use Vula identity");
+if (!manifest.icons?.some(icon => icon.src === "/vula-icon.svg") || !manifest.icons?.some(icon => icon.src === "/vula-icon-192.png") || !manifest.icons?.some(icon => icon.src === "/vula-icon-512.png")) failures.push("Vula icon missing from web manifest");
+if (!fs.existsSync(path.join(root, "public/vula-icon.svg"))) failures.push("Vula SVG icon asset missing");
+for (const icon of ["vula-icon-180.png", "vula-icon-192.png", "vula-icon-512.png"]) if (!fs.existsSync(path.join(root, "public", icon))) failures.push("Vula PWA icon asset missing: " + icon);
+const appManifest = read("src/app/manifest.ts");
+if (!appManifest.includes("Vula's Car Wash") || appManifest.includes("Iteration 13")) failures.push("app manifest identity mismatch");
+const layout = read("src/app/layout.tsx");
+for (const text of ["Vula's Car Wash", "vula-early-install-capture", "__vulaInstallPrompt", "vula.css"]) if (!layout.includes(text)) failures.push("layout missing " + text);
+const sw = read("public/sw.js");
+if (!/vula-shell-v\d+/.test(sw) || !sw.includes("/vula-icon.svg") || !sw.includes("/offline")) failures.push("service worker cache namespace, icon or offline shell missing");
+const home = read("src/app/page.tsx");
+for (const text of ["Vula's Car Wash", "bookings", "queueEntries", "fleetRequests", "syncOfflineRequests"]) if (!home.includes(text)) failures.push("customer app missing " + text);
+const data = read("src/lib/firebase/vula-data.ts");
+for (const text of ["subscribeBookings", "subscribeQueue", "subscribeFleet", "subscribeServices", "subscribeSettings"]) if (!data.includes(text)) failures.push("Firebase data layer missing " + text);
+const rules = read("firestore.rules");
+for (const text of ["match /bookings/", "match /queueEntries/", "match /fleetRequests/", "function isAdmin()"]) if (!rules.includes(text)) failures.push("Firestore security rules missing " + text);
+if (failures.length) { console.error("IDENTITY / FOUNDATION VERIFICATION FAILED"); failures.forEach(item => console.error(" - " + item)); process.exit(1); }
+console.log("VULA FOUNDATION VERIFIED — app identity, PWA cache isolation, customer data layer and security rules are present.");

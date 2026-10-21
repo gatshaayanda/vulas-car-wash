@@ -1,11 +1,10 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client";
 
 // Keep embedded-browser install enforcement explicit at the top-level PWA boundary.
 
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { getIdToken, onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -13,8 +12,7 @@ type InstallPromptEvent = Event & {
 };
 type InstallState = "hidden" | "native" | "embedded";
 
-const APP_NAME = "The Plug";
-const INSTALL_DISMISSED_KEY = "theplug:install:dismissed-at";
+const INSTALL_DISMISSED_KEY = "vulas-car-wash:install:dismissed-at";
 const INSTALL_DISMISS_MS = 7 * 24 * 60 * 60 * 1000;
 
 function environment() {
@@ -79,31 +77,11 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     setEmbeddedAndroid((initialEmbedded && initialAndroid) || (env.embedded && env.android));
     setInstallPlatform(env.ios ? "ios" : env.android ? "android" : "other");
 
-    const retryPendingOrderNotifications = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
-      const idToken = await getIdToken(user).catch(() => null);
-      if (!idToken) return;
-      const pendingKeys = Object.keys(localStorage).filter(key => key.startsWith("plug-pending-order-notification-"));
-      for (const key of pendingKeys) {
-        const orderId = key.replace("plug-pending-order-notification-", "");
-        try {
-          const response = await fetch("/api/notifications/order-created", {
-            method: "POST",
-            headers: { Authorization: "Bearer " + idToken, "Content-Type": "application/json" },
-            body: JSON.stringify({ orderId })
-          });
-          if (response.ok) localStorage.removeItem(key);
-        } catch {}
-      }
-    };
-
     const online = () => {
       setOffline(false);
       setReconnecting(true);
       window.setTimeout(() => {
         setReconnecting(false);
-        void retryPendingOrderNotifications();
       }, 1200);
     };
     const off = () => {
@@ -123,13 +101,13 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
 
     window.addEventListener("online", online);
     window.addEventListener("offline", off);
-    const promptWindow = window as Window & { __thePlugInstallPrompt?: Event; __thePlugPwaListenerReady?: boolean };
+    const promptWindow = window as Window & { __vulaInstallPrompt?: Event; __vulaPwaListenerReady?: boolean };
     // The browser can emit beforeinstallprompt before React hydrates. Adopt the
     // event captured by the tiny beforeInteractive script before listening normally.
-    promptWindow.__thePlugPwaListenerReady = true;
-    const earlyPrompt = promptWindow.__thePlugInstallPrompt;
+    promptWindow.__vulaPwaListenerReady = true;
+    const earlyPrompt = promptWindow.__vulaInstallPrompt;
     if (earlyPrompt) {
-      delete promptWindow.__thePlugInstallPrompt;
+      delete promptWindow.__vulaInstallPrompt;
       onBeforeInstallPrompt(earlyPrompt);
     }
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
@@ -166,7 +144,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
       setInstallState("hidden");
       clearDismissal();
     };
-    window.addEventListener("theplug-open-install", requestInstall);
+    window.addEventListener("vula-open-install", requestInstall);
     window.addEventListener("appinstalled", appInstalled);
 
     let registration: ServiceWorkerRegistration | null = null;
@@ -189,19 +167,16 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     };
 
     void register();
-    void retryPendingOrderNotifications();
-    const stopPendingAuth = onAuthStateChanged(auth, () => { void retryPendingOrderNotifications(); });
     const controllerChange = () => { if (reloadForUpdate.current) window.location.reload(); };
     navigator.serviceWorker?.addEventListener("controllerchange", controllerChange);
 
     return () => {
-      window.removeEventListener("theplug-open-install", requestInstall);
+      window.removeEventListener("vula-open-install", requestInstall);
       window.removeEventListener("appinstalled", appInstalled);
       window.removeEventListener("online", online);
       window.removeEventListener("offline", off);
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
       navigator.serviceWorker?.removeEventListener("controllerchange", controllerChange);
-      stopPendingAuth();
     };
   }, [initialEmbedded, initialAndroid]);
 
@@ -212,7 +187,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     const previousOverflow = document.body.style.overflow;
     if (isEmbeddedGate) document.body.style.overflow = "hidden";
     if (installState === "embedded") embeddedActionRef.current?.focus();
-    else document.querySelector<HTMLButtonElement>(".plugInstallPrimary")?.focus();
+    else document.querySelector<HTMLButtonElement>(".vulaInstallPrimary")?.focus();
 
     const keepDialogFocused = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -297,35 +272,35 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
   const embeddedInstallStyle: CSSProperties = { position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(0,0,0,.82)", backdropFilter: "blur(4px)", overscrollBehavior: "contain" };
   const installCard = installState === "native" ? (
     <div style={installShellStyle} role="presentation">
-      <section className="plugInstallModal" role="dialog" aria-modal="false" aria-labelledby="plug-install-title" aria-describedby="plug-install-message">
-        <div className="plugInstallTop"><span className="plugInstallMark">P</span><span className="plugInstallTag">THE PLUG · BOTSWANA</span><button type="button" className="plugInstallClose" aria-label="Close install prompt" onClick={dismissInstall}>×</button></div>
-        <div className="plugInstallKicker">YOUR SOURCING APP</div>
-        <h2 id="plug-install-title">The Plug.<br/><em>One tap away.</em></h2>
-        <p id="plug-install-message">Install The Plug on your device for a direct home-screen shortcut to your sourcing requests, account and private conversations with Frank.</p>
+      <section className="vulaInstallModal" role="dialog" aria-modal="false" aria-labelledby="vula-install-title" aria-describedby="vula-install-message">
+        <div className="plugInstallTop"><span className="plugInstallMark">13</span><span className="plugInstallTag">ITERATION 13 · SERVICE STUDIO</span><button type="button" className="plugInstallClose" aria-label="Close install prompt" onClick={dismissInstall}>×</button></div>
+        <div className="plugInstallKicker">YOUR SERVICE STUDIO APP</div>
+        <h2 id="vula-install-title">Vula's Car Wash.<br/><em>One tap away.</em></h2>
+        <p id="vula-install-message">Install Vula's Car Wash on your device for quick access to the service menu, your booking requests and account.</p>
         {installHelpOpen ? (
           <div className="plugInstallSteps" role="status" aria-live="polite">
             {installPlatform === "ios" ? (
               <>
-                <strong>Add The Plug from Safari</strong>
+                <strong>Add Vula's Car Wash from Safari</strong>
                 <p>Open this page in <b>Safari</b>, tap <b>Share</b>, choose <b>Add to Home Screen</b>, then tap <b>Add</b>.</p>
               </>
             ) : installPlatform === "android" ? (
               <>
-                <strong>Add The Plug from Chrome</strong>
+                <strong>Add Vula's Car Wash from Chrome</strong>
                 <p>In Chrome, tap the <b>⋮ menu</b> and choose <b>Install app</b> or <b>Add to Home screen</b>. The wording depends on your Chrome version.</p>
               </>
             ) : (
               <>
-                <strong>Install The Plug from your browser</strong>
-                <p>In Chrome or Edge, open the browser menu and choose <b>Install The Plug</b> or <b>Install page as app</b>, if offered.</p>
+                <strong>Install Vula's Car Wash from your browser</strong>
+                <p>In Chrome or Edge, open the browser menu and choose <b>Install Vula's Car Wash</b> or <b>Install page as app</b>, if offered.</p>
               </>
             )}
-            <button type="button" className="plugInstallPrimary" onClick={dismissInstall}>Got it</button>
+            <button type="button" className="vulaInstallPrimary" onClick={dismissInstall}>Got it</button>
           </div>
         ) : (
           <>
-            <div className="plugInstallModalBenefits"><span><b>01</b><strong>Quick access</strong><small>Open The Plug from your home screen.</small></span><span><b>02</b><strong>Your requests</strong><small>Return to your sourcing journey and account.</small></span><span><b>03</b><strong>Private by account</strong><small>Keep your conversations in your member space.</small></span></div>
-            <button type="button" className="plugInstallPrimary" onClick={() => void install()}>Install The Plug →</button>
+            <div className="vulaInstallModalBenefits"><span><b>01</b><strong>Quick access</strong><small>Open Vula's Car Wash from your home screen.</small></span><span><b>02</b><strong>Your requests</strong><small>Return to your demo requests and account view.</small></span><span><b>03</b><strong>Private by account</strong><small>Keep your demo requests on this device.</small></span></div>
+            <button type="button" className="vulaInstallPrimary" onClick={() => void install()}>Install Vula's Car Wash →</button>
             <button type="button" className="plugInstallSecondary" onClick={dismissInstall}>Not now</button>
           </>
         )}
@@ -333,11 +308,11 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
       </section>
     </div>
   ) : installState === "embedded" ? (
-    <div style={embeddedInstallStyle} role="alertdialog" aria-modal="true" aria-labelledby="plug-embedded-title" aria-describedby="plug-embedded-message">
+    <div style={embeddedInstallStyle} role="alertdialog" aria-modal="true" aria-labelledby="vula-embedded-title" aria-describedby="vula-embedded-message">
       <div className="pwaInstallInfo" style={{...installShellStyle, position: "relative", left: "auto", right: "auto", bottom: "auto", width: "100%", maxWidth: 520, margin: 0}}>
         <div>
-          <strong id="plug-embedded-title"><span aria-hidden="true">🌐 </span>OPEN THE PLUG IN YOUR BROWSER</strong>
-          <span id="plug-embedded-message">{embeddedAndroid ? <>Tap below to open The Plug in Chrome. Then open the <b>⋮ menu</b> and choose <b>Install app</b>.</> : <>The Plug opened inside another app. Use that app’s menu to open this page in your browser, then look for <b>Install app</b> in the browser menu.</>}</span>
+          <strong id="vula-embedded-title"><span aria-hidden="true">🌐 </span>OPEN ITERATION 13 IN YOUR BROWSER</strong>
+          <span id="vula-embedded-message">{embeddedAndroid ? <>Tap below to open Vula's Car Wash in Chrome. Then open the <b>⋮ menu</b> and choose <b>Install app</b>.</> : <>Vula's Car Wash opened inside another app. Use that app’s menu to open this page in your browser, then look for <b>Install app</b> in the browser menu.</>}</span>
         </div>
         <div className="pwaInstallActions" style={{display:"flex",justifyContent:"flex-end"}}>
           <button ref={embeddedActionRef} type="button" style={{background:"#0866FF",color:"#fff"}} onClick={openBrowser}>{embeddedAndroid ? "OPEN IN CHROME" : "OPEN IN BROWSER"}</button>
@@ -347,8 +322,8 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
   ) : null;
 
   return <>
-    {offline && <div className="offlineBanner" role="status" aria-live="polite"><span aria-hidden="true">⚡</span> Offline · Saved public finds may still be available on this device. Requests and account changes need a connection.</div>}
-    {!offline && reconnecting && <div className="offlineBanner reconnectingBanner" role="status" aria-live="polite"><span aria-hidden="true">↻</span> Reconnected · The Plug is syncing and checking for the latest information.</div>}
+    {offline && <div className="offlineBanner" role="status" aria-live="polite"><span aria-hidden="true">⚡</span> Offline · The service demo saves orders and admin edits locally on this device. Firebase-backed routes need a connection.</div>}
+    {!offline && reconnecting && <div className="offlineBanner reconnectingBanner" role="status" aria-live="polite"><span aria-hidden="true">↻</span> Reconnected · Vula's Car Wash can reach the network again. Saved requests remain on this device until synced.</div>}
     {!environment().standalone && installState !== "embedded" && (
       <button
         type="button"
@@ -364,10 +339,10 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
           setInstallState("native");
         }}
       >
-        Install The Plug ↓
+        Install Vula's Car Wash ↓
       </button>
     )}
     {installCard}
-    {updateReady && <div className="pwaUpdate" role="status" aria-live="polite"><div><strong>The Plug update is ready</strong><span>Refresh when you are ready.</span></div><button type="button" className="button buttonPrimary" onClick={applyUpdate}>Refresh</button></div>}
+    {updateReady && <div className="pwaUpdate" role="status" aria-live="polite"><div><strong>Vula's Car Wash update is ready</strong><span>Refresh when you are ready.</span></div><button type="button" className="button buttonPrimary" onClick={applyUpdate}>Refresh</button></div>}
   </>;
 }

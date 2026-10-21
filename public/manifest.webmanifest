@@ -1,18 +1,17 @@
 {
   "id": "/",
-  "name": "The Plug | Sneakers & Apparel",
-  "short_name": "The Plug",
-  "description": "Install The Plug for one-tap access to sneaker and apparel sourcing in Botswana. If we can source it, you can get it.",
-  "categories": ["shopping", "lifestyle"],
+  "name": "Vula's Car Wash",
+  "short_name": "Vula's",
+  "description": "Book a car wash, request mobile service, and follow requests online or offline.",
+  "categories": ["business", "lifestyle"],
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#FFFFFF",
-  "theme_color": "#0866FF",
+  "background_color": "#f5f6f1",
+  "theme_color": "#c6f36b",
   "icons": [
-    {"src":"/plug-icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
-    {"src":"/plug-icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},
-    {"src":"/plug-icon-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"},
-    {"src":"/plug-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}
+    { "src": "/vula-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/vula-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/vula-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
   ]
 }
