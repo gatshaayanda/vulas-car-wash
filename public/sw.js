@@ -1,33 +1,39 @@
-importScripts(
-  "https://www.gstatic.com/firebasejs/11.9.0/firebase-app-compat.js",
-  "https://www.gstatic.com/firebasejs/11.9.0/firebase-messaging-compat.js",
-  "/api/firebase/messaging-sw-config"
-);
-
-let thePlugMessaging = null;
+// Background push is optional for this prototype. A failed remote import must never
+// prevent the service worker from registering its offline shell and fetch handlers.
 try {
-  const config = self.__THE_PLUG_FIREBASE_CONFIG__;
+  importScripts(
+    "https://www.gstatic.com/firebasejs/11.9.0/firebase-app-compat.js",
+    "https://www.gstatic.com/firebasejs/11.9.0/firebase-messaging-compat.js",
+    "/api/firebase/messaging-sw-config"
+  );
+} catch (error) {
+  console.warn("Background messaging is unavailable; offline app-shell support remains enabled.", error);
+}
+
+let vulaMessaging = null;
+try {
+  const config = self.__VULA_FIREBASE_CONFIG__;
   if (config && config.apiKey && config.projectId && config.messagingSenderId && config.appId) {
     firebase.initializeApp(config);
-    thePlugMessaging = firebase.messaging();
-    thePlugMessaging.onBackgroundMessage((payload) => {
+    vulaMessaging = firebase.messaging();
+    vulaMessaging.onBackgroundMessage((payload) => {
       // Notification payloads are displayed automatically by Firebase. Only render
       // data-only pushes here to avoid showing the same notification twice.
       if (payload.notification) return;
-      const title = payload.data?.title || "The Plug update";
+      const title = payload.data?.title || "Vula's Car Wash update";
       const options = {
-        body: payload.data?.body || "Open The Plug to check your latest account information.",
-        icon: "/plug-icon.svg",
-        badge: "/plug-icon.svg",
+        body: payload.data?.body || "Open the app to check your latest information.",
+        icon: "/vula-icon.svg",
+        badge: "/vula-icon.svg",
         data: { link: payload.data?.link || "/account" },
       };
       self.registration.showNotification(title, options);
     });
   } else {
-    console.error("The Plug Firebase Messaging web config is incomplete.");
+    console.error("Vula's Car Wash Firebase Messaging web config is incomplete.");
   }
 } catch (error) {
-  console.error("The Plug Firebase Messaging service worker could not initialize.", error);
+  console.error("Vula's Car Wash Firebase Messaging service worker could not initialize.", error);
 }
 
 self.addEventListener("notificationclick", (event) => {
@@ -45,12 +51,12 @@ self.addEventListener("notificationclick", (event) => {
   }));
 });
 
-const CACHE_VERSION = "theplug-shell-v15";
-const MEDIA_CACHE = "theplug-media-v1";
+const CACHE_VERSION = "vula-shell-v1";
+const MEDIA_CACHE = "vula-media-v1";
 const SHELL_CACHE = CACHE_VERSION;
 const STATIC_LIMIT = 100;
 const PUBLIC_PAGE_LIMIT = 12;
-const APP_SHELL = ["/", "/request", "/offline", "/plug-icon.svg", "/manifest.webmanifest"];
+const APP_SHELL = ["/", "/games", "/offline", "/iphone-install", "/iphone-install.svg", "/vula-icon.svg", "/vula-icon-180.png", "/vula-icon-192.png", "/vula-icon-512.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
@@ -91,7 +97,7 @@ self.addEventListener("message", event => {
 self.addEventListener("activate", event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(key => (key.startsWith("theplug-shell-") && key !== SHELL_CACHE) || (key.startsWith("theplug-media-") && key !== MEDIA_CACHE)).map(key => caches.delete(key)));
+    await Promise.all(keys.filter(key => key.startsWith("theplug-shell-") || key.startsWith("theplug-media-") || (key.startsWith("iteration13-shell-") && key !== SHELL_CACHE) || (key.startsWith("iteration13-media-") && key !== MEDIA_CACHE)).map(key => caches.delete(key)));
     await self.clients.claim();
   })());
 });

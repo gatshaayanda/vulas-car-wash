@@ -1,3 +1,4 @@
 import AdminGate from "@/app/admin/admin-gate";
-import PlugAdminDashboard from "@/components/PlugAdminDashboard";
-export default function AdminPage(){return <AdminGate><PlugAdminDashboard/></AdminGate>}
+import VulaDashboard from "@/app/admin/vula-dashboard";
+export const metadata = { title: "Staff operations", robots: { index: false, follow: false } };
+export default function AdminPage() { return <AdminGate><VulaDashboard /></AdminGate>; }
