@@ -1,57 +1,80 @@
-# The Plug
+# Vula's Car Wash
 
-**The Plug — Sneakers & Apparel Sourcing**
+Customer-first PWA for Vula's Car Wash, built from the approved Iteration 13 foundation. The active customer journey supports site bookings, mobile-service requests, walk-in queue entries, fleet enquiries, a staff-managed service catalogue, gallery photos, booking history, loyalty balances, and push-reminder registration.
 
-Mobile-first sourcing and customer operations PWA for sneaker and apparel requests in Botswana.
+## Run locally
 
-## Customer flow
-Home → Catalogue → Request a product → Request tracking → Customer account
-
-Customers can browse available products, ask The Plug to source a specific sneaker or apparel item, follow request progress, and message the business.
-
-## Operations
-/admin is protected by Firebase Authentication plus admins/{uid} with role owner/staff.
-
-## Development
-npm install
+```bash
+npm ci
+cp .env.example .env.local
 npm run dev
+```
 
-Quality gates:
-npx tsc --noEmit
-npm run lint
+Open http://localhost:3000. The public Firebase web configuration is included in `.env.example`. Keep `.env.local`, Firebase Admin service-account JSON, staff access words and reminder secrets out of Git.
+
+## Environment configuration
+
+- `NEXT_PUBLIC_BASE_URL`: local URL in development; set the actual deployed origin for production.
+- `NEXT_PUBLIC_FIREBASE_*`: web app configuration for the dedicated `vulas-car-wash` Firebase project.
+- `NEXT_PUBLIC_FIREBASE_VAPID_KEY`: Firebase Cloud Messaging Web Push certificate key; required to register browser push notifications.
+- `FIREBASE_ADMIN_KEY`: server-only JSON for a service account from the Vula Firebase project. Required for staff sign-in and scheduled push reminders.
+- `VULA_OPERATIONS_WORD`: private staff sign-in word. Configure as a server environment variable, never as a public variable.
+- `VULA_REMINDER_CRON_SECRET`: bearer secret for the protected reminder endpoint. Use the same value in the server environment and GitHub Actions secret.
+- `UPLOADTHING_TOKEN`: optional; not required for gallery photos, which use Firebase Storage.
+
+## Customer routes and data
+
+- `/`: service catalogue, booking request, mobile coverage review, walk-in queue, fleet enquiry, gallery, customer booking history, loyalty balance and reminder preferences.
+- `/iphone-install`: iOS Safari Add to Home Screen guidance.
+- `/offline`: honest offline status and sync expectations.
+- `/admin`: staff operations; sign-in is protected by the server-side access word and Firebase Admin custom token.
+
+Firestore collections used by the active app: `admins`, `services`, `gallery`, `businessSettings`, `bookings`, `queueEntries`, `fleetRequests`, `loyaltyAccounts`, `reminderPreferences`, and `notificationTokens`. Vula Racing uses the server-only Admin SDK for `racingProfiles`, `racingResults`, and `racingSessions`; browser clients must not access those collections directly.
+
+## Online and offline behavior
+
+Firestore uses persistent local cache for supported reads. If a customer submits while offline, the app stores the draft in this browser's local storage and retries with a stable request ID when a connection returns. A local draft is **not** visible to staff and is **not** a confirmed booking until the server accepts it. Keep the app/browser data until pending requests have synced. Racing career profiles and online race rewards use `/api/racing` with Firebase ID-token verification and server-owned progression; race results played offline remain device-only and are not later submitted as trusted rewards.
+
+Online requests use Firebase Anonymous Auth, so customers can begin without creating an account. Linking a guest session to Google preserves its Firebase UID for loyalty continuity on supported devices. A guest session that is never linked remains tied to that browser/device.
+
+Staff confirm requests manually. The customer app does not claim a slot is confirmed, an online payment has been taken, or mobile coverage is approved merely because a request was submitted. Online payment processing is not connected to a payment gateway yet; customers can request payment instructions and staff can record verified payment status.
+
+## Firebase setup
+
+1. In Firebase Authentication, enable Anonymous and Google sign-in (and any other provider the business decides to support).
+2. Publish the current `firestore.rules` in Firestore Rules.
+3. Publish `storage.rules` in Firebase Storage Rules.
+4. Deploy `firestore.indexes.json` so the scheduled booking reminder query is indexed.
+5. In Firebase Cloud Messaging, create a Web Push certificate and configure `NEXT_PUBLIC_FIREBASE_VAPID_KEY`.
+6. Configure `FIREBASE_ADMIN_KEY`, `VULA_OPERATIONS_WORD`, and `VULA_REMINDER_CRON_SECRET` in the production server environment.
+7. Add GitHub Actions secrets `FIREBASE_SERVICE_ACCOUNT_JSON`, `VULA_REMINDER_CRON_SECRET`, and `VULA_PUBLIC_URL` if you want to use the scheduled reminder workflow and manual Firebase rules deployment workflow.
+
+The manual workflow `.github/workflows/firebase-rules-deploy.yml` deploys Firestore rules, indexes and Storage rules to the dedicated Vula project. It requires a service-account secret and is intentionally not triggered automatically by every rules-file edit.
+
+## Business settings that must be confirmed
+
+Staff can update the business name, site/location label, address, opening hours, confirmed mobile coverage areas, slot capacity and booking notice from `/admin`. Keep placeholders until Vula confirms the facts. Capacity limits are checked in the staff confirmation UI for matching scheduled slots; requests remain unconfirmed until staff accept them.
+
+No real payment provider, SMS/email provider, confirmed price list, opening hours, exact address or mobile coverage areas are assumed in code.
+
+## Verification
+
+```bash
 npm run verify:identity
+npm run lint
+npx tsc --noEmit
 npm run build
+```
 
-See AGENTS.md for the implementation contract.
+GitHub Actions runs the type check, lint, identity/PWA verification and production build on pushes to `main`. Passing CI does not mean Firebase rules were published or a production deployment was verified.
 
-## Notifications
-Customer and operations notifications use Firebase Cloud Messaging. Notification permission is requested only from the user's explicit settings action.
+## QA checklist
 
-## Customer journey analytics
-
-The admin dashboard records server-side journey events for request-flow entry, account confirmation, request submission, sharing and invites, notification choices, and external catalogue/Instagram visits. Admin activity is excluded from customer journey counts. Event access is governed by Firestore rules; review the rules and analytics route together when changing event names or payloads.
-
-## Storefront launch QA
-
-Run this checklist against the exact preview commit before merging or announcing a public launch.
-
-### Customer
-- [ ] Open the home page on mobile and desktop; confirm published, in-date public finds/offers render with their images and prices.
-- [ ] Save a find or offer, open Saved Finds, refresh, and confirm the snapshot remains available.
-- [ ] Remove a saved item and confirm it disappears from Saved Finds; confirm saving it again works.
-- [ ] Start a request from a product card and confirm the product title, listed-price snapshot, and item type carry into the form and submitted private request.
-- [ ] Confirm request copy makes clear that submitting is not payment, a stock reservation, or a confirmed sale.
-- [ ] Confirm a request is visible in the customer tracking flow and the admin queue after submission.
-- [ ] Test source-request entry, navigation, install/PWA behavior, and browser back on a phone-sized viewport.
-
-### Admin
-- [ ] Sign in as an authorized admin; confirm a non-admin account cannot access admin data or write storefront content.
-- [ ] Create a draft find and a draft offer with category, price, image, and display order; confirm drafts do not appear publicly.
-- [ ] Edit the title, price, category, image, audience, status, and active dates; verify each saved value after refresh.
-- [ ] Publish an in-date public item and confirm it appears on the storefront; pause/archive/delete it and verify the expected public behavior.
-- [ ] Confirm image upload, saved image URL, preview, replacement, and removal work with the configured Firebase Storage rules.
-- [ ] Open journey analytics and compare 7/30/90-day and all-time views; verify product interest, bookmarks, and monthly demand signals.
-- [ ] Treat analytics as interaction signals, not unique people, paid orders, confirmed sales, or proof of stock.
-
-### Release boundary
-Saved Finds are stored in the current browser/device and are not synced across devices. Product requests are purchase intent only; Frank confirms availability, final price, and payment directly. Do not describe this release as online payment checkout.
+- Test customer booking, queue, fleet enquiry, service catalogue and customer booking history while online.
+- Disconnect the device, submit a request, confirm it is labelled device-only/pending, reconnect, and verify it appears once in staff operations.
+- Confirm staff can update booking, queue, fleet, service, gallery, business settings and loyalty balance.
+- Confirm customers cannot read another customer's records or write staff-only collections.
+- Test gallery image upload after Storage rules are published.
+- Enable push reminders after the VAPID key and reminder secrets are configured; confirm only a *confirmed* upcoming booking triggers a reminder.
+- Test install prompt on supported Chromium browsers and Safari Add to Home Screen on iPhone.
+- Test refresh, offline shell, reconnect and installed-app behavior on actual devices.
