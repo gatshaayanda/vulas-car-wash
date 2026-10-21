@@ -31,6 +31,12 @@ Open http://localhost:3000. The public Firebase web configuration is included in
 
 Firestore collections used by the active app: `admins`, `services`, `gallery`, `businessSettings`, `bookings`, `queueEntries`, `fleetRequests`, `loyaltyAccounts`, `reminderPreferences`, and `notificationTokens`. Vula Racing uses the server-only Admin SDK for `racingProfiles`, `racingResults`, and `racingSessions`; browser clients must not access those collections directly.
 
+## Racing and staff operations
+
+- `/games` is the 500 m traffic-and-obstacle warm-up with collision retry, steering, acceleration, braking and NOS.
+- `/games/career` retains the separate racing career mode.
+- `/admin` is the protected staff workspace for bookings, walk-in queue, fleet enquiries, services, business settings, gallery, loyalty and server-stored racing activity.
+
 ## Online and offline behavior
 
 Firestore uses persistent local cache for supported reads. If a customer submits while offline, the app stores the draft in this browser's local storage and retries with a stable request ID when a connection returns. A local draft is **not** visible to staff and is **not** a confirmed booking until the server accepts it. Keep the app/browser data until pending requests have synced. Racing career profiles and online race rewards use `/api/racing` with Firebase ID-token verification and server-owned progression; race results played offline remain device-only and are not later submitted as trusted rewards.
