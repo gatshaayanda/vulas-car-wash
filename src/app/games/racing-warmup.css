@@ -111,3 +111,8 @@
 .warmup-circuit-wrap{position:relative;isolation:isolate;background:#628653}
 .warmup-circuit-wrap canvas{touch-action:none}
 @media(max-width:640px){.warmup-3d-overlay{padding:18px}.warmup-3d-overlay p{font-size:12px}}
+
+.warmup-line-legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin:10px 0 4px;padding:10px 12px;background:#fff;border:1px solid #dce3d7;border-radius:9px;color:#465447;font-size:10px;font-weight:750}
+.warmup-line-legend span{display:inline-flex;align-items:center;gap:6px}
+.warmup-line-legend i{display:inline-block;width:18px;height:5px;border-radius:5px}
+.warmup-line-legend .line-green{background:#8cf06a}.warmup-line-legend .line-amber{background:#ffd45c}.warmup-line-legend .line-red{background:#ff6258}
