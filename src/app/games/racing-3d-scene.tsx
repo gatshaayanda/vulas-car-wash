@@ -176,8 +176,6 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     let boardCount = 0;
     for (let i = 0; i < 180; i++) {
       const t = i / 180;
-      const before = track.getTangentAt((t - .006 + 1) % 1).normalize();
-      const after = track.getTangentAt((t + .006) % 1).normalize();
       const turn = getTrackTurn(track, t, .006);
       const strength = Math.abs(turn);
       if (strength < .038 || (lastBoardAt >= 0 && (t - lastBoardAt + 1) % 1 < .075)) continue;
@@ -204,7 +202,6 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const boardTexture = new THREE.CanvasTexture(boardCanvas);
       boardTexture.colorSpace = THREE.SRGBColorSpace;
       const boardMat = new THREE.MeshBasicMaterial({ map: boardTexture, side: THREE.DoubleSide });
-      const letteringMat = new THREE.MeshStandardMaterial({ color: "#d7473d", emissive: "#50100d", emissiveIntensity: .25 });
       const post = new THREE.Mesh(new THREE.BoxGeometry(.12, 2.2, .12), postMat);
       post.position.y = 1.1; board.add(post);
       const face = new THREE.Mesh(new THREE.PlaneGeometry(1.45, .82), boardMat);
