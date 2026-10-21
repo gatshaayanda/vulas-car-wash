@@ -46,7 +46,7 @@ function unpack(buffer, entry) {
 }
 
 function safeRelative(name) {
-  const normalized = path.posix.normalize(name.replace(/^\\/+/, ""));
+  const normalized = path.posix.normalize(name.replace(/^\/+/, ""));
   if (normalized.startsWith("../") || normalized === "..") throw new Error("Unsafe ZIP path: " + name);
   return normalized;
 }
@@ -54,13 +54,13 @@ function safeRelative(name) {
 if (!fs.existsSync(archive)) throw new Error("Missing Kenney Racing Kit archive: " + archive);
 const zip = fs.readFileSync(archive);
 const entries = entriesOf(zip).filter((entry) => !entry.name.endsWith("/"));
-const models = entries.filter((entry) => /\\.(glb|gltf)$/i.test(entry.name));
+const models = entries.filter((entry) => /\.(glb|gltf)$/i.test(entry.name));
 if (!models.length) throw new Error("No GLB/glTF models found in Kenney Racing Kit. Inspect archive formats before continuing.");
 
-const selectedDirs = new Set(models.filter((entry) => /\\.gltf$/i.test(entry.name)).map((entry) => path.posix.dirname(entry.name)));
+const selectedDirs = new Set(models.filter((entry) => /\.gltf$/i.test(entry.name)).map((entry) => path.posix.dirname(entry.name)));
 const selected = entries.filter((entry) => {
-  if (/\\.glb$/i.test(entry.name)) return true;
-  if (/\\.gltf$/i.test(entry.name)) return true;
+  if (/\.glb$/i.test(entry.name)) return true;
+  if (/\.gltf$/i.test(entry.name)) return true;
   return [...selectedDirs].some((dir) => dir !== "." && (path.posix.dirname(entry.name) === dir || path.posix.dirname(entry.name).startsWith(dir + "/")));
 });
 
@@ -72,7 +72,7 @@ for (const entry of selected) {
   const destination = path.join(output, relative);
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   fs.writeFileSync(destination, unpack(zip, entry));
-  if (/\\.(glb|gltf)$/i.test(relative)) {
+  if (/\.(glb|gltf)$/i.test(relative)) {
     manifest.push({
       name: path.posix.basename(relative, path.posix.extname(relative)),
       path: "/game-assets/racing-kit/" + relative.split("/").map(encodeURIComponent).join("/"),
@@ -81,6 +81,6 @@ for (const entry of selected) {
   }
 }
 manifest.sort((a, b) => a.path.localeCompare(b.path));
-fs.writeFileSync(manifestPath, JSON.stringify({ source: "Kenney Racing Kit", license: "CC0", assets: manifest }, null, 2) + "\\n");
+fs.writeFileSync(manifestPath, JSON.stringify({ source: "Kenney Racing Kit", license: "CC0", assets: manifest }, null, 2) + "\n");
 console.log("Racing Kit extraction complete: " + manifest.length + " 3D models prepared for the browser.");
 console.log("Model candidates: " + manifest.filter((item) => /car|vehicle|race/i.test(item.name)).slice(0, 12).map((item) => item.name).join(", "));
