@@ -223,7 +223,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       const nx = -tan.y, ny = tan.x;
       const carX = p.x + nx * race.lateral * Math.min(w, h) * 0.14;
       const carY = p.y + ny * race.lateral * Math.min(w, h) * 0.14;
-      drawCar(carX, carY, Math.atan2(tan.y, tan.x), race.drift, boostActive);
+      drawCar(carX, carY, Math.atan2(tan.y, tan.x) + Math.PI / 2, race.drift, boostActive);
       if (phaseNow !== "running") {
         ctx.fillStyle = "#172820a8"; ctx.fillRect(0, 0, w, h);
         ctx.fillStyle = "#c6f36b"; ctx.font = "800 11px system-ui"; ctx.textAlign = "center";
