@@ -403,7 +403,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       renderer.dispose();
       if (renderer.domElement.parentElement === host) host.removeChild(renderer.domElement);
     };
-  }, []);
+  }, [raceRef, controlsRef, phaseRef]);
 
   return <div ref={mountRef} className="racing-3d-root" data-phase={phaseRef.current} data-braking={controlsRef.current.brake ? "true" : "false"} />;
 }
