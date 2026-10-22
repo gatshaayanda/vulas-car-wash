@@ -60,7 +60,7 @@ function makeCar() {
   for (const x of [-1.15, 1.15]) {
     const tyre = new THREE.Mesh(new THREE.CylinderGeometry(.47, .47, .32, 16), rubber);
     tyre.rotation.z = Math.PI / 2;
-    tyre.position.set(x, .48, .8);
+    tyre.position.set(x, .47, .8);
     tyre.castShadow = true;
     car.add(tyre);
     const rim = new THREE.Mesh(new THREE.CylinderGeometry(.23, .23, .335, 12), alloy);
@@ -266,7 +266,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
           const center = bounds.getCenter(new THREE.Vector3());
           const scale = 3.25 / Math.max(size.x, size.z, 0.01);
           model.scale.setScalar(scale);
-          model.position.set(-center.x * scale, -bounds.min.y * scale + 0.07, -center.z * scale);
+          model.position.set(-center.x * scale, -bounds.min.y * scale, -center.z * scale);
           model.rotation.y = Math.PI;
           model.traverse((node) => {
             const mesh = node as THREE.Mesh;
@@ -317,7 +317,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const carOffset = race.lateral * 4.6;
       const carWorld = new THREE.Vector3(
         position.x + side.x * carOffset,
-        .02 + Math.sin(clock.elapsedTime * 17) * Math.min(.035, race.speed / 5000),
+        .015,
         position.z + side.z * carOffset
       );
       // The body and chase camera follow the simulated heading, not just the
