@@ -23,7 +23,7 @@ for (const text of ["Vula's Car Wash", "vula.css", "PwaRegister", 'manifest: "/m
 const pwaRegister = read("src/app/pwa-register.tsx");
 for (const text of ["beforeinstallprompt", "prompt.prompt()", "vula-install-card", "vula-install-close", "vula-install-action"]) if (!pwaRegister.includes(text)) failures.push("PWA install lifecycle missing " + text);
 const sw = read("public/sw.js");
-if (!/vula-shell-v\\d+/.test(sw) || !sw.includes("/offline")) failures.push("service worker cache namespace or offline shell missing");
+if (!sw.includes("vula-shell-v3") || !sw.includes("/offline")) failures.push("service worker cache namespace or offline shell missing");
 if (sw.includes('icon: "/vula-icon.svg"') || sw.includes('badge: "/vula-icon.svg"')) failures.push("service worker notification still references the failing SVG icon");
 if (!sw.includes("const cacheCopy = response.clone();")) failures.push("service worker response cloning fix missing");
 const home = read("src/app/page.tsx");
