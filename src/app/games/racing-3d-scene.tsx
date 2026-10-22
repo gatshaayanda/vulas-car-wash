@@ -318,25 +318,12 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const race = raceRef.current;
       const controls = controlsRef.current;
       const currentPhase = phaseRef.current;
-      const t = ((race.progress % 1) + 1) % 1;
-      const position = track.getPointAt(t);
-      const tangent = track.getTangentAt(t).normalize();
-      const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-      const carOffset = race.lateral * 4.6;
-      const carWorld = new THREE.Vector3(
-        position.x + side.x * carOffset,
-        .015,
-        position.z + side.z * carOffset
-      );
-      // The body and chase camera follow the simulated heading, not just the
-      // circuit tangent, so a slide or missed corner is visible to the player.
-      const forward = new THREE.Vector3(
-        tangent.x * Math.cos(race.heading) + tangent.z * Math.sin(race.heading),
-        0,
-        -tangent.x * Math.sin(race.heading) + tangent.z * Math.cos(race.heading),
-      ).normalize();
+      const carWorld = new THREE.Vector3(race.worldX, .015, race.worldZ);
+      // The car's heading is now a world-space direction, independent of the
+      // track tangent. The circuit is scenery and a lap reference, not a rail.
+      const forward = new THREE.Vector3(-Math.sin(race.heading), 0, -Math.cos(race.heading)).normalize();
       car.position.copy(carWorld);
-      car.rotation.y = Math.atan2(-tangent.x, -tangent.z) + race.heading;
+      car.rotation.y = race.heading;
       assetCar.position.copy(car.position);
       assetCar.rotation.copy(car.rotation);
       groundShadow.position.x = carWorld.x;
