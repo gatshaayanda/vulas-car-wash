@@ -142,7 +142,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const braking = 205 * race.brakePressure;
         race.speed = clamp(race.speed + (acceleration - race.speed * 0.145 - braking + (boost ? 76 : 0)) * dt, 0, boost ? 250 : 205);
         race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
-        const grip = 1.04 - speedRatio * 0.12 - bend * speedRatio * 0.07 - race.brakePressure * 0.045;
+        const grip = 1.12 - speedRatio * 0.10 - bend * speedRatio * 0.045 - race.brakePressure * 0.025;
         const excessSteering = Math.max(0, Math.abs(steering) * speedRatio * (0.42 + bend * 0.42) - grip);
         const corneringLoss = excessSteering * (24 + race.speed * 0.065);
         if (excessSteering > 0) race.speed = Math.max(0, race.speed - corneringLoss * dt);
@@ -159,7 +159,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // how quickly lateral momentum settles. Steering into a bend can therefore
         // follow it, cut across it, or run wide if the player carries too much speed.
         const trackLength = trackRef.current!.getLength();
-        const lateralTarget = -Math.sin(race.heading) * race.speed * trackLength / (4200 * 10.5);
+        const lateralTarget = -Math.sin(race.heading) * race.speed * trackLength / (4200 * 38);
         const lateralGrip = clamp(grip - excessSteering * 0.5, 0.18, 1);
         race.lateralVelocity += (lateralTarget - race.lateralVelocity) * (2.6 + lateralGrip * 2.2) * dt;
         race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -1.55, 1.55);
@@ -175,7 +175,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
 
         // Leaving the road for too long triggers a visible crash and automatic pit
         // recovery. The lap is invalidated, but the practice session continues.
-        if ((race.offTrack > 1.35 && race.speed > 65) || (Math.abs(race.lateral) > 1.42 && race.speed > 145)) {
+        if ((race.offTrack > 2.35 && race.speed > 85) || (Math.abs(race.lateral) > 1.48 && race.speed > 175)) {
           race.speed = 0;
           race.heading = 0;
           race.lapInvalid = true;
@@ -246,24 +246,26 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     return () => { window.removeEventListener("keydown", keyDown); window.removeEventListener("keyup", keyUp); window.removeEventListener("blur", release); };
   }, [pauseRace, embedded, expanded]);
 
-  const wheelAngle = (e: React.PointerEvent<HTMLButtonElement>) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2));
+  // Digital steering is deliberately predictable: hold LEFT or RIGHT.
+  // It avoids the angle-sensitive virtual wheel that made thumbs fight the pedals.
+  const holdSteer = (direction: -1 | 1, down: boolean) => {
+    if (down) controlsRef.current.steer = direction * 0.68;
+    else if (Math.sign(controlsRef.current.steer) === direction) controlsRef.current.steer = 0;
   };
-  const onWheelDown = (e: React.PointerEvent<HTMLButtonElement>) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); wheelStart.current = wheelAngle(e); };
-  const onWheelMove = (e: React.PointerEvent<HTMLButtonElement>) => {
-    if (wheelStart.current === null) return;
-    e.preventDefault();
-    let d = wheelAngle(e) - wheelStart.current;
-    while (d > Math.PI) d -= Math.PI * 2;
-    while (d < -Math.PI) d += Math.PI * 2;
-    const steer = clamp(d / 2.35, -1, 1);
-    controlsRef.current.steer = steer; setWheelRotation(steer * 125);
-  };
-  const onWheelUp = () => { wheelStart.current = null; controlsRef.current.steer = 0; setWheelRotation(0); };
-  const hold = (key: "accelerate" | "brake" | "boost", down: boolean) => {
+  const hold = (key: "accelerate" | "brake", down: boolean) => {
     controlsRef.current[key] = down;
-    if (key === "boost") setBoostActive(down && nos > 0);
+    if (key === "brake" && down) {
+      controlsRef.current.boost = false;
+      setBoostActive(false);
+    }
+  };
+  // NOS is a tap-to-toggle burst, not another hold target. Tap once to fire,
+  // tap again to cut it; braking safely cancels the burst.
+  const toggleBoost = () => {
+    if (phaseRef.current !== "running" || raceRef.current.nos <= 0) return;
+    const next = !controlsRef.current.boost;
+    controlsRef.current.boost = next;
+    setBoostActive(next);
   };
 
   if (embedded && !expanded) return <div className="race-inline-promo"><div><p className="vula-eyebrow">VULA RACING · QUICK BREAK</p><h2>Take a quick lap.</h2><p>A little circuit practice while you wait. Your wash booking stays right where you left it.</p></div><button type="button" className="vula-button primary" onClick={() => setExpanded(true)}>Play now ↗</button></div>;
@@ -285,11 +287,18 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       </div>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
-        <div className="warmup-steering"><button type="button" className="warmup-wheel" aria-label="Drag to steer" disabled={phase !== "running"} style={{ transform: `rotate(${wheelRotation}deg)` }} onPointerDown={onWheelDown} onPointerMove={onWheelMove} onPointerUp={onWheelUp} onPointerCancel={onWheelUp}><span className="wheel-ring"><span className="wheel-spoke vertical"/><span className="wheel-spoke horizontal"/><span className="wheel-hub"/></span><span className="wheel-caption">STEER</span></button><span className="steering-caption">Drag left / right</span></div>
+        <div className="warmup-steering" aria-label="Steering controls">
+          <span className="steering-caption">STEER</span>
+          <div className="steering-pad">
+            <button type="button" className="steer-button" aria-label="Steer left" aria-pressed={controlsRef.current.steer < 0} disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); holdSteer(-1, true); }} onPointerUp={() => holdSteer(-1, false)} onPointerCancel={() => holdSteer(-1, false)} onLostPointerCapture={() => holdSteer(-1, false)}>←</button>
+            <button type="button" className="steer-button" aria-label="Steer right" aria-pressed={controlsRef.current.steer > 0} disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); holdSteer(1, true); }} onPointerUp={() => holdSteer(1, false)} onPointerCancel={() => holdSteer(1, false)} onLostPointerCapture={() => holdSteer(1, false)}>→</button>
+          </div>
+          <span className="steering-caption">Hold to turn</span>
+        </div>
         <div className="warmup-driving">
-          <button type="button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerLeave={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>ACCELERATE ↑</button>
-          <button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerLeave={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>BRAKE ↓</button>
-          <button type="button" className="nos-button" aria-label="Hold for NOS" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("boost", true); }} onPointerUp={() => hold("boost", false)} onPointerLeave={() => hold("boost", false)} onPointerCancel={() => hold("boost", false)} onLostPointerCapture={() => hold("boost", false)}>NOS ⚡</button>
+          <button type="button" className="accelerate-button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>GAS ↑</button>
+          <button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>BRAKE ↓</button>
+          <button type="button" className="nos-button" aria-label="Toggle NOS burst" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0} onClick={toggleBoost}>{boostActive ? "NOS ON ⚡" : "TAP NOS ⚡"}</button>
         </div>
         <div className="warmup-actions">{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start driving ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Drive again ↻</button>}<button type="button" className="vula-button secondary" onClick={() => reset(false)}>Restart ↻</button></div>
       </div>
