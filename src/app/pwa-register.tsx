@@ -26,8 +26,9 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
   const [offline, setOffline] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
   const installPromptRef = useRef<InstallPromptEvent | null>(null);
-  const [installState, setInstallState] = useState<InstallState>(initialEmbedded ? "embedded" : "hidden");
+  const [installState, setInstallState] = useState<InstallState>(initialEmbedded ? "embedded" : "native");
   const [installDismissed, setInstallDismissed] = useState(false);
+  const [installHelpOpen, setInstallHelpOpen] = useState(false);
   const [updateReady, setUpdateReady] = useState<ServiceWorker | null>(null);
   const [embeddedAndroid, setEmbeddedAndroid] = useState(initialEmbedded && initialAndroid);
   const embeddedActionRef = useRef<HTMLButtonElement | null>(null);
@@ -170,7 +171,10 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
 
   async function install() {
     const prompt = installPromptRef.current;
-    if (!prompt) return;
+    if (!prompt) {
+      setInstallHelpOpen(true);
+      return;
+    }
     // Call the captured native browser prompt directly from the Install button.
     try {
       await prompt.prompt();
@@ -185,6 +189,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
 
   function dismissInstall() {
     setInstallDismissed(true);
+    setInstallHelpOpen(false);
     setInstallState("hidden");
   }
 
@@ -220,7 +225,8 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     <aside className="vula-install-card" aria-label="Install Vula's Car Wash">
       <div className="vula-install-brand"><span className="vula-install-mark" aria-hidden="true">V</span><span><strong>VULA'S CAR WASH</strong><small>WASH · CARE · GO</small></span></div>
       <button className="vula-install-close" type="button" aria-label="Dismiss install prompt" onClick={dismissInstall}>×</button>
-      <button className="vula-install-action" type="button" onClick={() => void install()}>Install Vula's Car Wash <span aria-hidden="true">↗</span></button>
+      <button className="vula-install-action" type="button" onClick={() => void install()}>{installHelpOpen ? "Installation help" : "Install Vula's Car Wash"} <span aria-hidden="true">↗</span></button>
+      {installHelpOpen && <p className="vula-install-message">To install, use your browser menu and choose <strong>Install app</strong> or <strong>Add to Home screen</strong> if offered. On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen.</p>}
     </aside>
   ) : installState === "embedded" ? (
     <div style={embeddedInstallStyle} role="alertdialog" aria-modal="true" aria-labelledby="vula-embedded-title" aria-describedby="vula-embedded-message">
