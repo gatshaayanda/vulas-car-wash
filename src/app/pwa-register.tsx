@@ -8,6 +8,12 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
+declare global {
+  interface Window {
+    __vulaInstallPrompt?: BeforeInstallPromptEvent | null;
+  }
+}
+
 export default function PwaRegister() {
   const [offline, setOffline] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
@@ -19,6 +25,15 @@ export default function PwaRegister() {
 
   useEffect(() => {
     setOffline(!navigator.onLine);
+    // Recover an event captured before React hydration, so the install card
+    // cannot be missed on a fast browser / slower application bundle.
+    const earlyPrompt = window.__vulaInstallPrompt;
+    if (earlyPrompt) {
+      setDeferredPrompt(earlyPrompt);
+      setInstallCardDismissed(false);
+      setInstallable(true);
+    }
+
     const online = () => {
       setOffline(false);
       setReconnecting(true);
@@ -30,15 +45,15 @@ export default function PwaRegister() {
     };
     const installPrompt = (event: Event) => {
       event.preventDefault();
-      setDeferredPrompt(event as BeforeInstallPromptEvent);
+      const prompt = event as BeforeInstallPromptEvent;
+      window.__vulaInstallPrompt = prompt;
+      setDeferredPrompt(prompt);
       setInstallCardDismissed(false);
       setInstallable(true);
     };
 
     window.addEventListener("online", online);
     window.addEventListener("offline", offlineNow);
-    // Match Africhiko: capture the genuine browser event in this component,
-    // suppress the automatic prompt, and reveal the branded card for the user.
     window.addEventListener("beforeinstallprompt", installPrompt);
 
     let registration: ServiceWorkerRegistration | null = null;
@@ -75,9 +90,10 @@ export default function PwaRegister() {
   async function install() {
     const prompt = deferredPrompt;
     if (!prompt) return;
-    // Keep this direct native call inside the branded button's user gesture.
+    // Invoke Chrome's real prompt directly from the branded button click.
     await prompt.prompt();
     await prompt.userChoice;
+    window.__vulaInstallPrompt = null;
     setDeferredPrompt(null);
     setInstallable(false);
   }
