@@ -22,7 +22,7 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     screenshots: [
       { src: "/pwa-screenshot-wide.svg", sizes: "1280x720", type: "image/svg+xml", form_factor: "wide", label: "Vula's Car Wash desktop booking screen" },
-      { src: "/pwa-screenshot-mobile.svg", sizes: "720x1280", type: "image/svg+xml", label: "Vula's Car Wash mobile booking screen" }
+      { src: "/pwa-screenshot-mobile.svg", sizes: "720x1280", type: "image/svg+xml", form_factor: "narrow", label: "Vula's Car Wash mobile booking screen" }
     ]
   };
 }
