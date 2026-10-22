@@ -60,7 +60,7 @@ function makeCar() {
   for (const x of [-1.15, 1.15]) {
     const tyre = new THREE.Mesh(new THREE.CylinderGeometry(.47, .47, .32, 16), rubber);
     tyre.rotation.z = Math.PI / 2;
-    tyre.position.set(x, .48, .8);
+    tyre.position.set(x, .47, .8);
     tyre.castShadow = true;
     car.add(tyre);
     const rim = new THREE.Mesh(new THREE.CylinderGeometry(.23, .23, .335, 12), alloy);
@@ -238,6 +238,14 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     }
     const car = makeCar();
     scene.add(car);
+    const groundShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(1, 32),
+      new THREE.MeshBasicMaterial({ color: 0x101914, transparent: true, opacity: 0.28, depthWrite: false }),
+    );
+    groundShadow.rotation.x = -Math.PI / 2;
+    groundShadow.scale.set(1.25, 2.05, 1);
+    groundShadow.position.y = 0.028;
+    scene.add(groundShadow);
     const assetCar = new THREE.Group();
     scene.add(assetCar);
     assetCar.visible = false;
@@ -266,7 +274,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
           const center = bounds.getCenter(new THREE.Vector3());
           const scale = 3.25 / Math.max(size.x, size.z, 0.01);
           model.scale.setScalar(scale);
-          model.position.set(-center.x * scale, -bounds.min.y * scale + 0.07, -center.z * scale);
+          model.position.set(-center.x * scale, -bounds.min.y * scale, -center.z * scale);
           model.rotation.y = Math.PI;
           model.traverse((node) => {
             const mesh = node as THREE.Mesh;
@@ -317,7 +325,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const carOffset = race.lateral * 4.6;
       const carWorld = new THREE.Vector3(
         position.x + side.x * carOffset,
-        .02 + Math.sin(clock.elapsedTime * 17) * Math.min(.035, race.speed / 5000),
+        .015,
         position.z + side.z * carOffset
       );
       // The body and chase camera follow the simulated heading, not just the
@@ -331,6 +339,9 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       car.rotation.y = Math.atan2(-tangent.x, -tangent.z) + race.heading;
       assetCar.position.copy(car.position);
       assetCar.rotation.copy(car.rotation);
+      groundShadow.position.x = carWorld.x;
+      groundShadow.position.z = carWorld.z;
+      groundShadow.rotation.z = -car.rotation.y;
       const cameraTarget = new THREE.Vector3(carWorld.x + forward.x * 10, 1.25, carWorld.z + forward.z * 10);
       const cameraPosition = new THREE.Vector3(carWorld.x - forward.x * 8.4, 4.7, carWorld.z - forward.z * 8.4);
       const frameDelta = Math.min(clock.getDelta(), .05);
