@@ -36,6 +36,7 @@ export default function PwaRegister() {
     };
     const installPrompt = (event: Event) => {
       event.preventDefault();
+      if (window.__vulaInstallPrompt === event) delete window.__vulaInstallPrompt;
       setDeferredPrompt(event as BeforeInstallPromptEvent);
       setInstallCardDismissed(false);
       setInstallable(true);
