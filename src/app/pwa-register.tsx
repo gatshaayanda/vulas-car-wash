@@ -93,8 +93,8 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
         void install();
         return;
       }
-      // Never display a native-install card without a real captured event:
-      // that would create a visible Install button that cannot invoke the browser.
+      // Africhiko parity: keep the card hidden without the genuine native event.
+      // Never substitute manual Chrome-menu instructions or a fake install prompt.
     };
     const appInstalled = () => {
       installPromptRef.current = null;
