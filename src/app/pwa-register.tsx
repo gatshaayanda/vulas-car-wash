@@ -51,6 +51,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     };
 
     const onBeforeInstallPrompt = (event: Event) => {
+      // Match Africhiko: only show the install card when the browser supplies a real prompt.
       const current = environment();
       if (current.standalone) return;
       event.preventDefault();
