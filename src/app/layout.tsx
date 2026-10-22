@@ -34,12 +34,12 @@ export const viewport: Viewport = { themeColor: "#c6f36b", colorScheme: "light" 
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en"><body>
-    <Script id="vula-early-install-capture" strategy="beforeInteractive">{\`
+    <Script id="vula-early-install-capture" strategy="beforeInteractive">{`
       window.addEventListener("beforeinstallprompt", function (event) {
         event.preventDefault();
         window.__vulaInstallPrompt = event;
       });
-    \`}</Script>
+    `}</Script>
     <PwaRegister />{children}<Analytics /><SpeedInsights />
   </body></html>;
 }
