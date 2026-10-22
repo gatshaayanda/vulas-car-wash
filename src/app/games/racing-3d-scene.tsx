@@ -128,7 +128,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     scene.add(sun);
 
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshStandardMaterial({ color: "#628653", roughness: 1 }));
-    ground.rotation.x = Math.PI / 2; ground.position.y = -.12; ground.receiveShadow = true; scene.add(ground);
+    ground.rotation.x = -Math.PI / 2; ground.position.y = -.12; ground.receiveShadow = true; scene.add(ground);
 
     const track = createRacingTrack();
     const road = new THREE.Mesh(ribbon(track, 12, 600, .015), new THREE.MeshStandardMaterial({ color: "#30383e", roughness: .94, metalness: .02, side: THREE.DoubleSide }));
@@ -242,7 +242,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       new THREE.CircleGeometry(1, 32),
       new THREE.MeshBasicMaterial({ color: 0x101914, transparent: true, opacity: 0.28, depthWrite: false }),
     );
-    groundShadow.rotation.x = Math.PI / 2;
+    groundShadow.rotation.x = -Math.PI / 2;
     groundShadow.scale.set(1.25, 2.05, 1);
     groundShadow.position.y = 0.028;
     scene.add(groundShadow);
