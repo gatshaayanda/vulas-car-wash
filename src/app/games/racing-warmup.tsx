@@ -167,7 +167,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.lateralVelocity += (lateralTarget - race.lateralVelocity) * (2.6 + lateralGrip * 2.2) * dt;
         race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -1.55, 1.55);
 
-        const demand = Math.abs(steering) * speedRatio * (0.62 + bend * 0.55) + race.brakePressure * 0.12 + race.throttle * speedRatio * 0.1;
         race.drift = clamp(excessSteering * Math.sign(steering || trackTurn) * 1.65 + race.lateralVelocity * 0.28, -1, 1);
         if (Math.abs(race.lateral) > 0.82) {
           race.speed = Math.max(0, race.speed - (28 + Math.abs(race.lateral) * 18) * dt);
