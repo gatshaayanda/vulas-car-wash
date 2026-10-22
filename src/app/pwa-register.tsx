@@ -8,6 +8,12 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
+declare global {
+  interface Window {
+    __vulaInstallPrompt?: Event;
+  }
+}
+
 export default function PwaRegister() {
   const [offline, setOffline] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
@@ -39,6 +45,12 @@ export default function PwaRegister() {
     window.addEventListener("offline", offlineNow);
     // This is the same native install-event lifecycle used by Africhiko.
     window.addEventListener("beforeinstallprompt", installPrompt);
+    // The layout captures this event before React hydrates, so Chrome cannot race the effect listener.
+    if (window.__vulaInstallPrompt) {
+      const capturedPrompt = window.__vulaInstallPrompt;
+      delete window.__vulaInstallPrompt;
+      installPrompt(capturedPrompt);
+    }
 
     let registration: ServiceWorkerRegistration | null = null;
     const inspect = () => {
