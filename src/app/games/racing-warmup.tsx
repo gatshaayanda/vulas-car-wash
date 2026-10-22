@@ -179,25 +179,30 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
 
         // Gentle edge response replaces repeated instant crash/respawn loops.
         if (trackDistance > 7.2) {
-          race.speed = Math.max(0, race.speed - (trackDistance > 10 ? 34 : 16) * dt);
+          race.speed = Math.max(0, race.speed - (trackDistance > 8.2 ? 28 : 16) * dt);
           race.lapInvalid = true;
           race.offTrack += dt;
         } else {
           race.offTrack = Math.max(0, race.offTrack - dt * 1.8);
         }
-        if (trackDistance > 11.5 && race.offTrack > 3.8) {
-          const nearest = track.getPointAt(nearestT);
-          const tangent = track.getTangentAt(nearestT).normalize();
-          const sideX = -tangent.z, sideZ = tangent.x;
-          const sideDistance = (race.worldX - nearestX) * sideX + (race.worldZ - nearestZ) * sideZ;
-          const safeSide = Math.sign(sideDistance || 1);
-          race.worldX = nearest.x + sideX * safeSide * 5.2;
-          race.worldZ = nearest.z + sideZ * safeSide * 5.2;
-          race.heading = Math.atan2(-tangent.x, -tangent.z);
-          race.speed = Math.min(race.speed, 38);
-          race.offTrack = 0;
-          race.lapInvalid = true;
-          notify("Back on the circuit — build speed again.", "info");
+
+        // Soft barrier collision: prevent the car from disappearing into the
+        // scenery, reflect outward momentum, and let the player recover without
+        // a forced crash animation or repeated respawn.
+        if (trackDistance > 8.2) {
+          const nx = (race.worldX - nearestX) / trackDistance;
+          const nz = (race.worldZ - nearestZ) / trackDistance;
+          race.worldX = nearestX + nx * 8.2;
+          race.worldZ = nearestZ + nz * 8.2;
+          const velocityX = -Math.sin(race.heading);
+          const velocityZ = -Math.cos(race.heading);
+          const outwardSpeed = velocityX * nx + velocityZ * nz;
+          if (outwardSpeed > 0) {
+            const reflectedX = velocityX - 1.45 * outwardSpeed * nx;
+            const reflectedZ = velocityZ - 1.45 * outwardSpeed * nz;
+            race.heading = Math.atan2(-reflectedX, -reflectedZ);
+            race.speed *= 0.72;
+          }
         }
         race.drift = clamp(-race.steering * speedRatio * .75, -1, 1);
         race.elapsed += dt;
