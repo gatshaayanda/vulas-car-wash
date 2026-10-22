@@ -133,45 +133,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     const track = createRacingTrack();
     const road = new THREE.Mesh(ribbon(track, 12, 600, .015), new THREE.MeshStandardMaterial({ color: "#30383e", roughness: .94, metalness: .02, side: THREE.DoubleSide }));
     road.receiveShadow = true; scene.add(road);
-    // Recommended racing line: green = build speed, amber = prepare/lift, red = brake.
-    // It follows the circuit curvature instead of being a decorative straight stripe.
-    const linePositions: number[] = [];
-    const lineColors: number[] = [];
-    const lineIndices: number[] = [];
-    const greenLine = new THREE.Color("#8cf06a");
-    const amberLine = new THREE.Color("#ffd45c");
-    const redLine = new THREE.Color("#ff6258");
-    const lineSamples = 720;
-    for (let i = 0; i <= lineSamples; i++) {
-      const t = i / lineSamples;
-      const p = track.getPointAt(t);
-      const tangent = track.getTangentAt(t).normalize();
-      const before = track.getTangentAt((t - .004 + 1) % 1).normalize();
-      const after = track.getTangentAt((t + .004) % 1).normalize();
-      const turn = getTrackTurn(track, t, .004);
-      const bend = clamp(Math.abs(turn) * 28, 0, 1);
-      const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-      // Offset slightly toward the inside of the bend to suggest the apex line.
-      const offset = clamp(turn * 20, -2.05, 2.05);
-      const x = p.x + side.x * offset, z = p.z + side.z * offset;
-      linePositions.push(x - side.x * .13, .075, z - side.z * .13, x + side.x * .13, .075, z + side.z * .13);
-      const color = bend > .72 ? redLine : bend > .38 ? amberLine : greenLine;
-      lineColors.push(color.r, color.g, color.b, color.r, color.g, color.b);
-      if (i < lineSamples) {
-        const a = i * 2;
-        lineIndices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-      }
-    }
-    const lineGeometry = new THREE.BufferGeometry();
-    lineGeometry.setAttribute("position", new THREE.Float32BufferAttribute(linePositions, 3));
-    lineGeometry.setAttribute("color", new THREE.Float32BufferAttribute(lineColors, 3));
-    lineGeometry.setIndex(lineIndices);
-    lineGeometry.computeVertexNormals();
-    const racingLine = new THREE.Mesh(lineGeometry, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
-    racingLine.position.y = .018;
-    scene.add(racingLine);
-
-    // Fixed visual references before significant bends: brake board, turn-in chevrons and apex beacon.
+// Fixed visual references before significant bends: brake board, turn-in chevrons and apex beacon.
     let lastBoardAt = -1;
     for (let i = 0; i < 180; i++) {
       const t = i / 180;
