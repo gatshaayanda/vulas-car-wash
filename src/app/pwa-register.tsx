@@ -26,7 +26,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
   const [offline, setOffline] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
   const installPromptRef = useRef<InstallPromptEvent | null>(null);
-  const [installState, setInstallState] = useState<InstallState>(initialEmbedded ? "embedded" : "native");
+  const [installState, setInstallState] = useState<InstallState>(initialEmbedded ? "embedded" : "hidden");
   const [installDismissed, setInstallDismissed] = useState(false);
   const [updateReady, setUpdateReady] = useState<ServiceWorker | null>(null);
   const [embeddedAndroid, setEmbeddedAndroid] = useState(initialEmbedded && initialAndroid);
