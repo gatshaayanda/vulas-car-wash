@@ -168,3 +168,5 @@
  .warmup-circuit-controls .steer-button{min-height:64px}
  .warmup-circuit-controls .warmup-driving button{font-size:10px;padding:7px 3px}
 }
+
+/* Fresh commit to retrigger the preview for mobile racing-controls QA; gameplay logic unchanged. */
