@@ -84,7 +84,7 @@ function makeCar() {
     new THREE.ConeGeometry(.22, 1.05, 10),
     new THREE.MeshBasicMaterial({ color: "#54dfff", transparent: true, opacity: .88 })
   );
-  flame.rotation.x = -Math.PI / 2;
+  flame.rotation.x = Math.PI / 2;
   flame.position.set(0, .45, 2.35);
   flame.visible = false;
   car.add(flame);
@@ -128,7 +128,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     scene.add(sun);
 
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshStandardMaterial({ color: "#628653", roughness: 1 }));
-    ground.rotation.x = -Math.PI / 2; ground.position.y = -.12; ground.receiveShadow = true; scene.add(ground);
+    ground.rotation.x = Math.PI / 2; ground.position.y = -.12; ground.receiveShadow = true; scene.add(ground);
 
     const track = createRacingTrack();
     const road = new THREE.Mesh(ribbon(track, 12, 600, .015), new THREE.MeshStandardMaterial({ color: "#30383e", roughness: .94, metalness: .02, side: THREE.DoubleSide }));
@@ -242,7 +242,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       new THREE.CircleGeometry(1, 32),
       new THREE.MeshBasicMaterial({ color: 0x101914, transparent: true, opacity: 0.28, depthWrite: false }),
     );
-    groundShadow.rotation.x = -Math.PI / 2;
+    groundShadow.rotation.x = Math.PI / 2;
     groundShadow.scale.set(1.25, 2.05, 1);
     groundShadow.position.y = 0.028;
     scene.add(groundShadow);
@@ -288,13 +288,13 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
             new THREE.ConeGeometry(.2, .9, 10),
             new THREE.MeshBasicMaterial({ color: "#42dfff", transparent: true, opacity: .9 })
           );
-          outerFlame.rotation.x = -Math.PI / 2;
+          outerFlame.rotation.x = Math.PI / 2;
           outerFlame.position.set(0, .38, 1.72);
           const innerFlame = new THREE.Mesh(
             new THREE.ConeGeometry(.105, .55, 8),
             new THREE.MeshBasicMaterial({ color: "#ffb23d", transparent: true, opacity: .96 })
           );
-          innerFlame.rotation.x = -Math.PI / 2;
+          innerFlame.rotation.x = Math.PI / 2;
           innerFlame.position.set(0, .38, 1.92);
           flameGroup.add(outerFlame, innerFlame);
           flameGroup.visible = false;
