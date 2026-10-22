@@ -121,20 +121,3 @@
 .slip-track{height:6px;overflow:hidden;border-radius:99px;background:#e5eadd}
 .slip-track span{display:block;height:100%;border-radius:inherit;background:#e6b347;transition:width .1s linear}
 .slip-track.danger span{background:#df5b4f}
-
-
-/* Cleaner mobile-first racing UI: scene-led feedback, no permanent coach/guide panels. */
-.warmup-line-legend,.warmup-engineer{display:none!important}
-.warmup-signal-chip{position:absolute;z-index:3;top:12px;left:12px;display:flex;align-items:center;gap:8px;max-width:calc(100% - 24px);padding:8px 11px;border:1px solid #ffffff48;border-radius:9px;background:#10251fd9;color:#f7f8f3;font-size:10px;font-weight:900;letter-spacing:.08em;box-shadow:0 4px 16px #07140e30;pointer-events:none}
-.warmup-signal-chip span{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:#a9e85b;box-shadow:0 0 0 3px #a9e85b25}
-.warmup-signal-chip.turn span{background:#ffd05a;box-shadow:0 0 0 3px #ffd05a25}.warmup-signal-chip.brake span{background:#ff7769;box-shadow:0 0 0 3px #ff776925}
-.warmup-toast{position:absolute;z-index:4;left:12px;bottom:12px;max-width:calc(100% - 24px);padding:9px 12px;border:1px solid #ffffff45;border-radius:9px;background:#14241fdf;color:#f7f8f3;font-size:11px;font-weight:700;line-height:1.35;box-shadow:0 4px 16px #07140e30;pointer-events:none;animation:warmup-toast-in .16s ease-out}
-.warmup-toast.success{border-left:3px solid #a9e85b}.warmup-toast.info{border-left:3px solid #ffd05a}.warmup-toast.error{border-left:3px solid #ff7769}
-@keyframes warmup-toast-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-@media(max-width:640px){
- .warmup-circuit-hud{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:8px}.warmup-circuit-hud>div{padding:8px 10px;gap:3px}.warmup-circuit-hud span{font-size:9px}.warmup-circuit-hud strong{font-size:20px}
- .warmup-circuit-wrap{height:clamp(330px,48svh,430px);min-height:330px}.warmup-nos{margin:8px 0 2px;padding:8px 10px}
- .warmup-circuit-controls{margin-top:9px;grid-template-columns:78px minmax(0,1fr);gap:8px}.warmup-circuit-controls .warmup-steering .warmup-wheel{width:76px;height:76px;min-width:76px;min-height:76px}
- .warmup-circuit-controls .warmup-driving{gap:5px}.warmup-circuit-controls .warmup-driving button{min-height:54px;font-size:10px}.warmup-circuit-controls .warmup-actions{margin-top:2px}.warmup-help{font-size:10px;margin-top:8px}
- .warmup-signal-chip{top:8px;left:8px;padding:7px 9px;font-size:9px}.warmup-toast{left:8px;bottom:8px;max-width:calc(100% - 16px);font-size:10px}
-}
