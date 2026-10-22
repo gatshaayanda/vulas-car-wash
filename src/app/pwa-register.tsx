@@ -51,15 +51,12 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     };
 
     const onBeforeInstallPrompt = (event: Event) => {
-      // Match Africhiko: only show the install card when the browser supplies a real prompt.
-      const current = environment();
-      if (current.standalone) return;
+      // Match Africhiko's handler exactly: capture every real browser event,
+      // prevent the browser's automatic prompt, then reveal the branded card.
       event.preventDefault();
       const prompt = event as InstallPromptEvent;
       installPromptRef.current = prompt;
       setInstallState("native");
-      // Retain the one-shot native event for the user's explicit Install click.
-      // Do not interrupt page load with a second, custom install screen.
     };
 
     window.addEventListener("online", online);
