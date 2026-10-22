@@ -74,6 +74,10 @@ npm run build
 
 GitHub Actions runs the type check, lint, identity/PWA verification and production build on pushes to `main`. Passing CI does not mean Firebase rules were published or a production deployment was verified.
 
+### PWA install event ownership
+
+The branded install card in `src/app/pwa-register.tsx` must be the single owner of the `beforeinstallprompt` event: capture the real event, prevent the automatic browser banner, and invoke that same event's `prompt()` directly from the user's Install-button click. Do not add a second early listener in `layout.tsx` or introduce a fake prompt. The install runtime is protected; change it only when explicitly authorized.
+
 ## QA checklist
 
 - Confirm customer navigation has no Staff item and the homepage has no unrequested Gallery section.
