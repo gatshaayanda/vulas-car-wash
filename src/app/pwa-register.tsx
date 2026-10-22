@@ -8,12 +8,6 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
-declare global {
-  interface Window {
-    __vulaInstallPrompt?: Event;
-  }
-}
-
 export default function PwaRegister() {
   const [offline, setOffline] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
@@ -36,7 +30,6 @@ export default function PwaRegister() {
     };
     const installPrompt = (event: Event) => {
       event.preventDefault();
-      if (window.__vulaInstallPrompt === event) delete window.__vulaInstallPrompt;
       setDeferredPrompt(event as BeforeInstallPromptEvent);
       setInstallCardDismissed(false);
       setInstallable(true);
@@ -44,14 +37,9 @@ export default function PwaRegister() {
 
     window.addEventListener("online", online);
     window.addEventListener("offline", offlineNow);
-    // This is the same native install-event lifecycle used by Africhiko.
+    // Match Africhiko: capture the genuine browser event in this component,
+    // suppress the automatic prompt, and reveal the branded card for the user.
     window.addEventListener("beforeinstallprompt", installPrompt);
-    // The layout captures this event before React hydrates, so Chrome cannot race the effect listener.
-    if (window.__vulaInstallPrompt) {
-      const capturedPrompt = window.__vulaInstallPrompt;
-      delete window.__vulaInstallPrompt;
-      installPrompt(capturedPrompt);
-    }
 
     let registration: ServiceWorkerRegistration | null = null;
     const inspect = () => {
@@ -115,4 +103,3 @@ export default function PwaRegister() {
     {updateReady && <div className="pwaUpdate" role="status" aria-live="polite"><div><strong>Vula's Car Wash update is ready</strong><span>Refresh when you are ready.</span></div><button type="button" className="button buttonPrimary" onClick={applyUpdate}>Refresh</button></div>}
   </>;
 }
-
