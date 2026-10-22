@@ -8,12 +8,6 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
-declare global {
-  interface Window {
-    __vulaInstallPrompt?: BeforeInstallPromptEvent | null;
-  }
-}
-
 export default function PwaRegister() {
   const [offline, setOffline] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
@@ -25,14 +19,6 @@ export default function PwaRegister() {
 
   useEffect(() => {
     setOffline(!navigator.onLine);
-    // Recover an event captured before React hydration, so the install card
-    // cannot be missed on a fast browser / slower application bundle.
-    const earlyPrompt = window.__vulaInstallPrompt;
-    if (earlyPrompt) {
-      setDeferredPrompt(earlyPrompt);
-      setInstallCardDismissed(false);
-      setInstallable(true);
-    }
 
     const online = () => {
       setOffline(false);
@@ -43,11 +29,11 @@ export default function PwaRegister() {
       setReconnecting(false);
       setOffline(true);
     };
+    // Match Africhiko: intercept Chrome's automatic banner and retain the
+    // real browser event for the branded Install button to invoke.
     const installPrompt = (event: Event) => {
       event.preventDefault();
-      const prompt = event as BeforeInstallPromptEvent;
-      window.__vulaInstallPrompt = prompt;
-      setDeferredPrompt(prompt);
+      setDeferredPrompt(event as BeforeInstallPromptEvent);
       setInstallCardDismissed(false);
       setInstallable(true);
     };
@@ -61,7 +47,7 @@ export default function PwaRegister() {
       if (registration?.waiting && navigator.serviceWorker.controller) setUpdateReady(registration.waiting);
     };
     const register = async () => {
-      if (!("serviceWorker" in navigator)) return;
+      if (!( "serviceWorker" in navigator)) return;
       try {
         registration = await navigator.serviceWorker.register("/sw.js");
         inspect();
@@ -90,10 +76,9 @@ export default function PwaRegister() {
   async function install() {
     const prompt = deferredPrompt;
     if (!prompt) return;
-    // Invoke Chrome's real prompt directly from the branded button click.
+    // Invoke the genuine browser prompt directly from the customer's click.
     await prompt.prompt();
     await prompt.userChoice;
-    window.__vulaInstallPrompt = null;
     setDeferredPrompt(null);
     setInstallable(false);
   }
