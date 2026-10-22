@@ -150,30 +150,28 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // circuit only changes the reference tangent as the car advances; it no longer
         // drags the car around the loop when the player is not steering.
         const progressDelta = race.speed * Math.max(0.15, Math.cos(race.heading)) * dt / 4200;
-        const yawResponse = (0.18 + speedRatio * 0.58) * (0.7 + grip * 0.3);
-        // Heading is the car's slip angle relative to the track tangent. Track
-        // curvature is already represented by the tangent, so subtracting it here
-        // makes the car point sideways on bends even after steering is released.
-        // Dampen heading toward the racing line while still allowing deliberate turns.
-        // Keep steering direction consistent with the on-screen LEFT/RIGHT controls.
-        // A faster self-centering rate prevents the car staying visibly yawed after release.
-        const headingReturn = 3.4 + speedRatio * 1.8;
+        // Direct arcade steering: the car must turn because the player steers,
+        // not because the circuit silently pulls it around. Keep yaw as a real,
+        // persistent direction change; tyre grip gradually settles small slip but
+        // never snaps the nose back to the track tangent while a turn is held.
+        const yawResponse = 0.72 + speedRatio * 1.35;
+        const headingReturn = 0.28 + (1 - grip) * 0.45;
         race.heading = clamp(
           race.heading + (-steering * yawResponse - race.heading * headingReturn) * dt,
-          -0.38,
-          0.38,
+          -0.95,
+          0.95,
         );
 
-        // Arcade lane control: steering directly requests lateral movement, while
-        // heading contributes only a small slip component. This avoids the old
-        // heading -> lateral velocity -> heading feedback that made turning feel stuck.
+        // The car now moves sideways primarily because it is pointing across the
+        // track. This is what makes steering visibly change the driving line instead
+        // of merely nudging the car between invisible lanes.
         const trackLength = trackRef.current!.getLength();
-        const steeringLateral = -steering * (0.055 + speedRatio * 0.19);
-        const slipLateral = -Math.sin(race.heading) * race.speed * trackLength / (4200 * 38) * 0.22;
-        const lateralTarget = steeringLateral + slipLateral;
-        const lateralGrip = clamp(grip - excessSteering * 0.5, 0.18, 1);
-        race.lateralVelocity += (lateralTarget - race.lateralVelocity) * (3.8 + lateralGrip * 2.8) * dt;
-        race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -1.55, 1.55);
+        const headingLateral = -Math.sin(race.heading) * (0.25 + speedRatio * 1.05);
+        const steeringLateral = -steering * speedRatio * 0.10;
+        const lateralTarget = headingLateral + steeringLateral;
+        const lateralGrip = clamp(grip - excessSteering * 0.5, 0.12, 1);
+        race.lateralVelocity += (lateralTarget - race.lateralVelocity) * (2.0 + lateralGrip * 1.8) * dt;
+        race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -1.9, 1.9);
 
         race.drift = clamp(excessSteering * Math.sign(steering || trackTurn) * 1.65 + race.lateralVelocity * 0.28, -1, 1);
         if (Math.abs(race.lateral) > 1.08) {
