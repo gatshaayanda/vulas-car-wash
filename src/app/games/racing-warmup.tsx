@@ -315,4 +315,4 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   </div>;
 }
 
-// Keep this gameplay-only branch easy to redeploy for QA; no install flow changes here.
+// QA redeploy checkpoint: gameplay-only changes; the protected install flow remains untouched.
