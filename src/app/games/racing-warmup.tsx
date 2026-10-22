@@ -150,9 +150,17 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // circuit only changes the reference tangent as the car advances; it no longer
         // drags the car around the loop when the player is not steering.
         const progressDelta = race.speed * Math.max(0.15, Math.cos(race.heading)) * dt / 4200;
-        const curveAngle = trackTurn * progressDelta / 0.012;
         const yawResponse = (0.18 + speedRatio * 0.58) * (0.7 + grip * 0.3);
-        race.heading = clamp(race.heading + steering * yawResponse * dt - curveAngle, -0.72, 0.72);
+        // Heading is the car's slip angle relative to the track tangent. Track
+        // curvature is already represented by the tangent, so subtracting it here
+        // makes the car point sideways on bends even after steering is released.
+        // Dampen heading toward the racing line while still allowing deliberate turns.
+        const headingReturn = 1.05 + speedRatio * 1.25;
+        race.heading = clamp(
+          race.heading + (steering * yawResponse - race.heading * headingReturn) * dt,
+          -0.62,
+          0.62,
+        );
 
         // Heading carries the car across the road; tyre grip and speed determine
         // how quickly lateral momentum settles. Steering into a bend can therefore
