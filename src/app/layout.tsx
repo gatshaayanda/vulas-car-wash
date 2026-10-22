@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import PwaRegister from "@/app/pwa-register";
@@ -32,5 +33,13 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: "#c6f36b", colorScheme: "light" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><PwaRegister />{children}<Analytics /><SpeedInsights /></body></html>;
+  return <html lang="en"><body>
+    <Script id="vula-early-install-capture" strategy="beforeInteractive">{\`
+      window.addEventListener("beforeinstallprompt", function (event) {
+        event.preventDefault();
+        window.__vulaInstallPrompt = event;
+      });
+    \`}</Script>
+    <PwaRegister />{children}<Analytics /><SpeedInsights />
+  </body></html>;
 }
