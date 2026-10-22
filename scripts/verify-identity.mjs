@@ -11,7 +11,9 @@ for (const icon of ["vula-icon-180.png", "vula-icon-192.png", "vula-icon-512.png
 const appManifest = read("src/app/manifest.ts");
 if (!appManifest.includes("Vula's Car Wash") || appManifest.includes("Iteration 13")) failures.push("app manifest identity mismatch");
 const layout = read("src/app/layout.tsx");
-for (const text of ["Vula's Car Wash", "vula-early-install-capture", "__vulaInstallPrompt", "vula.css"]) if (!layout.includes(text)) failures.push("layout missing " + text);
+for (const text of ["Vula's Car Wash", "vula.css", "PwaRegister"]) if (!layout.includes(text)) failures.push("layout missing " + text);
+const pwaRegister = read("src/app/pwa-register.tsx");
+for (const text of ["beforeinstallprompt", "prompt.prompt()", "vula-install-card", "vula-install-close", "vula-install-action"]) if (!pwaRegister.includes(text)) failures.push("PWA install lifecycle missing " + text);
 const sw = read("public/sw.js");
 if (!/vula-shell-v\d+/.test(sw) || !sw.includes("/vula-icon.svg") || !sw.includes("/offline")) failures.push("service worker cache namespace, icon or offline shell missing");
 const home = read("src/app/page.tsx");
