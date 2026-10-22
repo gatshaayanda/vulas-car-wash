@@ -121,7 +121,12 @@ self.addEventListener("fetch", event => {
   if (url.pathname === "/manifest.webmanifest") {
     // Always refresh the install manifest from the network; use the cache only offline.
     event.respondWith(fetch(new Request(request, { cache: "no-store" })).then(response => {
-      if (response.ok) void caches.open(SHELL_CACHE).then(cache => cache.put(request, response.clone()));
+      // Clone before scheduling asynchronous cache work; the response may be consumed
+      // by the browser as soon as it is returned from this handler.
+      if (response.ok) {
+        const cacheCopy = response.clone();
+        void caches.open(SHELL_CACHE).then(cache => cache.put(request, cacheCopy));
+      }
       return response;
     }).catch(async () => (await caches.open(SHELL_CACHE)).match(request).then(response => response || Response.error())));
     return;
@@ -134,10 +139,14 @@ self.addEventListener("fetch", event => {
 
   if (isNavigation) {
     event.respondWith(fetch(request).then(response => {
-      if (response.ok) void caches.open(SHELL_CACHE).then(async cache => {
-        await cache.put(request, response.clone());
-        await trimCache(SHELL_CACHE, PUBLIC_PAGE_LIMIT + STATIC_LIMIT);
-      });
+      if (response.ok) {
+        // Response.clone() must run before handing the response back to the page.
+        const cacheCopy = response.clone();
+        void caches.open(SHELL_CACHE).then(async cache => {
+          await cache.put(request, cacheCopy);
+          await trimCache(SHELL_CACHE, PUBLIC_PAGE_LIMIT + STATIC_LIMIT);
+        });
+      }
       return response;
     }).catch(async () => {
       const cache = await caches.open(SHELL_CACHE);
