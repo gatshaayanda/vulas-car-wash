@@ -29,7 +29,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   if (!trackRef.current) trackRef.current = createRacingTrack();
   const controlsRef = useRef<Controls>({ steer: 0, accelerate: false, brake: false, boost: false });
   const phaseRef = useRef<Phase>("ready");
-  const wheelStart = useRef<number | null>(null);
   const [phase, setPhase] = useState<Phase>("ready");
   const [countdown, setCountdown] = useState(3);
   const [crashMessage, setCrashMessage] = useState("");
@@ -41,7 +40,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [signal, setSignal] = useState({ label: "GREEN LIGHT · BUILD SPEED", tone: "go" });
   const lastSignal = useRef("");
   const [boostActive, setBoostActive] = useState(false);
-  const [wheelRotation, setWheelRotation] = useState(0);
   const [toast, setToast] = useState<{ text: string; kind: "success" | "error" | "info" } | null>(null);
   const [businessName, setBusinessName] = useState("Vula's Car Wash");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -65,14 +63,14 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const reset = useCallback((start: boolean) => {
     raceRef.current = newRace();
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-    setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setBoostActive(false); setWheelRotation(0);
+    setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setBoostActive(false);
     setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
   }, []);
   const startRace = useCallback(() => reset(true), [reset]);
   const pauseRace = useCallback(() => {
     if (phaseRef.current === "running") {
       controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-      setBoostActive(false); setWheelRotation(0); phaseRef.current = "paused"; setPhase("paused");
+      setBoostActive(false); phaseRef.current = "paused"; setPhase("paused");
     } else if (phaseRef.current === "paused") {
       raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running");
     }
@@ -241,7 +239,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       if (e.key === "ArrowDown" || e.key.toLowerCase() === "s") controlsRef.current.brake = false;
       if (e.key === " " || e.key === "Shift") { controlsRef.current.boost = false; setBoostActive(false); }
     };
-    const release = () => { controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false }; setBoostActive(false); setWheelRotation(0); wheelStart.current = null; };
+    const release = () => { controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false }; setBoostActive(false); };
     window.addEventListener("keydown", keyDown); window.addEventListener("keyup", keyUp); window.addEventListener("blur", release);
     return () => { window.removeEventListener("keydown", keyDown); window.removeEventListener("keyup", keyUp); window.removeEventListener("blur", release); };
   }, [pauseRace, embedded, expanded]);
