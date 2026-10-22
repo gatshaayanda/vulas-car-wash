@@ -314,3 +314,5 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     {!embedded && <footer className="vula-footer"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></Link><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></footer>}
   </div>;
 }
+
+// Keep this gameplay-only branch easy to redeploy for QA; no install flow changes here.
