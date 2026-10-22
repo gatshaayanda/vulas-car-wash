@@ -50,6 +50,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
       setOffline(true);
     };
 
+    // Only this real browser event can unlock the branded native-install card.
     const onBeforeInstallPrompt = (event: Event) => {
       const current = environment();
       if (current.standalone) return;
