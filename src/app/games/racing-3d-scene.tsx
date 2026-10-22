@@ -358,16 +358,19 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
         .02 + Math.sin(clock.elapsedTime * 17) * Math.min(.035, race.speed / 5000),
         position.z + side.z * carOffset
       );
+      // The body and chase camera follow the simulated heading, not just the
+      // circuit tangent, so a slide or missed corner is visible to the player.
+      const forward = new THREE.Vector3(
+        tangent.x * Math.cos(race.heading) + tangent.z * Math.sin(race.heading),
+        0,
+        -tangent.x * Math.sin(race.heading) + tangent.z * Math.cos(race.heading),
+      ).normalize();
       car.position.copy(carWorld);
-      car.rotation.y = Math.atan2(-tangent.x, -tangent.z) + race.steering * -.045;
+      car.rotation.y = Math.atan2(-tangent.x, -tangent.z) + race.heading;
       assetCar.position.copy(car.position);
       assetCar.rotation.copy(car.rotation);
-      // Follow the car itself, not the circuit centreline: otherwise a wide steering
-      // input can leave the car outside the camera frame on mobile.
-      const cameraTarget = new THREE.Vector3(carWorld.x + tangent.x * 10, 1.25, carWorld.z + tangent.z * 10);
-      const cameraPosition = new THREE.Vector3(carWorld.x - tangent.x * 8.4, 4.7, carWorld.z - tangent.z * 8.4);
-      cameraPosition.x += side.x * race.steering * .22;
-      cameraPosition.z += side.z * race.steering * .22;
+      const cameraTarget = new THREE.Vector3(carWorld.x + forward.x * 10, 1.25, carWorld.z + forward.z * 10);
+      const cameraPosition = new THREE.Vector3(carWorld.x - forward.x * 8.4, 4.7, carWorld.z - forward.z * 8.4);
       const frameDelta = Math.min(clock.getDelta(), .05);
       camera.position.lerp(cameraPosition, 1 - Math.exp(-frameDelta * 5.5));
       camera.lookAt(cameraTarget);
