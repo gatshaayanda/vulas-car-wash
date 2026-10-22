@@ -73,9 +73,11 @@ export default function PwaRegister() {
   }, []);
 
   async function install() {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
+    const prompt = deferredPrompt;
+    if (!prompt) return;
+    // Keep this direct native call inside the branded button's user gesture.
+    await prompt.prompt();
+    await prompt.userChoice;
     setDeferredPrompt(null);
     setInstallable(false);
   }
