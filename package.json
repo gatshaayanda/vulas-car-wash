@@ -22,7 +22,6 @@
     "server-only": "^0.0.1",
     "@uploadthing/react": "^7.3.2",
     "uploadthing": "^7.7.3",
-    "three": "^0.180.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -35,7 +34,6 @@
     "eslint-config-next": "^15.5.15",
     "postcss": "^8.5.4",
     "tailwindcss": "^4.1.8",
-    "typescript": "^5",
-    "@types/three": "^0.180.0"
+    "typescript": "^5"
   }
 }
