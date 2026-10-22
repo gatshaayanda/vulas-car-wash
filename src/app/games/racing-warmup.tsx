@@ -188,10 +188,11 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           setCrashMessage("CRASH! Recovering to the pit lane…");
           setPhase("crashed");
           setEngineer("Impact detected. Pit crew is bringing you back out; this lap won't count.");
+          raf = window.requestAnimationFrame(frame);
           return;
         }
 
-        race.progress = wrap(race.progress + progressDelta, 1);
+        race.progress += progressDelta;
         race.elapsed += dt;
         race.lapTime += dt;
         const lapNow = Math.floor(race.progress) + 1;
