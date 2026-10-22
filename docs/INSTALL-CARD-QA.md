@@ -9,3 +9,5 @@ Expected Chrome behavior for Vula's Car Wash:
 - Keep this change isolated from the racing game and its controls.
 
 QA must still confirm the native prompt on a supported browser/device. GitHub quality checks are not a substitute for that browser test.
+
+Preview retrigger commit: `chore: retrigger install card preview`.
