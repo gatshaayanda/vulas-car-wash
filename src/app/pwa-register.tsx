@@ -103,6 +103,3 @@ export default function PwaRegister() {
   </>;
 }
 
-declare global {
-  interface Window {}
-}
