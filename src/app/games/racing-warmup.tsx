@@ -155,20 +155,24 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // curvature is already represented by the tangent, so subtracting it here
         // makes the car point sideways on bends even after steering is released.
         // Dampen heading toward the racing line while still allowing deliberate turns.
-        const headingReturn = 1.05 + speedRatio * 1.25;
+        // Keep steering direction consistent with the on-screen LEFT/RIGHT controls.
+        // A faster self-centering rate prevents the car staying visibly yawed after release.
+        const headingReturn = 3.4 + speedRatio * 1.8;
         race.heading = clamp(
-          race.heading + (steering * yawResponse - race.heading * headingReturn) * dt,
-          -0.62,
-          0.62,
+          race.heading + (-steering * yawResponse - race.heading * headingReturn) * dt,
+          -0.38,
+          0.38,
         );
 
-        // Heading carries the car across the road; tyre grip and speed determine
-        // how quickly lateral momentum settles. Steering into a bend can therefore
-        // follow it, cut across it, or run wide if the player carries too much speed.
+        // Arcade lane control: steering directly requests lateral movement, while
+        // heading contributes only a small slip component. This avoids the old
+        // heading -> lateral velocity -> heading feedback that made turning feel stuck.
         const trackLength = trackRef.current!.getLength();
-        const lateralTarget = -Math.sin(race.heading) * race.speed * trackLength / (4200 * 38);
+        const steeringLateral = -steering * (0.055 + speedRatio * 0.19);
+        const slipLateral = -Math.sin(race.heading) * race.speed * trackLength / (4200 * 38) * 0.22;
+        const lateralTarget = steeringLateral + slipLateral;
         const lateralGrip = clamp(grip - excessSteering * 0.5, 0.18, 1);
-        race.lateralVelocity += (lateralTarget - race.lateralVelocity) * (2.6 + lateralGrip * 2.2) * dt;
+        race.lateralVelocity += (lateralTarget - race.lateralVelocity) * (3.8 + lateralGrip * 2.8) * dt;
         race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -1.55, 1.55);
 
         race.drift = clamp(excessSteering * Math.sign(steering || trackTurn) * 1.65 + race.lateralVelocity * 0.28, -1, 1);
