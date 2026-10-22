@@ -12,6 +12,12 @@ type InstallPromptEvent = Event & {
 };
 type InstallState = "hidden" | "native" | "embedded";
 
+declare global {
+  interface Window {
+    __vulaInstallPrompt?: InstallPromptEvent | null;
+  }
+}
+
 function environment() {
   if (typeof window === "undefined") return { standalone: true, android: false, embedded: false };
   const ua = navigator.userAgent || "";
@@ -56,6 +62,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
       event.preventDefault();
       const prompt = event as InstallPromptEvent;
       installPromptRef.current = prompt;
+      window.__vulaInstallPrompt = prompt;
       setInstallState("native");
       // Retain the one-shot native event for the user's explicit Install click.
       // Do not interrupt page load with a second, custom install screen.
@@ -66,6 +73,13 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     // Match Africhiko's proven lifecycle: prevent the browser's automatic prompt,
     // retain its real one-shot event, and reveal the branded card for the user's click.
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    const captureStoredPrompt = () => {
+      const prompt = window.__vulaInstallPrompt;
+      if (prompt) onBeforeInstallPrompt(prompt);
+    };
+    window.addEventListener("vula-install-prompt-captured", captureStoredPrompt);
+    // The inline layout capture runs before React hydrates; adopt an event it caught early.
+    captureStoredPrompt();
 
     if (env.standalone && !embedded) {
       setInstallState("hidden");
@@ -91,6 +105,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
     };
     const appInstalled = () => {
       installPromptRef.current = null;
+      window.__vulaInstallPrompt = null;
       setInstallState("hidden");
     };
     window.addEventListener("vula-open-install", requestInstall);
@@ -125,6 +140,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
       window.removeEventListener("online", online);
       window.removeEventListener("offline", off);
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+      window.removeEventListener("vula-install-prompt-captured", captureStoredPrompt);
       navigator.serviceWorker?.removeEventListener("controllerchange", controllerChange);
     };
   }, [initialEmbedded, initialAndroid]);
@@ -171,6 +187,7 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
       // The browser owns the native prompt and may dismiss it.
     } finally {
       installPromptRef.current = null;
+      window.__vulaInstallPrompt = null;
       setInstallState("hidden");
     }
   }
