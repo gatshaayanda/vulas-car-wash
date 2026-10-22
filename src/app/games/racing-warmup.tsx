@@ -12,11 +12,12 @@ export type Controls = { steer: number; accelerate: boolean; brake: boolean; boo
 export type Race = {
   progress: number; speed: number; elapsed: number; lap: number; lapTime: number; steering: number; throttle: number; brakePressure: number;
   bestLap: number | null; lateral: number; lateralVelocity: number; heading: number; drift: number;
+  worldX: number; worldZ: number; trackT: number;
   nos: number; last: number; lapInvalid: boolean; offTrack: number;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0 });
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: -Math.PI / 2, drift: 0, worldX: 0, worldZ: 72, trackT: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -123,80 +124,84 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const steerEase = 1 - Math.exp(-dt * (Math.abs(controls.steer) > Math.abs(race.steering) ? 7.5 : 4.5));
         race.steering += (controls.steer - race.steering) * steerEase;
         const steering = race.steering;
-        const t = wrap(race.progress, 1);
-        const trackTurn = getTrackTurn(trackRef.current!, t, .006);
+        const t = wrap(race.trackT, 1);
+        const track = trackRef.current!;
+        const trackTurn = getTrackTurn(track, t, .006);
         const bend = clamp(Math.abs(trackTurn) * 28, 0, 1);
-        const upcomingTurn = getTrackTurn(trackRef.current!, t + .018, .006);
+        const upcomingTurn = getTrackTurn(track, t + .018, .006);
         const upcomingBend = clamp(Math.abs(upcomingTurn) * 28, 0, 1);
-        const speedRatio = race.speed / 205;
+        const speedRatio = clamp(race.speed / 205, 0, 1.25);
         const throttleTarget = controls.accelerate && !controls.brake ? 1 : 0;
         const brakeTarget = controls.brake ? 1 : 0;
-        // Pedals have their own response curves so keyboard/touch inputs do not make
-        // engine torque jump between frames. Brake pressure builds more quickly than throttle.
-        race.throttle += (throttleTarget - race.throttle) * (1 - Math.exp(-dt * (throttleTarget ? 3.8 : 6.5)));
-        race.brakePressure += (brakeTarget - race.brakePressure) * (1 - Math.exp(-dt * (brakeTarget ? 11 : 7)));
+        race.throttle += (throttleTarget - race.throttle) * (1 - Math.exp(-dt * (throttleTarget ? 4.8 : 7)));
+        race.brakePressure += (brakeTarget - race.brakePressure) * (1 - Math.exp(-dt * (brakeTarget ? 12 : 7)));
         const boost = controls.boost && race.nos > 0 && !controls.brake;
-        const acceleration = 112 * race.throttle;
-        const braking = 205 * race.brakePressure;
-        race.speed = clamp(race.speed + (acceleration - race.speed * 0.145 - braking + (boost ? 76 : 0)) * dt, 0, boost ? 250 : 205);
-        race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
+        const acceleration = 138 * race.throttle;
+        const braking = 245 * race.brakePressure;
+        race.speed = clamp(race.speed + (acceleration - race.speed * 0.19 - braking + (boost ? 95 : 0)) * dt, 0, boost ? 250 : 205);
+        race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 5 : 10) * dt);
         if (race.nos <= 0 && controls.boost) { controls.boost = false; setBoostActive(false); }
-        const grip = 1.12 - speedRatio * 0.10 - bend * speedRatio * 0.045 - race.brakePressure * 0.025;
-        const excessSteering = Math.max(0, Math.abs(steering) * speedRatio * (0.42 + bend * 0.42) - grip);
-        const corneringLoss = excessSteering * (24 + race.speed * 0.065);
-        if (excessSteering > 0) race.speed = Math.max(0, race.speed - corneringLoss * dt);
 
-        // Arcade handling: steering rotates the car's actual travel direction. The
-        // circuit only changes the reference tangent as the car advances; it no longer
-        // drags the car around the loop when the player is not steering.
-        const progressDelta = race.speed * Math.max(0.15, Math.cos(race.heading)) * dt / 4200;
-        // Direct arcade steering: the car must turn because the player steers,
-        // not because the circuit silently pulls it around. Keep yaw as a real,
-        // persistent direction change; tyre grip gradually settles small slip but
-        // never snaps the nose back to the track tangent while a turn is held.
-        const yawResponse = 0.72 + speedRatio * 1.35;
-        const headingReturn = 0.28 + (1 - grip) * 0.45;
-        race.heading = clamp(
-          race.heading + (-steering * yawResponse - race.heading * headingReturn) * dt,
-          -0.95,
-          0.95,
-        );
+        // World-space arcade driving: the car owns its position and direction;
+        // the circuit is no longer a spline rail that dictates its movement.
+        const steerRate = 0.82 + speedRatio * 0.72;
+        race.heading += -race.steering * steerRate * dt;
+        const forwardX = -Math.sin(race.heading);
+        const forwardZ = -Math.cos(race.heading);
+        const travel = race.speed * 0.115 * dt;
+        race.worldX += forwardX * travel;
+        race.worldZ += forwardZ * travel;
 
-        // The car now moves sideways primarily because it is pointing across the
-        // track. This is what makes steering visibly change the driving line instead
-        // of merely nudging the car between invisible lanes.
-        const trackLength = trackRef.current!.getLength();
-        const headingLateral = -Math.sin(race.heading) * (0.25 + speedRatio * 1.05);
-        const steeringLateral = -steering * speedRatio * 0.10;
-        const lateralTarget = headingLateral + steeringLateral;
-        const lateralGrip = clamp(grip - excessSteering * 0.5, 0.12, 1);
-        race.lateralVelocity += (lateralTarget - race.lateralVelocity) * (2.0 + lateralGrip * 1.8) * dt;
-        race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -1.9, 1.9);
+        // Project onto the track only for lap timing and edge assistance. This
+        // does not pull the car back to the racing line.
+        let nearestT = race.trackT;
+        let nearestX = 0;
+        let nearestZ = 0;
+        let nearestDistanceSq = Number.POSITIVE_INFINITY;
+        for (let i = 0; i < 240; i++) {
+          const sampleT = i / 240;
+          const point = track.getPointAt(sampleT);
+          const dx = race.worldX - point.x;
+          const dz = race.worldZ - point.z;
+          const distanceSq = dx * dx + dz * dz;
+          if (distanceSq < nearestDistanceSq) {
+            nearestDistanceSq = distanceSq;
+            nearestT = sampleT;
+            nearestX = point.x;
+            nearestZ = point.z;
+          }
+        }
+        const trackDistance = Math.sqrt(nearestDistanceSq);
+        const previousTrackT = race.trackT;
+        let progressDelta = nearestT - previousTrackT;
+        if (progressDelta < -0.5) progressDelta += 1;
+        else if (progressDelta > 0.5) progressDelta -= 1;
+        if (progressDelta > 0 && progressDelta < .035 && trackDistance < 13) race.progress += progressDelta;
+        race.trackT = nearestT;
 
-        race.drift = clamp(excessSteering * Math.sign(steering || trackTurn) * 1.65 + race.lateralVelocity * 0.28, -1, 1);
-        if (Math.abs(race.lateral) > 1.08) {
-          race.speed = Math.max(0, race.speed - (20 + Math.abs(race.lateral) * 12) * dt);
+        // Gentle edge response replaces repeated instant crash/respawn loops.
+        if (trackDistance > 7.2) {
+          race.speed = Math.max(0, race.speed - (trackDistance > 10 ? 34 : 16) * dt);
           race.lapInvalid = true;
           race.offTrack += dt;
         } else {
           race.offTrack = Math.max(0, race.offTrack - dt * 1.8);
         }
-
-        // Leaving the road for too long triggers a visible crash and automatic pit
-        // recovery. The lap is invalidated, but the practice session continues.
-        if ((race.offTrack > 2.35 && race.speed > 85) || (Math.abs(race.lateral) > 1.48 && race.speed > 175)) {
-          race.speed = 0;
-          race.heading = 0;
+        if (trackDistance > 11.5 && race.offTrack > 3.8) {
+          const nearest = track.getPointAt(nearestT);
+          const tangent = track.getTangentAt(nearestT).normalize();
+          const sideX = -tangent.z, sideZ = tangent.x;
+          const sideDistance = (race.worldX - nearestX) * sideX + (race.worldZ - nearestZ) * sideZ;
+          const safeSide = Math.sign(sideDistance || 1);
+          race.worldX = nearest.x + sideX * safeSide * 5.2;
+          race.worldZ = nearest.z + sideZ * safeSide * 5.2;
+          race.heading = Math.atan2(-tangent.x, -tangent.z);
+          race.speed = Math.min(race.speed, 38);
+          race.offTrack = 0;
           race.lapInvalid = true;
-          controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-          phaseRef.current = "crashed";
-          setCrashMessage("CRASH! Recovering to the pit lane…");
-          setPhase("crashed");
-          raf = window.requestAnimationFrame(frame);
-          return;
+          notify("Back on the circuit — build speed again.", "info");
         }
-
-        race.progress += progressDelta;
+        race.drift = clamp(-race.steering * speedRatio * .75, -1, 1);
         race.elapsed += dt;
         race.lapTime += dt;
         const lapNow = Math.floor(race.progress) + 1;
