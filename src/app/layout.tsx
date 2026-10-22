@@ -32,5 +32,5 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: "#c6f36b", colorScheme: "light" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><PwaRegister />{children}<Analytics /><SpeedInsights /></body></html>;
+  return <html lang="en"><body><script dangerouslySetInnerHTML={{ __html: "window.addEventListener(\u0027beforeinstallprompt\u0027,function(event){event.preventDefault();window.__vulaInstallPrompt=event;});" }} /><PwaRegister />{children}<Analytics /><SpeedInsights /></body></html>;
 }
