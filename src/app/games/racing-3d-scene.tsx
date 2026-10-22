@@ -238,6 +238,14 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     }
     const car = makeCar();
     scene.add(car);
+    const groundShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(1, 32),
+      new THREE.MeshBasicMaterial({ color: 0x101914, transparent: true, opacity: 0.28, depthWrite: false }),
+    );
+    groundShadow.rotation.x = -Math.PI / 2;
+    groundShadow.scale.set(1.25, 2.05, 1);
+    groundShadow.position.y = 0.028;
+    scene.add(groundShadow);
     const assetCar = new THREE.Group();
     scene.add(assetCar);
     assetCar.visible = false;
@@ -331,6 +339,9 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       car.rotation.y = Math.atan2(-tangent.x, -tangent.z) + race.heading;
       assetCar.position.copy(car.position);
       assetCar.rotation.copy(car.rotation);
+      groundShadow.position.x = carWorld.x;
+      groundShadow.position.z = carWorld.z;
+      groundShadow.rotation.z = -car.rotation.y;
       const cameraTarget = new THREE.Vector3(carWorld.x + forward.x * 10, 1.25, carWorld.z + forward.z * 10);
       const cameraPosition = new THREE.Vector3(carWorld.x - forward.x * 8.4, 4.7, carWorld.z - forward.z * 8.4);
       const frameDelta = Math.min(clock.getDelta(), .05);
