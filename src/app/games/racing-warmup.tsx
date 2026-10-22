@@ -126,7 +126,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const steering = race.steering;
         const t = wrap(race.trackT, 1);
         const track = trackRef.current!;
-        const trackTurn = getTrackTurn(track, t, .006);
         const upcomingTurn = getTrackTurn(track, t + .018, .006);
         const upcomingBend = clamp(Math.abs(upcomingTurn) * 28, 0, 1);
         const speedRatio = clamp(race.speed / 205, 0, 1.25);
