@@ -51,7 +51,7 @@ self.addEventListener("notificationclick", (event) => {
   }));
 });
 
-const CACHE_VERSION = "vula-shell-v1";
+const CACHE_VERSION = "vula-shell-v2";
 const MEDIA_CACHE = "vula-media-v1";
 const SHELL_CACHE = CACHE_VERSION;
 const STATIC_LIMIT = 100;
@@ -97,7 +97,7 @@ self.addEventListener("message", event => {
 self.addEventListener("activate", event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(key => key.startsWith("theplug-shell-") || key.startsWith("theplug-media-") || (key.startsWith("iteration13-shell-") && key !== SHELL_CACHE) || (key.startsWith("iteration13-media-") && key !== MEDIA_CACHE)).map(key => caches.delete(key)));
+    await Promise.all(keys.filter(key => key === "vula-shell-v1" || key === "vula-media-v1" || key.startsWith("theplug-shell-") || key.startsWith("theplug-media-") || (key.startsWith("iteration13-shell-") && key !== SHELL_CACHE) || (key.startsWith("iteration13-media-") && key !== MEDIA_CACHE)).map(key => caches.delete(key)));
     await self.clients.claim();
   })());
 });
@@ -118,7 +118,16 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  if (url.pathname.startsWith("/_next/static/") || url.pathname === "/manifest.webmanifest" || /\.(?:css|js|woff2?|ttf|otf|png|jpe?g|webp|svg|ico|avif)$/i.test(url.pathname)) {
+  if (url.pathname === "/manifest.webmanifest") {
+    // Always refresh the install manifest from the network; use the cache only offline.
+    event.respondWith(fetch(new Request(request, { cache: "no-store" })).then(response => {
+      if (response.ok) void caches.open(SHELL_CACHE).then(cache => cache.put(request, response.clone()));
+      return response;
+    }).catch(async () => (await caches.open(SHELL_CACHE)).match(request).then(response => response || Response.error())));
+    return;
+  }
+
+  if (url.pathname.startsWith("/_next/static/") || /\.(?:css|js|woff2?|ttf|otf|png|jpe?g|webp|svg|ico|avif)$/i.test(url.pathname)) {
     event.respondWith(cacheFirst(request));
     return;
   }
