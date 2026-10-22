@@ -21,7 +21,7 @@
     "react-dom": "^19.2.3",
     "server-only": "^0.0.1",
     "@uploadthing/react": "^7.3.2",
-    "uploadthing": "^7.7.3",
+    "uploadthing": "^7.7.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
