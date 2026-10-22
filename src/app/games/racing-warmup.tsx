@@ -139,7 +139,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const acceleration = 112 * race.throttle;
         const braking = 205 * race.brakePressure;
         race.speed = clamp(race.speed + (acceleration - race.speed * 0.145 - braking + (boost ? 76 : 0)) * dt, 0, boost ? 250 : 205);
-        race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
+        race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);\n        if (race.nos <= 0 && controls.boost) { controls.boost = false; setBoostActive(false); }
         const grip = 1.12 - speedRatio * 0.10 - bend * speedRatio * 0.045 - race.brakePressure * 0.025;
         const excessSteering = Math.max(0, Math.abs(steering) * speedRatio * (0.42 + bend * 0.42) - grip);
         const corneringLoss = excessSteering * (24 + race.speed * 0.065);
@@ -300,7 +300,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         </div>
         <div className="warmup-actions">{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start driving ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Drive again ↻</button>}<button type="button" className="vula-button secondary" onClick={() => reset(false)}>Restart ↻</button></div>
       </div>
-      <p className="warmup-help">Phone: drag the wheel; hold accelerate, brake or NOS. Desktop: ← / → or A / D to steer, ↑ / W accelerate, ↓ / S brake, Space / Shift NOS, P pause.</p>
+      <p className="warmup-help">Phone: hold ← / → with your left thumb; hold GAS or BRAKE with your right. Tap NOS once for a burst, tap again to stop. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause.</p>
     </section>
     {!embedded && <footer className="vula-footer"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></Link><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></footer>}
   </div>;
