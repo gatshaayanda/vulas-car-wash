@@ -93,6 +93,27 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
 
 
   useEffect(() => {
+    if (phase !== "crashed") return;
+    const timer = window.setTimeout(() => {
+      const race = raceRef.current;
+      race.lateral = 0;
+      race.lateralVelocity = 0;
+      race.heading = 0;
+      race.offTrack = 0;
+      race.speed = 42;
+      race.last = 0;
+      race.lapInvalid = true;
+      controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+      phaseRef.current = "running";
+      setCrashMessage("");
+      setPhase("running");
+      setEngineer("Pit exit clear. You're back on track; this lap won't count.");
+      notify("Pit recovery complete — back on track. Lap invalidated.", "error");
+    }, 1800);
+    return () => window.clearTimeout(timer);
+  }, [phase, notify]);
+
+  useEffect(() => {
     let raf = 0;
     let previous = 0;
     let lastUi = 0;
