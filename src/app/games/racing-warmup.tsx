@@ -38,16 +38,16 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [bestLap, setBestLap] = useState<number | null>(null);
   const [lap, setLap] = useState(1);
   const [nos, setNos] = useState(100);
-  const [signal, setSignal] = useState({ label: "GREEN LIGHT · BUILD SPEED", tone: "go" });
-  const lastSignal = useRef("");
+  const [slip, setSlip] = useState(0);
   const [boostActive, setBoostActive] = useState(false);
   const [wheelRotation, setWheelRotation] = useState(0);
-  const [toast, setToast] = useState<{ text: string; kind: "success" | "error" | "info" } | null>(null);
+  const [engineer, setEngineer] = useState("Welcome to the circuit. Smooth inputs keep the car quick.");
+  const [toast, setToast] = useState<{ text: string; kind: "success" | "error" } | null>(null);
   const [businessName, setBusinessName] = useState("Vula's Car Wash");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   phaseRef.current = phase;
 
-  const notify = useCallback((text: string, kind: "success" | "error" | "info" = "success") => {
+  const notify = useCallback((text: string, kind: "success" | "error" = "success") => {
     setToast({ text, kind });
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2200);
@@ -65,8 +65,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const reset = useCallback((start: boolean) => {
     raceRef.current = newRace();
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-    setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setBoostActive(false); setWheelRotation(0);
+    setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setSlip(0); setBoostActive(false); setWheelRotation(0);
     setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
+    setEngineer("Find your rhythm: brake before the tighter bends, then unwind the wheel on exit.");
   }, []);
   const startRace = useCallback(() => reset(true), [reset]);
   const pauseRace = useCallback(() => {
@@ -83,6 +84,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     const timer = window.setTimeout(() => {
       if (countdown <= 1) {
         setCountdown(0); raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running");
+        setEngineer("Go! Brake before the corner, turn smoothly, then accelerate out.");
       } else setCountdown(n => n - 1);
     }, 650);
     return () => window.clearTimeout(timer);
@@ -105,6 +107,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       phaseRef.current = "running";
       setCrashMessage("");
       setPhase("running");
+      setEngineer("Pit exit clear. You're back on track; this lap won't count.");
       notify("Pit recovery complete — back on track. Lap invalidated.", "error");
     }, 1800);
     return () => window.clearTimeout(timer);
@@ -114,7 +117,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     let raf = 0;
     let previous = 0;
     let lastUi = 0;
-
+    let lastCoachAt = 0;
     const frame = (now: number) => {
       const race = raceRef.current;
       const dt = previous ? Math.min((now - previous) / 1000, 0.035) : 0;
@@ -142,8 +145,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const braking = 205 * race.brakePressure;
         race.speed = clamp(race.speed + (acceleration - race.speed * 0.145 - braking + (boost ? 76 : 0)) * dt, 0, boost ? 250 : 205);
         race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
-        const grip = 1.04 - speedRatio * 0.12 - bend * speedRatio * 0.07 - race.brakePressure * 0.045;
-        const excessSteering = Math.max(0, Math.abs(steering) * speedRatio * (0.42 + bend * 0.42) - grip);
+        const grip = 0.96 - speedRatio * 0.2 - bend * speedRatio * 0.14 - race.brakePressure * 0.08;
+        const excessSteering = Math.max(0, Math.abs(steering) * speedRatio * (0.58 + bend * 0.72) - grip);
         const corneringLoss = excessSteering * (24 + race.speed * 0.065);
         if (excessSteering > 0) race.speed = Math.max(0, race.speed - corneringLoss * dt);
 
@@ -152,21 +155,21 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // drags the car around the loop when the player is not steering.
         const progressDelta = race.speed * Math.max(0.15, Math.cos(race.heading)) * dt / 4200;
         const curveAngle = trackTurn * progressDelta / 0.012;
-        const yawResponse = (0.18 + speedRatio * 0.58) * (0.7 + grip * 0.3);
-        race.heading = clamp(race.heading + steering * yawResponse * dt - curveAngle, -0.72, 0.72);
+        const yawResponse = (0.38 + speedRatio * 1.05) * (0.58 + grip * 0.42);
+        race.heading = clamp(race.heading + steering * yawResponse * dt - curveAngle, -1.05, 1.05);
 
         // Heading carries the car across the road; tyre grip and speed determine
         // how quickly lateral momentum settles. Steering into a bend can therefore
         // follow it, cut across it, or run wide if the player carries too much speed.
         const trackLength = trackRef.current!.getLength();
-        const lateralTarget = -Math.sin(race.heading) * race.speed * trackLength / (4200 * 10.5);
+        const lateralTarget = -Math.sin(race.heading) * race.speed * trackLength / (4200 * 5.8);
         const lateralGrip = clamp(grip - excessSteering * 0.5, 0.18, 1);
         race.lateralVelocity += (lateralTarget - race.lateralVelocity) * (2.6 + lateralGrip * 2.2) * dt;
         race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -1.55, 1.55);
 
         race.drift = clamp(excessSteering * Math.sign(steering || trackTurn) * 1.65 + race.lateralVelocity * 0.28, -1, 1);
-        if (Math.abs(race.lateral) > 1.08) {
-          race.speed = Math.max(0, race.speed - (20 + Math.abs(race.lateral) * 12) * dt);
+        if (Math.abs(race.lateral) > 0.82) {
+          race.speed = Math.max(0, race.speed - (28 + Math.abs(race.lateral) * 18) * dt);
           race.lapInvalid = true;
           race.offTrack += dt;
         } else {
@@ -175,7 +178,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
 
         // Leaving the road for too long triggers a visible crash and automatic pit
         // recovery. The lap is invalidated, but the practice session continues.
-        if ((race.offTrack > 1.35 && race.speed > 65) || (Math.abs(race.lateral) > 1.42 && race.speed > 145)) {
+        if (race.offTrack > 0.48 || (Math.abs(race.lateral) > 1.28 && race.speed > 95)) {
           race.speed = 0;
           race.heading = 0;
           race.lapInvalid = true;
@@ -183,6 +186,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           phaseRef.current = "crashed";
           setCrashMessage("CRASH! Recovering to the pit lane…");
           setPhase("crashed");
+          setEngineer("Impact detected. Pit crew is bringing you back out; this lap won't count.");
           raf = window.requestAnimationFrame(frame);
           return;
         }
@@ -201,21 +205,32 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           race.lapTime = 0;
           race.lapInvalid = false;
           setLap(lapNow);
+          setEngineer("Lap complete. Pick one corner to improve on the next lap.");
+        }
+        if (now - lastCoachAt > 1700) {
+          lastCoachAt = now;
+          const currentCurve = bend;
+          let message = "Good pace. Keep your inputs smooth.";
+          if (upcomingBend > 0.62 && race.speed > 112 && !controls.brake) message = "BRAKE BOARD: brake now, before turn-in.";
+          else if (currentCurve > 0.52 && race.speed > 155 && !controls.brake) message = "Late braking — ease off speed and turn smoothly toward the apex.";
+          else if (upcomingBend > 0.48 && currentCurve < 0.24 && Math.abs(steering) > 0.38) message = "Early turn-in. Hold your line until the amber corner cue.";
+          else if (currentCurve > 0.4 && controls.brake && race.speed >= 95 && race.speed < 150) message = "Good braking range. Bleed off pressure as you turn in.";
+          else if (currentCurve > 0.4 && controls.brake && race.speed < 95) message = "Brake release: ease off as the car rotates toward the apex.";
+          else if (currentCurve > 0.4 && Math.abs(steering) >= 0.12 && race.speed < 155) message = "Good turn-in. Clip the apex, then unwind the wheel on exit.";
+          else if (currentCurve > 0.4 && Math.abs(steering) < 0.12) message = "Turn-in cue: steer progressively toward the apex.";
+          else if (Math.abs(race.lateral) > 0.52) message = "Running wide. Ease off, unwind the wheel and recover the line.";
+          else if (Math.abs(race.drift) > 0.38) message = "Slip warning: grip is overloaded. Reduce steering or brake before adding power.";
+          else if (boost && currentCurve < 0.3) message = "Good NOS timing. Keep it for the straight and release before braking.";
+          else if (currentCurve < 0.28 && race.speed > 100) message = "Clear exit. Unwind the wheel, build throttle and save NOS for the straight.";
+          setEngineer(message);
         }
         if (now - lastUi > 33) {
           lastUi = now;
           setSpeed(race.speed);
           setLapTime(race.lapTime);
           setNos(race.nos);
+          setSlip(Math.abs(race.drift));
           setBoostActive(boost);
-          const cue = upcomingBend > 0.62 && race.speed > 105
-            ? { label: "BRAKE POINT · LIFT NOW", tone: "brake" }
-            : upcomingBend > 0.34
-              ? { label: (upcomingTurn < 0 ? "TURN LEFT" : "TURN RIGHT") + " · PREPARE", tone: "turn" }
-              : { label: "GREEN LIGHT · BUILD SPEED", tone: "go" };
-          if (cue.tone === "brake" && lastSignal.current !== "brake") notify("Brake point ahead — lift before turn-in.", "info");
-          lastSignal.current = cue.tone;
-          setSignal(cue);
         }
       }
       raf = window.requestAnimationFrame(frame);
@@ -257,7 +272,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     let d = wheelAngle(e) - wheelStart.current;
     while (d > Math.PI) d -= Math.PI * 2;
     while (d < -Math.PI) d += Math.PI * 2;
-    const steer = clamp(d / 2.35, -1, 1);
+    const steer = clamp(d / 1.55, -1, 1);
     controlsRef.current.steer = steer; setWheelRotation(steer * 125);
   };
   const onWheelUp = () => { wheelStart.current = null; controlsRef.current.steer = 0; setWheelRotation(0); };
@@ -275,15 +290,15 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Lap</span><strong>{lap}</strong></div><div><span>Current lap</span><strong>{fmt(lapTime)}</strong></div><div><span>Best lap</span><strong>{fmt(bestLap)}</strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} />
-        <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
-        {toast && <div className={"warmup-toast " + toast.kind} role="status">{toast.text}</div>}
         <div className="warmup-3d-overlay" hidden={phase === "running"} aria-live="polite">
           <span>VULA RACING · CIRCUIT PRACTICE</span>
           <strong>{phase === "ready" ? "Find your racing line" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "crashed" ? "Pit-lane recovery" : "Nice driving!"}</strong>
           <p>{phase === "ready" ? "Follow the green line. Brake at the boards, turn in on cue, clip the apex and unwind onto the exit." : phase === "countdown" ? "Get set. Smooth steering beats sudden corrections." : phase === "paused" ? "Take a breath. Resume when you're ready." : phase === "crashed" ? crashMessage : "Session complete. Take another lap and beat your time."}</p>
         </div>
       </div>
-      <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
+      <div className="warmup-line-legend" aria-label="Racing line guide"><span><i className="line-green" />Green · build speed</span><span><i className="line-amber" />Amber · prepare / lift</span><span><i className="line-red" />Red · brake</span></div>
+      <div className="warmup-engineer" aria-live="polite"><span className="engineer-light" /> <div><strong>RACE ENGINEER</strong><p>{engineer}</p></div></div>
+      <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div><div className="slip-readout"><strong>TYRE SLIP</strong><span>{Math.round(slip * 100)}%</span></div><div className={"slip-track" + (slip > 0.55 ? " danger" : "")}><span style={{ width: Math.min(100, slip * 100) + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
         <div className="warmup-steering"><button type="button" className="warmup-wheel" aria-label="Drag to steer" disabled={phase !== "running"} style={{ transform: `rotate(${wheelRotation}deg)` }} onPointerDown={onWheelDown} onPointerMove={onWheelMove} onPointerUp={onWheelUp} onPointerCancel={onWheelUp}><span className="wheel-ring"><span className="wheel-spoke vertical"/><span className="wheel-spoke horizontal"/><span className="wheel-hub"/></span><span className="wheel-caption">STEER</span></button><span className="steering-caption">Drag left / right</span></div>
         <div className="warmup-driving">
@@ -294,6 +309,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         <div className="warmup-actions">{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start driving ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Drive again ↻</button>}<button type="button" className="vula-button secondary" onClick={() => reset(false)}>Restart ↻</button></div>
       </div>
       <p className="warmup-help">Phone: drag the wheel; hold accelerate, brake or NOS. Desktop: ← / → or A / D to steer, ↑ / W accelerate, ↓ / S brake, Space / Shift NOS, P pause.</p>
+      {toast && <p className={"warmup-feedback " + toast.kind} role="status">{toast.text}</p>}
     </section>
     {!embedded && <footer className="vula-footer"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></Link><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></footer>}
   </div>;
