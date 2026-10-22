@@ -139,7 +139,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const acceleration = 112 * race.throttle;
         const braking = 205 * race.brakePressure;
         race.speed = clamp(race.speed + (acceleration - race.speed * 0.145 - braking + (boost ? 76 : 0)) * dt, 0, boost ? 250 : 205);
-        race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);\n        if (race.nos <= 0 && controls.boost) { controls.boost = false; setBoostActive(false); }
+        race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
+        if (race.nos <= 0 && controls.boost) { controls.boost = false; setBoostActive(false); }
         const grip = 1.12 - speedRatio * 0.10 - bend * speedRatio * 0.045 - race.brakePressure * 0.025;
         const excessSteering = Math.max(0, Math.abs(steering) * speedRatio * (0.42 + bend * 0.42) - grip);
         const corneringLoss = excessSteering * (24 + race.speed * 0.065);
