@@ -23,8 +23,8 @@ try {
       const title = payload.data?.title || "Vula's Car Wash update";
       const options = {
         body: payload.data?.body || "Open the app to check your latest information.",
-        icon: "/vula-icon.svg",
-        badge: "/vula-icon.svg",
+        icon: "/vula-icon-192.png",
+        badge: "/vula-icon-192.png",
         data: { link: payload.data?.link || "/account" },
       };
       self.registration.showNotification(title, options);
