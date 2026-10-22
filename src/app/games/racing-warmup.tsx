@@ -3,241 +3,313 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./racing-warmup.css";
+import Racing3DScene from "./racing-3d-scene";
 import { subscribeSettings } from "@/lib/firebase/vula-data";
+import { createRacingTrack, getTrackTurn } from "./racing-track";
 
-type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
-type RacingWarmupProps = { embedded?: boolean };
-type TrafficCar = { lane: number; y: number; color: string; hit: boolean; pace?: number; targetLane?: number; switchIn?: number; name?: string };
-type RaceState = { lane: number; targetLane: number; distance: number; elapsed: number; speed: number; traffic: TrafficCar[]; opponents: TrafficCar[]; spawn: number; stripeOffset: number; last: number };
+export type Phase = "ready" | "countdown" | "running" | "paused" | "crashed" | "finished";
+export type Controls = { steer: number; accelerate: boolean; brake: boolean; boost: boolean };
+export type Race = {
+  progress: number; speed: number; elapsed: number; lap: number; lapTime: number; steering: number; throttle: number; brakePressure: number;
+  bestLap: number | null; lateral: number; lateralVelocity: number; heading: number; drift: number;
+  nos: number; last: number; lapInvalid: boolean; offTrack: number;
+};
+const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+const wrap = (n: number, max: number) => ((n % max) + max) % max;
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0 });
+function fmt(seconds: number | null): string {
+  if (seconds === null || !Number.isFinite(seconds)) return "—";
+  return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
+}
 
-const newRace = (): RaceState => ({ lane: 1, targetLane: 1, distance: 0, elapsed: 0, speed: 105, traffic: [], opponents: [], spawn: 999, stripeOffset: 0, last: 0 });
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
-const finishDistance = 500;
-const roadObjects = [
-  { lane: 0, distance: 45 }, { lane: 2, distance: 95 }, { lane: 1, distance: 145 },
-  { lane: 0, distance: 195 }, { lane: 2, distance: 245 }, { lane: 1, distance: 295 },
-  { lane: 0, distance: 345 }, { lane: 2, distance: 395 }, { lane: 1, distance: 445 },
-];
-
-export default function RacingWarmup({ embedded = false }: RacingWarmupProps) {
+export default function RacingWarmup({ embedded = false }: { embedded?: boolean }) {
   const [expanded, setExpanded] = useState(!embedded);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const raceRef = useRef<RaceState>(newRace());
+  const raceRef = useRef<Race>(newRace());
+  const trackRef = useRef<ReturnType<typeof createRacingTrack> | null>(null);
+  if (!trackRef.current) trackRef.current = createRacingTrack();
+  const controlsRef = useRef<Controls>({ steer: 0, accelerate: false, brake: false, boost: false });
   const phaseRef = useRef<Phase>("ready");
+  const wheelStart = useRef<number | null>(null);
   const [phase, setPhase] = useState<Phase>("ready");
-  const [countdownValue, setCountdownValue] = useState(3);
-  const [elapsed, setElapsed] = useState(0);
-  const [distance, setDistance] = useState(0);
-  const [speed, setSpeed] = useState(105);
-  const [hits, setHits] = useState(0);
-  const [feedback, setFeedback] = useState<{ text: string; kind: "success" | "error" | "info" } | null>(null);
+  const [countdown, setCountdown] = useState(3);
+  const [crashMessage, setCrashMessage] = useState("");
+  const [speed, setSpeed] = useState(0);
+  const [lapTime, setLapTime] = useState(0);
+  const [bestLap, setBestLap] = useState<number | null>(null);
+  const [lap, setLap] = useState(1);
+  const [nos, setNos] = useState(100);
+  const [slip, setSlip] = useState(0);
   const [boostActive, setBoostActive] = useState(false);
-  const [activeSignal, setActiveSignal] = useState<"left" | "right" | null>(null);
-  const signalRef = useRef<"left" | "right" | null>(null);
   const [wheelRotation, setWheelRotation] = useState(0);
-  const wheelRef = useRef<HTMLButtonElement>(null);
-  const steeringStartAngle = useRef<number | null>(null);
+  const [engineer, setEngineer] = useState("Welcome to the circuit. Smooth inputs keep the car quick.");
+  const [toast, setToast] = useState<{ text: string; kind: "success" | "error" } | null>(null);
   const [businessName, setBusinessName] = useState("Vula's Car Wash");
-  const controlsRef = useRef({ accelerate: false, brake: false, boost: false, steer: 0 });
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   phaseRef.current = phase;
 
-  useEffect(() => {
-    if (!feedback) return;
-    const timer = window.setTimeout(() => setFeedback(null), 3200);
-    return () => window.clearTimeout(timer);
-  }, [feedback]);
-
-  const steeringAngleAt = (event: React.PointerEvent<HTMLButtonElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - (rect.left + rect.width / 2);
-    const y = event.clientY - (rect.top + rect.height / 2);
-    return Math.atan2(y, x);
-  };
-  const startSteering = (event: React.PointerEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    steeringStartAngle.current = steeringAngleAt(event);
-  };
-  const steerWheel = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (steeringStartAngle.current === null) return;
-    event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - (rect.left + rect.width / 2);
-    const y = event.clientY - (rect.top + rect.height / 2);
-    if (Math.hypot(x, y) < 7) return;
-    let delta = steeringAngleAt(event) - steeringStartAngle.current;
-    while (delta > Math.PI) delta -= Math.PI * 2;
-    while (delta < -Math.PI) delta += Math.PI * 2;
-    const steering = clamp(delta / (Math.PI * 0.62), -1, 1);
-    controlsRef.current.steer = steering;
-    setWheelRotation(steering * 125);
-  };
-  const stopSteering = () => {
-    steeringStartAngle.current = null;
-    controlsRef.current.steer = 0;
-    setWheelRotation(0);
-  };
-  function toggleSignal(signal: "left" | "right") {
-    const next = signalRef.current === signal ? null : signal;
-    signalRef.current = next;
-    setActiveSignal(next);
-    if (next) setFeedback({ text: (next === "left" ? "Left" : "Right") + " indicator on.", kind: "info" });
-  }
-
-  function startRace() {
-    if (phaseRef.current === "finished") { raceRef.current = newRace(); setElapsed(0); setDistance(0); setSpeed(105); setHits(0); }
-    controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false); signalRef.current = null; setActiveSignal(null); steeringStartAngle.current = null; setWheelRotation(0);
-    raceRef.current.last = 0;
-    setCountdownValue(3);
-    phaseRef.current = "countdown";
-    setPhase("countdown");
-    setFeedback({ text: "Get ready — your 500 m warm-up starts in 3.", kind: "info" });
-  }
-  useEffect(() => {
-    if (phase !== "countdown") return;
-    const timer = window.setTimeout(() => {
-      if (countdownValue <= 1) {
-        setCountdownValue(0);
-        phaseRef.current = "running";
-        setPhase("running");
-        setFeedback({ text: "Go! Steer around the road markers and use NOS when you need a burst.", kind: "success" });
-      } else {
-        setCountdownValue(value => value - 1);
-      }
-    }, 1000);
-    return () => window.clearTimeout(timer);
-  }, [phase, countdownValue]);
-
-  const pauseRace = useCallback(() => {
-    if (phaseRef.current === "running") {
-      controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false);
-      steeringStartAngle.current = null; setWheelRotation(0);
-      phaseRef.current = "paused"; setPhase("paused");
-    } else if (phaseRef.current === "paused") { raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running"); }
+  const notify = useCallback((text: string, kind: "success" | "error" = "success") => {
+    setToast({ text, kind });
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2200);
   }, []);
-  function restartRace() {
-    raceRef.current = newRace(); setElapsed(0); setDistance(0); setSpeed(105); setHits(0); stopSteering(); signalRef.current = null; setActiveSignal(null); controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false;
-    setCountdownValue(3); phaseRef.current = "countdown"; setPhase("countdown");
-    setFeedback({ text: "Race reset. Get ready to try again.", kind: "info" });
-  }
-
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
   useEffect(() => {
     const stop = subscribeSettings(settings => {
-      const value = settings?.businessName;
-      if (typeof value === "string" && value.trim()) setBusinessName(value.trim());
+      const name = settings?.businessName;
+      if (typeof name === "string" && name.trim()) setBusinessName(name.trim());
     }, () => {});
     return stop;
   }, []);
   useEffect(() => { if (!embedded) document.title = businessName + " · Racing warm-up"; }, [businessName, embedded]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    if (!canvas || !context) return;
-    let frame = 0; let width = 0; let height = 0; let dpr = 1;
-    const resize = () => {
-      const rect = canvas.getBoundingClientRect(); dpr = Math.min(window.devicePixelRatio || 1, 2);
-      width = Math.max(320, rect.width); height = Math.max(360, rect.height);
-      canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr); context.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-    const drawCar = (x: number, y: number, color: string, label = "", signal: "left" | "right" | null = null, blink = false) => {
-      const carWidth = Math.min(40, width * .09); const carHeight = carWidth * 1.65;
-      context.fillStyle = "rgba(0,0,0,.22)"; context.beginPath(); context.ellipse(x + carWidth / 2, y + carHeight - 2, carWidth * .58, 6, 0, 0, Math.PI * 2); context.fill();
-      context.fillStyle = "#151b18"; context.fillRect(x - 3, y + 8, 5, 12); context.fillRect(x + carWidth - 2, y + 8, 5, 12); context.fillRect(x - 3, y + carHeight - 20, 5, 12); context.fillRect(x + carWidth - 2, y + carHeight - 20, 5, 12);
-      context.fillStyle = color; context.beginPath(); context.roundRect(x, y, carWidth, carHeight, 8); context.fill();
-      context.fillStyle = "#dce9e7"; context.beginPath(); context.roundRect(x + carWidth * .19, y + carHeight * .19, carWidth * .62, carHeight * .25, 4); context.fill();
-      context.fillStyle = "#fff4bd"; context.fillRect(x + 5, y + 3, 5, 3); context.fillRect(x + carWidth - 10, y + 3, 5, 3);
-      context.fillStyle = "#ff7166"; context.fillRect(x + 5, y + carHeight - 5, 5, 3); context.fillRect(x + carWidth - 10, y + carHeight - 5, 5, 3);
-      context.fillStyle = signal && blink ? "#ffb52e" : "#a86d24";
-      if (signal === "left") { context.fillRect(x + 2, y + carHeight * .35, 4, 5); context.fillRect(x + 2, y + carHeight - 11, 4, 5); }
-      if (signal === "right") { context.fillRect(x + carWidth - 6, y + carHeight * .35, 4, 5); context.fillRect(x + carWidth - 6, y + carHeight - 11, 4, 5); }
-      if (label) { context.fillStyle = "#ffffff"; context.font = "bold 8px system-ui"; context.textAlign = "center"; context.fillText(label, x + carWidth / 2, y + carHeight * .65); }
-    };
-    const draw = (now: number) => {
-      const race = raceRef.current; const currentPhase = phaseRef.current;
-      const dt = race.last ? Math.min((now - race.last) / 1000, .04) : 0; race.last = now;
-      if (currentPhase === "running") {
-        race.elapsed += dt;
-        race.speed = controlsRef.current.brake ? Math.max(55, race.speed - dt * 58) : controlsRef.current.boost ? Math.min(225, race.speed + dt * 105) : controlsRef.current.accelerate ? Math.min(175, race.speed + dt * 38) : Math.min(155, race.speed + dt * 1.6);
-        race.lane = clamp(race.lane + controlsRef.current.steer * dt * (0.95 + race.speed / 210), 0.03, 2.97); race.distance += race.speed * dt / 8; race.stripeOffset = (race.stripeOffset + race.speed * dt * 1.3) % 72;
-        const hitObject = roadObjects.find(object => Math.abs(object.distance - race.distance) < 2.4 && Math.abs(object.lane - race.lane) < 0.48);
-        if (hitObject) {
-          raceRef.current = newRace();
-          raceRef.current.last = now;
-          controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false;
-          steeringStartAngle.current = null; setWheelRotation(0); setBoostActive(false); signalRef.current = null; setActiveSignal(null);
-          setElapsed(0); setDistance(0); setSpeed(105); setHits(value => value + 1); setCountdownValue(3);
-          phaseRef.current = "countdown"; setPhase("countdown");
-          setFeedback({ text: "Marker hit — restarting from the beginning. Steer a little earlier next time.", kind: "error" });
-        }
-        if (race.distance >= finishDistance) { race.distance = finishDistance; setFeedback({ text: "Warm-up complete — nice driving!", kind: "success" }); controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false); steeringStartAngle.current = null; setWheelRotation(0); phaseRef.current = "finished"; setPhase("finished"); }
-        setElapsed(race.elapsed); setDistance(race.distance); setSpeed(race.speed);
-      }
-      context.clearRect(0, 0, width, height); context.fillStyle = "#8aa96e"; context.fillRect(0, 0, width, height); context.fillStyle = "#76965e";
-      for (let y = -40; y < height + 40; y += 72) { const offset = currentPhase === "running" ? race.stripeOffset : 0; context.fillRect(width * .035, y + offset, width * .045, 26); context.fillRect(width * .92, y + offset, width * .045, 26); }
-      const roadLeft = width * .15; const roadWidth = width * .7; context.fillStyle = "#3c4544"; context.fillRect(roadLeft, 0, roadWidth, height); context.fillStyle = "#f5f0d9"; context.fillRect(roadLeft, 0, 4, height); context.fillRect(roadLeft + roadWidth - 4, 0, 4, height);
-      context.fillStyle = "#d4d5c6"; for (let laneIndex = 1; laneIndex < 3; laneIndex++) { const x = roadLeft + roadWidth * laneIndex / 3; for (let y = -72 + race.stripeOffset; y < height; y += 72) context.fillRect(x - 2, y, 4, 36); }
-      const playerWidth = Math.min(40, width * .09); const playerY = height - 100;
-      for (const object of roadObjects) {
-        const delta = object.distance - race.distance;
-        if (delta < -4 || delta > 72) continue;
-        const objectY = playerY - delta * 8;
-        const objectX = roadLeft + roadWidth / 3 * (object.lane + .5);
-        const radius = Math.max(7, Math.min(12, width * .026));
-        context.fillStyle = "#2a332d"; context.beginPath(); context.ellipse(objectX, objectY + radius, radius * 1.1, radius * .35, 0, 0, Math.PI * 2); context.fill();
-        context.fillStyle = "#f0a83d"; context.beginPath(); context.moveTo(objectX, objectY - radius); context.lineTo(objectX + radius, objectY + radius); context.lineTo(objectX - radius, objectY + radius); context.closePath(); context.fill();
-        context.strokeStyle = "#fff0d2"; context.lineWidth = 2; context.beginPath(); context.moveTo(objectX - radius * .45, objectY + 2); context.lineTo(objectX + radius * .45, objectY + 2); context.stroke();
-      }
-      drawCar(roadLeft + roadWidth / 3 * (race.lane + .5) - playerWidth / 2, playerY, "#a7d84d", "YOU", signalRef.current, Math.floor(now / 350) % 2 === 0);
-      frame = window.requestAnimationFrame(draw);
-    };
-    const visibilityChange = () => {
-      if (document.hidden && phaseRef.current === "running") {
-        controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false;
-        steeringStartAngle.current = null; setWheelRotation(0);
-        phaseRef.current = "paused"; setPhase("paused"); raceRef.current.last = 0;
-      }
-    };
-    resize(); window.addEventListener("resize", resize); document.addEventListener("visibilitychange", visibilityChange); frame = window.requestAnimationFrame(draw);
-    return () => { window.cancelAnimationFrame(frame); window.removeEventListener("resize", resize); document.removeEventListener("visibilitychange", visibilityChange); };
-  }, [expanded]);
+  const reset = useCallback((start: boolean) => {
+    raceRef.current = newRace();
+    controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+    setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setSlip(0); setBoostActive(false); setWheelRotation(0);
+    setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
+    setEngineer("Find your rhythm: brake before the tighter bends, then unwind the wheel on exit.");
+  }, []);
+  const startRace = useCallback(() => reset(true), [reset]);
+  const pauseRace = useCallback(() => {
+    if (phaseRef.current === "running") {
+      controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+      setBoostActive(false); setWheelRotation(0); phaseRef.current = "paused"; setPhase("paused");
+    } else if (phaseRef.current === "paused") {
+      raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running");
+    }
+  }, []);
 
   useEffect(() => {
-    const keyDown = (event: KeyboardEvent) => {
+    if (phase !== "countdown") return;
+    const timer = window.setTimeout(() => {
+      if (countdown <= 1) {
+        setCountdown(0); raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running");
+        setEngineer("Go! Brake before the corner, turn smoothly, then accelerate out.");
+      } else setCountdown(n => n - 1);
+    }, 650);
+    return () => window.clearTimeout(timer);
+  }, [phase, countdown]);
+
+
+
+  useEffect(() => {
+    if (phase !== "crashed") return;
+    const timer = window.setTimeout(() => {
+      const race = raceRef.current;
+      race.lateral = 0;
+      race.lateralVelocity = 0;
+      race.heading = 0;
+      race.offTrack = 0;
+      race.speed = 42;
+      race.last = 0;
+      race.lapInvalid = true;
+      controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+      phaseRef.current = "running";
+      setCrashMessage("");
+      setPhase("running");
+      setEngineer("Pit exit clear. You're back on track; this lap won't count.");
+      notify("Pit recovery complete — back on track. Lap invalidated.", "error");
+    }, 1800);
+    return () => window.clearTimeout(timer);
+  }, [phase, notify]);
+
+  useEffect(() => {
+    let raf = 0;
+    let previous = 0;
+    let lastUi = 0;
+    let lastCoachAt = 0;
+    const frame = (now: number) => {
+      const race = raceRef.current;
+      const dt = previous ? Math.min((now - previous) / 1000, 0.035) : 0;
+      previous = now;
+      if (phaseRef.current === "running" && dt > 0) {
+        const controls = controlsRef.current;
+        // Smooth steering inputs before applying tyre force; ease back to centre on release.
+        const steerEase = 1 - Math.exp(-dt * (Math.abs(controls.steer) > Math.abs(race.steering) ? 7.5 : 4.5));
+        race.steering += (controls.steer - race.steering) * steerEase;
+        const steering = race.steering;
+        const t = wrap(race.progress, 1);
+        const trackTurn = getTrackTurn(trackRef.current!, t, .006);
+        const bend = clamp(Math.abs(trackTurn) * 28, 0, 1);
+        const upcomingTurn = getTrackTurn(trackRef.current!, t + .018, .006);
+        const upcomingBend = clamp(Math.abs(upcomingTurn) * 28, 0, 1);
+        const speedRatio = race.speed / 205;
+        const throttleTarget = controls.accelerate && !controls.brake ? 1 : 0;
+        const brakeTarget = controls.brake ? 1 : 0;
+        // Pedals have their own response curves so keyboard/touch inputs do not make
+        // engine torque jump between frames. Brake pressure builds more quickly than throttle.
+        race.throttle += (throttleTarget - race.throttle) * (1 - Math.exp(-dt * (throttleTarget ? 3.8 : 6.5)));
+        race.brakePressure += (brakeTarget - race.brakePressure) * (1 - Math.exp(-dt * (brakeTarget ? 11 : 7)));
+        const boost = controls.boost && race.nos > 0 && !controls.brake;
+        const acceleration = 112 * race.throttle;
+        const braking = 205 * race.brakePressure;
+        race.speed = clamp(race.speed + (acceleration - race.speed * 0.145 - braking + (boost ? 76 : 0)) * dt, 0, boost ? 250 : 205);
+        race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
+        const grip = 0.96 - speedRatio * 0.2 - bend * speedRatio * 0.14 - race.brakePressure * 0.08;
+        const excessSteering = Math.max(0, Math.abs(steering) * speedRatio * (0.58 + bend * 0.72) - grip);
+        const corneringLoss = excessSteering * (24 + race.speed * 0.065);
+        if (excessSteering > 0) race.speed = Math.max(0, race.speed - corneringLoss * dt);
+
+        // Arcade handling: steering rotates the car's actual travel direction. The
+        // circuit only changes the reference tangent as the car advances; it no longer
+        // drags the car around the loop when the player is not steering.
+        const progressDelta = race.speed * Math.max(0.15, Math.cos(race.heading)) * dt / 4200;
+        const curveAngle = trackTurn * progressDelta / 0.012;
+        const yawResponse = (0.38 + speedRatio * 1.05) * (0.58 + grip * 0.42);
+        race.heading = clamp(race.heading + steering * yawResponse * dt - curveAngle, -1.05, 1.05);
+
+        // Heading carries the car across the road; tyre grip and speed determine
+        // how quickly lateral momentum settles. Steering into a bend can therefore
+        // follow it, cut across it, or run wide if the player carries too much speed.
+        const trackLength = trackRef.current!.getLength();
+        const lateralTarget = -Math.sin(race.heading) * race.speed * trackLength / (4200 * 5.8);
+        const lateralGrip = clamp(grip - excessSteering * 0.5, 0.18, 1);
+        race.lateralVelocity += (lateralTarget - race.lateralVelocity) * (2.6 + lateralGrip * 2.2) * dt;
+        race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -1.55, 1.55);
+
+        race.drift = clamp(excessSteering * Math.sign(steering || trackTurn) * 1.65 + race.lateralVelocity * 0.28, -1, 1);
+        if (Math.abs(race.lateral) > 0.82) {
+          race.speed = Math.max(0, race.speed - (28 + Math.abs(race.lateral) * 18) * dt);
+          race.lapInvalid = true;
+          race.offTrack += dt;
+        } else {
+          race.offTrack = Math.max(0, race.offTrack - dt * 1.8);
+        }
+
+        // Leaving the road for too long triggers a visible crash and automatic pit
+        // recovery. The lap is invalidated, but the practice session continues.
+        if (race.offTrack > 0.48 || (Math.abs(race.lateral) > 1.28 && race.speed > 95)) {
+          race.speed = 0;
+          race.heading = 0;
+          race.lapInvalid = true;
+          controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+          phaseRef.current = "crashed";
+          setCrashMessage("CRASH! Recovering to the pit lane…");
+          setPhase("crashed");
+          setEngineer("Impact detected. Pit crew is bringing you back out; this lap won't count.");
+          raf = window.requestAnimationFrame(frame);
+          return;
+        }
+
+        race.progress += progressDelta;
+        race.elapsed += dt;
+        race.lapTime += dt;
+        const lapNow = Math.floor(race.progress) + 1;
+        if (lapNow > race.lap) {
+          if (!race.lapInvalid && (race.bestLap === null || race.lapTime < race.bestLap)) {
+            race.bestLap = race.lapTime;
+            setBestLap(race.lapTime);
+            notify("New personal best lap!", "success");
+          } else if (race.lapInvalid) notify("Lap invalid — stay on the racing surface.", "error");
+          race.lap = lapNow;
+          race.lapTime = 0;
+          race.lapInvalid = false;
+          setLap(lapNow);
+          setEngineer("Lap complete. Pick one corner to improve on the next lap.");
+        }
+        if (now - lastCoachAt > 1700) {
+          lastCoachAt = now;
+          const currentCurve = bend;
+          let message = "Good pace. Keep your inputs smooth.";
+          if (upcomingBend > 0.62 && race.speed > 112 && !controls.brake) message = "BRAKE BOARD: brake now, before turn-in.";
+          else if (currentCurve > 0.52 && race.speed > 155 && !controls.brake) message = "Late braking — ease off speed and turn smoothly toward the apex.";
+          else if (upcomingBend > 0.48 && currentCurve < 0.24 && Math.abs(steering) > 0.38) message = "Early turn-in. Hold your line until the amber corner cue.";
+          else if (currentCurve > 0.4 && controls.brake && race.speed >= 95 && race.speed < 150) message = "Good braking range. Bleed off pressure as you turn in.";
+          else if (currentCurve > 0.4 && controls.brake && race.speed < 95) message = "Brake release: ease off as the car rotates toward the apex.";
+          else if (currentCurve > 0.4 && Math.abs(steering) >= 0.12 && race.speed < 155) message = "Good turn-in. Clip the apex, then unwind the wheel on exit.";
+          else if (currentCurve > 0.4 && Math.abs(steering) < 0.12) message = "Turn-in cue: steer progressively toward the apex.";
+          else if (Math.abs(race.lateral) > 0.52) message = "Running wide. Ease off, unwind the wheel and recover the line.";
+          else if (Math.abs(race.drift) > 0.38) message = "Slip warning: grip is overloaded. Reduce steering or brake before adding power.";
+          else if (boost && currentCurve < 0.3) message = "Good NOS timing. Keep it for the straight and release before braking.";
+          else if (currentCurve < 0.28 && race.speed > 100) message = "Clear exit. Unwind the wheel, build throttle and save NOS for the straight.";
+          setEngineer(message);
+        }
+        if (now - lastUi > 33) {
+          lastUi = now;
+          setSpeed(race.speed);
+          setLapTime(race.lapTime);
+          setNos(race.nos);
+          setSlip(Math.abs(race.drift));
+          setBoostActive(boost);
+        }
+      }
+      raf = window.requestAnimationFrame(frame);
+    };
+    raf = window.requestAnimationFrame(frame);
+    return () => window.cancelAnimationFrame(raf);
+  }, [notify]);
+
+  useEffect(() => {
+    const keyDown = (e: KeyboardEvent) => {
       if (embedded && !expanded) return;
-      if (["ArrowLeft", "ArrowRight", "a", "A", "d", "D", "ArrowUp", "ArrowDown", "w", "W", "s", "S"].includes(event.key)) event.preventDefault();
-      if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") controlsRef.current.steer = -1;
-      if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") controlsRef.current.steer = 1;
-      if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") controlsRef.current.accelerate = true;
-      if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") controlsRef.current.brake = true;
-      if (event.key === "Shift") { controlsRef.current.boost = true; setBoostActive(true); }
-      if ((event.key.toLowerCase() === "p" || event.key === "Escape") && !event.repeat) pauseRace();
+      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "a", "d", "w", "s", " "].includes(e.key)) e.preventDefault();
+      if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") controlsRef.current.steer = -1;
+      if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") controlsRef.current.steer = 1;
+      if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") controlsRef.current.accelerate = true;
+      if (e.key === "ArrowDown" || e.key.toLowerCase() === "s") controlsRef.current.brake = true;
+      if (e.key === " " || e.key === "Shift") controlsRef.current.boost = true;
+      if ((e.key.toLowerCase() === "p" || e.key === "Escape") && !e.repeat) pauseRace();
     };
-    const keyUp = (event: KeyboardEvent) => {
-      if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a" || event.key === "ArrowRight" || event.key.toLowerCase() === "d") controlsRef.current.steer = 0;
-      if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") controlsRef.current.accelerate = false;
-      if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") controlsRef.current.brake = false;
-      if (event.key === "Shift") { controlsRef.current.boost = false; setBoostActive(false); }
+    const keyUp = (e: KeyboardEvent) => {
+      if (["ArrowLeft", "ArrowRight", "a", "d"].includes(e.key) || ["a", "d"].includes(e.key.toLowerCase())) controlsRef.current.steer = 0;
+      if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") controlsRef.current.accelerate = false;
+      if (e.key === "ArrowDown" || e.key.toLowerCase() === "s") controlsRef.current.brake = false;
+      if (e.key === " " || e.key === "Shift") { controlsRef.current.boost = false; setBoostActive(false); }
     };
-    const releaseInputs = () => { controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; setBoostActive(false); steeringStartAngle.current = null; setWheelRotation(0); };
-    window.addEventListener("keydown", keyDown); window.addEventListener("keyup", keyUp); window.addEventListener("blur", releaseInputs);
-    return () => { window.removeEventListener("keydown", keyDown); window.removeEventListener("keyup", keyUp); window.removeEventListener("blur", releaseInputs); controlsRef.current.steer = 0; controlsRef.current.accelerate = false; controlsRef.current.brake = false; controlsRef.current.boost = false; };
+    const release = () => { controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false }; setBoostActive(false); setWheelRotation(0); wheelStart.current = null; };
+    window.addEventListener("keydown", keyDown); window.addEventListener("keyup", keyUp); window.addEventListener("blur", release);
+    return () => { window.removeEventListener("keydown", keyDown); window.removeEventListener("keyup", keyUp); window.removeEventListener("blur", release); };
   }, [pauseRace, embedded, expanded]);
 
-  if (embedded && !expanded) return <div className="race-inline-promo"><div><p className="vula-eyebrow">VULA RACING · QUICK BREAK</p><h2>Got a minute? Take a lap.</h2><p>A quick 500 m drive. Find your rhythm and get back to your wash booking whenever you&apos;re ready.</p></div><button type="button" className="vula-button primary" onClick={() => setExpanded(true)}>Play now ↗</button></div>;
+  const wheelAngle = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2));
+  };
+  const onWheelDown = (e: React.PointerEvent<HTMLButtonElement>) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); wheelStart.current = wheelAngle(e); };
+  const onWheelMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (wheelStart.current === null) return;
+    e.preventDefault();
+    let d = wheelAngle(e) - wheelStart.current;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    const steer = clamp(d / 1.55, -1, 1);
+    controlsRef.current.steer = steer; setWheelRotation(steer * 125);
+  };
+  const onWheelUp = () => { wheelStart.current = null; controlsRef.current.steer = 0; setWheelRotation(0); };
+  const hold = (key: "accelerate" | "brake" | "boost", down: boolean) => {
+    controlsRef.current[key] = down;
+    if (key === "boost") setBoostActive(down && nos > 0);
+  };
+
+  if (embedded && !expanded) return <div className="race-inline-promo"><div><p className="vula-eyebrow">VULA RACING · QUICK BREAK</p><h2>Take a quick lap.</h2><p>A little circuit practice while you wait. Your wash booking stays right where you left it.</p></div><button type="button" className="vula-button primary" onClick={() => setExpanded(true)}>Play now ↗</button></div>;
+
   return <div className={"vula race-hub" + (embedded ? " race-hub-embedded" : "")}>
-    {!embedded && <><div className="vula-status"><span className="status-dot online" />Vula Racing · 2D warm-up · local test only</div>
-    <header className="vula-nav"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Racing warm-up</small></span></Link><nav><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></nav></header>
-    <section className="vula-section warmup-intro"><p className="vula-eyebrow">VULA RACING · MECHANICS TEST</p><h1>Take the warm-up lap.</h1><p>A simple top-down 2D driving test. Steer freely, hit NOS for a burst of speed, and finish 500 m. We can tune these mechanics before bringing them into the in-account racing experience.</p><p className="warmup-boundary">This prototype does not use accounts, credits, upgrades, bookings, loyalty or receipts. Your controls and race run only in this open page.</p></section></>}
-    {embedded && <div className="race-inline-heading"><div><p className="vula-eyebrow">VULA RACING · 500 M</p><h2>Take the warm-up lap.</h2><p>Steer freely and use NOS. Finish the run, then get back to your car wash.</p></div><button type="button" className="vula-button secondary" onClick={() => { if (phaseRef.current === "running") pauseRace(); setExpanded(false); }}>Close game ×</button></div>}
+    {!embedded && <><div className="vula-status"><span className="status-dot online" />Vula Racing · solo circuit practice</div><header className="vula-nav"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Racing warm-up</small></span></Link><nav><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></nav></header><section className="vula-section warmup-intro"><p className="vula-eyebrow">VULA RACING · SOLO PRACTICE</p><h1>Find your racing line.</h1><p>Follow the recommended line: brake before turn-in, ease off through the apex, then build throttle on exit. Save NOS for straights.</p></section></>}
+    {embedded && <div className="race-inline-heading"><div><p className="vula-eyebrow">VULA RACING · CIRCUIT PRACTICE</p><h2>Find your racing line.</h2><p>One more lap? Smooth corners, clean exits, well-timed NOS.</p></div><button type="button" className="vula-button secondary" onClick={() => { if (phaseRef.current === "running") pauseRace(); setExpanded(false); }}>Close game ×</button></div>}
     <section className="vula-section warmup-game">
-      <div className="warmup-hud" aria-live="polite"><div><span>Distance</span><strong>{Math.round(distance)} <small>/ {finishDistance} m</small></strong></div><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Time</span><strong>{elapsed.toFixed(1)} <small>s</small></strong></div><div><span>Markers hit</span><strong>{hits}</strong></div></div>
-      <div className="warmup-canvas-wrap"><canvas ref={canvasRef} aria-label="Top-down 2D road racing warm-up. Drag the virtual steering wheel on mobile or hold the left and right keys on desktop." role="img" />
-        {phase !== "running" && <div className="warmup-overlay"><span>{phase === "ready" ? "READY ON THE GRID" : phase === "countdown" ? "GET READY" : phase === "paused" ? "RACE PAUSED" : "FINISH LINE"}</span><strong>{phase === "ready" ? "Start when you are." : phase === "countdown" ? String(countdownValue || 1) : phase === "paused" ? "Take your time." : "Warm-up complete."}</strong><p>{phase === "ready" ? "Drag the steering wheel to turn, or hold ← / → on desktop." : phase === "countdown" ? "Take your position. The road is clear ahead." : phase === "paused" ? "Your timer is stopped." : "You finished in " + elapsed.toFixed(1) + " seconds."}</p></div>}
+      <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Lap</span><strong>{lap}</strong></div><div><span>Current lap</span><strong>{fmt(lapTime)}</strong></div><div><span>Best lap</span><strong>{fmt(bestLap)}</strong></div></div>
+      <div className="warmup-canvas-wrap warmup-circuit-wrap">
+        <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} />
+        <div className="warmup-3d-overlay" hidden={phase === "running"} aria-live="polite">
+          <span>VULA RACING · CIRCUIT PRACTICE</span>
+          <strong>{phase === "ready" ? "Find your racing line" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "crashed" ? "Pit-lane recovery" : "Nice driving!"}</strong>
+          <p>{phase === "ready" ? "Follow the green line. Brake at the boards, turn in on cue, clip the apex and unwind onto the exit." : phase === "countdown" ? "Get set. Smooth steering beats sudden corrections." : phase === "paused" ? "Take a breath. Resume when you're ready." : phase === "crashed" ? crashMessage : "Session complete. Take another lap and beat your time."}</p>
+        </div>
       </div>
-      <div className="warmup-controls"><div className="warmup-steering"><button ref={wheelRef} type="button" className="warmup-wheel" aria-label="Virtual steering wheel. Drag around the wheel to steer." aria-describedby="steering-help" disabled={phase !== "running"} style={{ transform: `rotate(${wheelRotation}deg)` }} onPointerDown={startSteering} onPointerMove={steerWheel} onPointerUp={stopSteering} onPointerCancel={stopSteering} onLostPointerCapture={stopSteering}><span className="wheel-ring"><span className="wheel-spoke vertical"/><span className="wheel-spoke horizontal"/><span className="wheel-hub"/></span><span className="wheel-caption">STEER</span></button><span id="steering-help" className="steering-caption">Drag the wheel left or right</span><div className="warmup-signals" aria-label="Turn indicators"><button type="button" aria-label="Toggle left indicator" disabled={phase !== "running"} aria-pressed={activeSignal === "left"} className={activeSignal === "left" ? "signal-active" : ""} onClick={() => toggleSignal("left")}>← Signal</button><button type="button" aria-label="Toggle right indicator" disabled={phase !== "running"} aria-pressed={activeSignal === "right"} className={activeSignal === "right" ? "signal-active" : ""} onClick={() => toggleSignal("right")}>Signal →</button></div></div><div className="warmup-driving"><button type="button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.accelerate = true; }} onPointerUp={() => { controlsRef.current.accelerate = false; }} onPointerLeave={() => { controlsRef.current.accelerate = false; }} onPointerCancel={() => { controlsRef.current.accelerate = false; }}>Accelerate ↑</button><button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.brake = true; }} onPointerUp={() => { controlsRef.current.brake = false; }} onPointerLeave={() => { controlsRef.current.brake = false; }} onPointerCancel={() => { controlsRef.current.brake = false; }}>Brake ↓</button><button type="button" className="nos-button" aria-label="NOS boost" disabled={phase !== "running"} aria-pressed={boostActive} onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); controlsRef.current.boost = true; setBoostActive(true); }} onPointerUp={() => { controlsRef.current.boost = false; setBoostActive(false); }} onPointerLeave={() => { controlsRef.current.boost = false; setBoostActive(false); }} onPointerCancel={() => { controlsRef.current.boost = false; setBoostActive(false); }}>NOS ⚡</button></div><div className="warmup-actions">{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start race ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Starting {countdownValue || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause race Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume race ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Run again ↗</button>}<button type="button" className="vula-button secondary" onClick={restartRace}>Restart race ↻</button></div></div>
-      <p className="warmup-help">Steer: drag the wheel on phones, or hold ← / → or A / D on desktop · Accelerate: ↑ / W · Brake: ↓ / S · NOS: hold the boost button or Shift · Indicators: ← Signal / Signal → · Pause: P / Esc.</p>
-      {feedback && <p className={"warmup-feedback " + feedback.kind} role="status" aria-live="polite">{feedback.text}</p>}
+      <div className="warmup-line-legend" aria-label="Racing line guide"><span><i className="line-green" />Green · build speed</span><span><i className="line-amber" />Amber · prepare / lift</span><span><i className="line-red" />Red · brake</span></div>
+      <div className="warmup-engineer" aria-live="polite"><span className="engineer-light" /> <div><strong>RACE ENGINEER</strong><p>{engineer}</p></div></div>
+      <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div><div className="slip-readout"><strong>TYRE SLIP</strong><span>{Math.round(slip * 100)}%</span></div><div className={"slip-track" + (slip > 0.55 ? " danger" : "")}><span style={{ width: Math.min(100, slip * 100) + "%" }} /></div></div>
+      <div className="warmup-controls warmup-circuit-controls">
+        <div className="warmup-steering"><button type="button" className="warmup-wheel" aria-label="Drag to steer" disabled={phase !== "running"} style={{ transform: `rotate(${wheelRotation}deg)` }} onPointerDown={onWheelDown} onPointerMove={onWheelMove} onPointerUp={onWheelUp} onPointerCancel={onWheelUp}><span className="wheel-ring"><span className="wheel-spoke vertical"/><span className="wheel-spoke horizontal"/><span className="wheel-hub"/></span><span className="wheel-caption">STEER</span></button><span className="steering-caption">Drag left / right</span></div>
+        <div className="warmup-driving">
+          <button type="button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerLeave={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>ACCELERATE ↑</button>
+          <button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerLeave={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>BRAKE ↓</button>
+          <button type="button" className="nos-button" aria-label="Hold for NOS" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("boost", true); }} onPointerUp={() => hold("boost", false)} onPointerLeave={() => hold("boost", false)} onPointerCancel={() => hold("boost", false)} onLostPointerCapture={() => hold("boost", false)}>NOS ⚡</button>
+        </div>
+        <div className="warmup-actions">{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start driving ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Drive again ↻</button>}<button type="button" className="vula-button secondary" onClick={() => reset(false)}>Restart ↻</button></div>
+      </div>
+      <p className="warmup-help">Phone: drag the wheel; hold accelerate, brake or NOS. Desktop: ← / → or A / D to steer, ↑ / W accelerate, ↓ / S brake, Space / Shift NOS, P pause.</p>
+      {toast && <p className={"warmup-feedback " + toast.kind} role="status">{toast.text}</p>}
     </section>
     {!embedded && <footer className="vula-footer"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></Link><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></footer>}
   </div>;

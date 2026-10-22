@@ -53,3 +53,71 @@
 .warmup-steering .warmup-signals button:disabled{opacity:.45;cursor:not-allowed}
 
 .warmup-feedback{margin:10px 0 0;padding:10px 13px;border-radius:8px;font-size:12px;font-weight:700}.warmup-feedback.info{background:#edf3e5;color:#34483d}.warmup-feedback.success{background:#e1f3ce;color:#284a20}.warmup-feedback.error{background:#f8e6e1;color:#7d2f22}
+
+
+/* Mobile-first circuit presentation: keep the track legible and controls thumb-reachable. */
+.warmup-circuit-wrap{height:clamp(380px,62svh,540px);min-height:380px;background:#75965e;touch-action:pan-y}
+.warmup-circuit-wrap canvas{touch-action:pan-y}
+.warmup-circuit-hud{grid-template-columns:repeat(4,minmax(0,1fr))}
+.warmup-engineer{display:flex;align-items:center;gap:11px;margin:12px 0;padding:12px 14px;background:#172820;border:1px solid #30463a;border-radius:12px;color:#f4f7ee;min-height:68px}
+.warmup-engineer .engineer-light{width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:#c6f36b;box-shadow:0 0 0 4px #c6f36b20}
+.warmup-engineer strong{display:block;color:#c6f36b;font-size:9px;letter-spacing:.14em}
+.warmup-engineer p{margin:4px 0 0;font-size:12px;line-height:1.45;color:#f4f7ee}
+.warmup-nos{display:grid;gap:7px;margin:12px 0 4px;padding:11px 13px;background:#fff;border:1px solid #dce3d7;border-radius:10px}
+.warmup-nos>div:first-child{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:900;letter-spacing:.08em}
+.warmup-nos>div:first-child span{font-variant-numeric:tabular-nums}
+.nos-track{height:8px;overflow:hidden;border-radius:99px;background:#e5eadd}
+.nos-track span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#a8d84c,#dcff76);transition:width .12s linear}
+.warmup-circuit-controls{align-items:center}
+.warmup-circuit-controls .warmup-actions{display:grid;gap:8px}
+.warmup-circuit-controls .warmup-actions .vula-button{white-space:nowrap}
+.warmup-circuit-controls .warmup-driving button{min-height:60px}
+.warmup-circuit-controls .warmup-driving button[aria-label="Brake"]{background:#f4e5df;border-color:#e2c8bd}
+.warmup-circuit-controls .warmup-driving .nos-button{background:#dff0a8;border:2px solid #91b83e;color:#20351d;font-weight:900}
+.warmup-circuit-controls .warmup-driving .nos-button[aria-pressed="true"]{background:#b7ed4e;box-shadow:0 0 0 3px #b7ed4e55,inset 0 -3px 0 #83b92a}
+.warmup-circuit-controls .warmup-wheel{touch-action:none}
+.warmup-feedback{animation:none}
+@media(max-width:640px){
+  .warmup-circuit-wrap{height:clamp(380px,54svh,480px);min-height:380px;border-radius:14px}
+  .warmup-circuit-hud{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .warmup-circuit-hud>div{padding:10px 12px}
+  .warmup-engineer{align-items:flex-start;padding:11px 12px}
+  .warmup-engineer p{font-size:11px}
+  .warmup-circuit-controls{display:grid;grid-template-columns:88px minmax(0,1fr);gap:10px;align-items:center}
+  .warmup-circuit-controls .warmup-steering .warmup-wheel{width:84px;height:84px;min-width:84px;min-height:84px}
+  .warmup-circuit-controls .warmup-driving{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .warmup-circuit-controls .warmup-driving button{min-width:0;min-height:64px;padding:7px 3px;font-size:10px;line-height:1.2;overflow-wrap:anywhere}
+  .warmup-circuit-controls .warmup-actions{grid-column:1/-1;grid-template-columns:1fr 1fr}
+  .warmup-circuit-controls .warmup-actions .vula-button{padding:12px 7px;font-size:12px}
+  .warmup-circuit-controls .warmup-help{grid-column:1/-1}
+}
+@media(max-width:360px){
+  .warmup-circuit-controls{grid-template-columns:76px minmax(0,1fr);gap:7px}
+  .warmup-circuit-controls .warmup-steering .warmup-wheel{width:74px;height:74px;min-width:74px;min-height:74px}
+  .warmup-circuit-controls .warmup-driving{gap:4px}
+  .warmup-circuit-controls .warmup-driving button{font-size:9px}
+}
+
+
+/* Three.js chase-camera racing scene: GPU canvas stays inside the existing protected layout. */
+.racing-3d-root{position:absolute;inset:0;overflow:hidden;background:linear-gradient(#8fb8cf 0%,#d8d8b0 44%,#5f8150 45%,#466d40 100%);touch-action:none}
+.racing-3d-root canvas{display:block;width:100%;height:100%;touch-action:none}
+.racing-3d-root[data-webgl="unavailable"]::after{content:"This browser could not start 3D graphics. Try opening the game in Chrome.";position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:#fff;background:#172820e8;font-weight:800}
+.warmup-3d-overlay{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;padding:24px;text-align:center;color:#fff;background:linear-gradient(180deg,#10233355,#102333a8);backdrop-filter:blur(2px);pointer-events:none}
+.warmup-3d-overlay[hidden]{display:none}
+.warmup-3d-overlay>span{font-size:10px;letter-spacing:.18em;font-weight:900;color:#d4ff78}
+.warmup-3d-overlay strong{font:800 clamp(28px,5vw,44px)/1.05 "Space Grotesk",system-ui,sans-serif;text-shadow:0 3px 18px #08151b99}
+.warmup-3d-overlay p{max-width:420px;margin:0;color:#f0f4e9;font-size:13px;line-height:1.6}
+.warmup-circuit-wrap{position:relative;isolation:isolate;background:#628653}
+.warmup-circuit-wrap canvas{touch-action:none}
+@media(max-width:640px){.warmup-3d-overlay{padding:18px}.warmup-3d-overlay p{font-size:12px}}
+
+.warmup-line-legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin:10px 0 4px;padding:10px 12px;background:#fff;border:1px solid #dce3d7;border-radius:9px;color:#465447;font-size:10px;font-weight:750}
+.warmup-line-legend span{display:inline-flex;align-items:center;gap:6px}
+.warmup-line-legend i{display:inline-block;width:18px;height:5px;border-radius:5px}
+.warmup-line-legend .line-green{background:#8cf06a}.warmup-line-legend .line-amber{background:#ffd45c}.warmup-line-legend .line-red{background:#ff6258}
+
+.warmup-nos .slip-readout{display:flex;justify-content:space-between;align-items:center;margin-top:2px;font-size:10px;font-weight:900;letter-spacing:.08em;color:#465447}
+.slip-track{height:6px;overflow:hidden;border-radius:99px;background:#e5eadd}
+.slip-track span{display:block;height:100%;border-radius:inherit;background:#e6b347;transition:width .1s linear}
+.slip-track.danger span{background:#df5b4f}
