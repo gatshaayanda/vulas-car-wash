@@ -127,7 +127,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const t = wrap(race.trackT, 1);
         const track = trackRef.current!;
         const trackTurn = getTrackTurn(track, t, .006);
-        const bend = clamp(Math.abs(trackTurn) * 28, 0, 1);
         const upcomingTurn = getTrackTurn(track, t + .018, .006);
         const upcomingBend = clamp(Math.abs(upcomingTurn) * 28, 0, 1);
         const speedRatio = clamp(race.speed / 205, 0, 1.25);
@@ -144,7 +143,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
 
         // World-space arcade driving: the car owns its position and direction;
         // the circuit is no longer a spline rail that dictates its movement.
-        const steerRate = 0.82 + speedRatio * 0.72;
+        const steerRate = 0.35 + speedRatio * 0.8;
         race.heading += -race.steering * steerRate * dt;
         const forwardX = -Math.sin(race.heading);
         const forwardZ = -Math.cos(race.heading);
