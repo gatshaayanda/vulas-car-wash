@@ -7,16 +7,16 @@ import Racing3DScene from "./racing-3d-scene";
 import { subscribeSettings } from "@/lib/firebase/vula-data";
 import { createRacingTrack, getTrackTurn } from "./racing-track";
 
-export type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
+export type Phase = "ready" | "countdown" | "running" | "paused" | "crashed" | "finished";
 export type Controls = { steer: number; accelerate: boolean; brake: boolean; boost: boolean };
 export type Race = {
   progress: number; speed: number; elapsed: number; lap: number; lapTime: number; steering: number; throttle: number; brakePressure: number;
-  bestLap: number | null; lateral: number; lateralVelocity: number; drift: number;
+  bestLap: number | null; lateral: number; lateralVelocity: number; heading: number; drift: number;
   nos: number; last: number; lapInvalid: boolean; offTrack: number;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0 });
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -32,6 +32,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const wheelStart = useRef<number | null>(null);
   const [phase, setPhase] = useState<Phase>("ready");
   const [countdown, setCountdown] = useState(3);
+  const [crashMessage, setCrashMessage] = useState("");
   const [speed, setSpeed] = useState(0);
   const [lapTime, setLapTime] = useState(0);
   const [bestLap, setBestLap] = useState<number | null>(null);
@@ -123,26 +124,53 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const braking = 205 * race.brakePressure;
         race.speed = clamp(race.speed + (acceleration - race.speed * 0.145 - braking + (boost ? 76 : 0)) * dt, 0, boost ? 250 : 205);
         race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
-        const grip = 0.94 - speedRatio * 0.22 - bend * speedRatio * 0.12 - race.brakePressure * 0.08;
-        const steeringForce = steering * (0.68 + speedRatio * 0.22);
-        const cornerForce = trackTurn * speedRatio * 2.5;
-        // Restore lateral position toward the road centre when steering is released.
-        // Without this spring force, a small offset could persist indefinitely and feel
-        // like the car was permanently leaning/pulling to one side.
-        const lateralRecovery = race.lateral * (1.35 + speedRatio * 0.45);
-        race.lateralVelocity += (steeringForce - cornerForce - lateralRecovery - race.lateralVelocity * (2.15 + speedRatio * 0.45)) * dt;
-        race.lateral = clamp(race.lateral + race.lateralVelocity * dt * (0.62 + speedRatio * 0.55), -0.95, 0.95);
+        const grip = 0.96 - speedRatio * 0.2 - bend * speedRatio * 0.14 - race.brakePressure * 0.08;
+        const excessSteering = Math.max(0, Math.abs(steering) * speedRatio * (0.58 + bend * 0.72) - grip);
+        const corneringLoss = excessSteering * (24 + race.speed * 0.065);
+        if (excessSteering > 0) race.speed = Math.max(0, race.speed - corneringLoss * dt);
+
+        // Arcade handling: steering rotates the car's actual travel direction. The
+        // circuit only changes the reference tangent as the car advances; it no longer
+        // drags the car around the loop when the player is not steering.
+        const progressDelta = race.speed * Math.max(0.15, Math.cos(race.heading)) * dt / 4200;
+        const curveAngle = trackTurn * progressDelta / 0.012;
+        const yawResponse = (0.38 + speedRatio * 1.05) * (0.58 + grip * 0.42);
+        race.heading = clamp(race.heading + steering * yawResponse * dt - curveAngle, -1.05, 1.05);
+
+        // Heading carries the car across the road; tyre grip and speed determine
+        // how quickly lateral momentum settles. Steering into a bend can therefore
+        // follow it, cut across it, or run wide if the player carries too much speed.
+        const trackLength = trackRef.current!.getLength();
+        const lateralTarget = -Math.sin(race.heading) * race.speed * trackLength / (4200 * 5.8);
+        const lateralGrip = clamp(grip - excessSteering * 0.5, 0.18, 1);
+        race.lateralVelocity += (lateralTarget - race.lateralVelocity) * (2.6 + lateralGrip * 2.2) * dt;
+        race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -1.55, 1.55);
+
         const demand = Math.abs(steering) * speedRatio * (0.62 + bend * 0.55) + race.brakePressure * 0.12 + race.throttle * speedRatio * 0.1;
-        const excess = Math.max(0, demand - grip);
-        race.drift = clamp(excess * Math.sign(steering || trackTurn) * 1.65 + race.lateralVelocity * 0.28, -1, 1);
-        if (excess > 0) race.speed = Math.max(0, race.speed - excess * (24 + race.speed * 0.065) * dt);
-        // Cornering load is already represented by cornerForce and grip above;
-        // do not inject a second one-way lateral push just because the road bends.
-        if (Math.abs(race.lateral) > 0.7) {
-          race.speed = Math.max(0, race.speed - 38 * dt);
+        race.drift = clamp(excessSteering * Math.sign(steering || trackTurn) * 1.65 + race.lateralVelocity * 0.28, -1, 1);
+        if (Math.abs(race.lateral) > 0.82) {
+          race.speed = Math.max(0, race.speed - (28 + Math.abs(race.lateral) * 18) * dt);
           race.lapInvalid = true;
+          race.offTrack += dt;
+        } else {
+          race.offTrack = Math.max(0, race.offTrack - dt * 1.8);
         }
-        race.progress += race.speed * dt / 4200;
+
+        // Leaving the road for too long triggers a visible crash and automatic pit
+        // recovery. The lap is invalidated, but the practice session continues.
+        if (race.offTrack > 0.48 || (Math.abs(race.lateral) > 1.28 && race.speed > 95)) {
+          race.speed = 0;
+          race.heading = 0;
+          race.lapInvalid = true;
+          controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+          phaseRef.current = "crashed";
+          setCrashMessage("CRASH! Recovering to the pit lane…");
+          setPhase("crashed");
+          setEngineer("Impact detected. Pit crew is bringing you back out; this lap won't count.");
+          return;
+        }
+
+        race.progress = wrap(race.progress + progressDelta, 1);
         race.elapsed += dt;
         race.lapTime += dt;
         const lapNow = Math.floor(race.progress) + 1;
@@ -243,8 +271,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} />
         <div className="warmup-3d-overlay" hidden={phase === "running"} aria-live="polite">
           <span>VULA RACING · CIRCUIT PRACTICE</span>
-          <strong>{phase === "ready" ? "Find your racing line" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : "Nice driving!"}</strong>
-          <p>{phase === "ready" ? "Follow the green line. Brake at the boards, turn in on cue, clip the apex and unwind onto the exit." : phase === "countdown" ? "Get set. Smooth steering beats sudden corrections." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete. Take another lap and beat your time."}</p>
+          <strong>{phase === "ready" ? "Find your racing line" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "crashed" ? "Pit-lane recovery" : "Nice driving!"}</strong>
+          <p>{phase === "ready" ? "Follow the green line. Brake at the boards, turn in on cue, clip the apex and unwind onto the exit." : phase === "countdown" ? "Get set. Smooth steering beats sudden corrections." : phase === "paused" ? "Take a breath. Resume when you're ready." : phase === "crashed" ? crashMessage : "Session complete. Take another lap and beat your time."}</p>
         </div>
       </div>
       <div className="warmup-line-legend" aria-label="Racing line guide"><span><i className="line-green" />Green · build speed</span><span><i className="line-amber" />Amber · prepare / lift</span><span><i className="line-red" />Red · brake</span></div>
