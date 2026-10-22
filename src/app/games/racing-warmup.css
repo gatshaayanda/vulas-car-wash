@@ -138,3 +138,33 @@
  .warmup-circuit-controls .warmup-driving{gap:5px}.warmup-circuit-controls .warmup-driving button{min-height:54px;font-size:10px}.warmup-circuit-controls .warmup-actions{margin-top:2px}.warmup-help{font-size:10px;margin-top:8px}
  .warmup-signal-chip{top:8px;left:8px;padding:7px 9px;font-size:9px}.warmup-toast{left:8px;bottom:8px;max-width:calc(100% - 16px);font-size:10px}
 }
+
+
+/* QA iteration: split steering and pedals into clear left/right thumb zones. */
+.warmup-circuit-controls{display:grid;grid-template-columns:148px minmax(0,1fr);gap:14px;align-items:stretch}
+.warmup-circuit-controls .warmup-steering{display:flex;flex-direction:column;justify-content:center;gap:8px;min-width:0;padding:12px 8px;background:#edf2e8;border:1px solid #d6dfd0;border-radius:14px}
+.warmup-circuit-controls .steering-pad{display:grid;grid-template-columns:1fr 1fr;gap:7px;width:100%}
+.warmup-circuit-controls .steer-button{display:grid;place-items:center;min-width:0;min-height:74px;padding:0;border:1px solid #b9c8b3;border-radius:12px;background:#fff;color:#20352a;font-size:30px;font-weight:900;line-height:1;box-shadow:inset 0 -3px 0 #d7e0d2;touch-action:none;user-select:none;-webkit-user-select:none}
+.warmup-circuit-controls .steer-button:active,.warmup-circuit-controls .steer-button[aria-pressed="true"]{background:#d9efb4;border-color:#8eb84a;box-shadow:inset 0 -1px 0 #a4c66e;transform:translateY(1px)}
+.warmup-circuit-controls .warmup-driving{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-content:stretch;min-width:0}
+.warmup-circuit-controls .warmup-driving button{min-width:0;min-height:66px;padding:10px 8px;border-radius:12px;font-size:12px;font-weight:900;line-height:1.15;touch-action:none;user-select:none;-webkit-user-select:none}
+.warmup-circuit-controls .warmup-driving .accelerate-button{background:#d9efb4;border:2px solid #91b83e;color:#20351d;box-shadow:inset 0 -3px 0 #b7d875}
+.warmup-circuit-controls .warmup-driving .accelerate-button:active{background:#bce77c;transform:translateY(1px)}
+.warmup-circuit-controls .warmup-driving button[aria-label="Brake"]{background:#f5e5df;border:2px solid #dfc1b7;color:#6f2f24}
+.warmup-circuit-controls .warmup-driving button[aria-label="Brake"]:active{background:#ebc9be;transform:translateY(1px)}
+.warmup-circuit-controls .warmup-driving .nos-button{grid-column:1/-1;min-height:52px;background:#e5e8fa;border:2px solid #aab2e6;color:#303c83;box-shadow:inset 0 -3px 0 #c6cbef}
+.warmup-circuit-controls .warmup-driving .nos-button[aria-pressed="true"]{background:#cbd1ff;border-color:#6675d5;box-shadow:0 0 0 3px #6675d522,inset 0 -1px 0 #8f9bea}
+.warmup-circuit-controls .warmup-driving button:disabled,.warmup-circuit-controls .steer-button:disabled{opacity:.42;box-shadow:none}
+@media(max-width:640px){
+ .warmup-circuit-controls{grid-template-columns:minmax(116px,.85fr) minmax(0,1.4fr);gap:9px}
+ .warmup-circuit-controls .warmup-steering{padding:10px 6px;gap:8px}
+ .warmup-circuit-controls .steer-button{min-height:70px;font-size:28px}
+ .warmup-circuit-controls .warmup-driving{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ .warmup-circuit-controls .warmup-driving button{min-height:62px;padding:8px 5px;font-size:11px}
+ .warmup-circuit-controls .warmup-driving .nos-button{min-height:50px}
+}
+@media(max-width:360px){
+ .warmup-circuit-controls{grid-template-columns:minmax(104px,.8fr) minmax(0,1.35fr);gap:7px}
+ .warmup-circuit-controls .steer-button{min-height:64px}
+ .warmup-circuit-controls .warmup-driving button{font-size:10px;padding:7px 3px}
+}
