@@ -50,12 +50,19 @@ export default function PwaRegister({ initialEmbedded = false, initialAndroid = 
       setOffline(true);
     };
 
+    const earlyWindow = window as Window & { __vulaInstallPrompt?: InstallPromptEvent };
+    // Consume a genuine install event captured in the document before React hydrates.
+    if (earlyWindow.__vulaInstallPrompt) {
+      installPromptRef.current = earlyWindow.__vulaInstallPrompt;
+      earlyWindow.__vulaInstallPrompt = undefined;
+      setInstallState("native");
+    }
+
     const onBeforeInstallPrompt = (event: Event) => {
-      // Match Africhiko's handler exactly: capture every real browser event,
-      // prevent the browser's automatic prompt, then reveal the branded card.
       event.preventDefault();
       const prompt = event as InstallPromptEvent;
       installPromptRef.current = prompt;
+      (window as Window & { __vulaInstallPrompt?: InstallPromptEvent }).__vulaInstallPrompt = prompt;
       setInstallState("native");
     };
 
