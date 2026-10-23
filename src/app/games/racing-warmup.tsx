@@ -38,6 +38,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [nos, setNos] = useState(100);
   const [signal, setSignal] = useState({ label: "GREEN LIGHT · BUILD SPEED", tone: "go" });
   const lastSignal = useRef("");
+  const cornerSkillRef = useRef({ brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 });
   const [boostActive, setBoostActive] = useState(false);
   const [toast, setToast] = useState<{ text: string; kind: "success" | "error" | "info" } | null>(null);
   const [businessName, setBusinessName] = useState("Vula's Car Wash");
@@ -61,6 +62,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
 
   const reset = useCallback((start: boolean) => {
     raceRef.current = newRace();
+    cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
     setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setBoostActive(false);
     setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
@@ -113,10 +115,12 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // Pedals have their own response curves so keyboard/touch inputs do not make
         // engine torque jump between frames. Brake pressure builds more quickly than throttle.
         race.throttle += (throttleTarget - race.throttle) * (1 - Math.exp(-dt * (throttleTarget ? 3.8 : 6.5)));
-        race.brakePressure += (brakeTarget - race.brakePressure) * (1 - Math.exp(-dt * (brakeTarget ? 11 : 7)));
+        // Brakes respond decisively on first contact; release remains smooth for trail braking.
+        race.brakePressure += (brakeTarget - race.brakePressure) * (1 - Math.exp(-dt * (brakeTarget ? 32 : 12)));
         const boost = controls.boost && race.nos > 0 && !controls.brake;
-        const acceleration = 112 * race.throttle;
-        const braking = 205 * race.brakePressure;
+        const exitBonus = now < cornerSkillRef.current.exitBoostUntil ? 14 : 0;
+        const acceleration = 112 * race.throttle + exitBonus;
+        const braking = 315 * race.brakePressure;
         race.speed = clamp(race.speed + (acceleration - race.speed * 0.145 - braking + (boost ? 76 : 0)) * dt, 0, boost ? 250 : 205);
         race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
         if (race.nos <= 0 && controls.boost) { controls.boost = false; setBoostActive(false); }
@@ -125,10 +129,16 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // high speed or holds a hard brake while turning; the track itself never adds slip.
         // Grip stays predictable through corners. A bend by itself never triggers
         // a skid; only a sustained, near-lock steering input at high speed can do so.
-        const grip = 1.18 - speedRatio * 0.035 - race.brakePressure * 0.055;
+        const grip = 1.18 - speedRatio * 0.035 - race.brakePressure * 0.10;
         const steeringOverload = Math.max(0, Math.abs(steering) - 0.86) / 0.14;
         const highSpeedFactor = clamp((race.speed - 145) / 60, 0, 1);
-        const excessSteering = steeringOverload * highSpeedFactor;
+        // A slide is earned by combining speed, meaningful steering and hard braking,
+        // or by over-committing steering at very high speed. Track curvature alone
+        // never creates drift.
+        const brakeTurnSlide = clamp((race.brakePressure - 0.38) / 0.62, 0, 1)
+          * clamp((race.speed - 72) / 105, 0, 1)
+          * clamp((Math.abs(steering) - 0.28) / 0.48, 0, 1);
+        const excessSteering = Math.max(steeringOverload * highSpeedFactor, brakeTurnSlide * 0.78);
         const corneringLoss = excessSteering * (4 + race.speed * 0.012);
         if (excessSteering > 0) race.speed = Math.max(0, race.speed - corneringLoss * dt);
 
@@ -141,15 +151,33 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.heading += (yawTarget - race.heading) * yawResponse;
         race.heading = clamp(race.heading, -0.24, 0.24);
 
-        const lateralDrive = steering * (0.78 + speedRatio * 0.42);
+        const lateralDrive = steering * (0.78 + speedRatio * 0.42)
+          + brakeTurnSlide * Math.sign(steering) * 0.24;
         const lateralDamping = 2.8 + grip * 0.8;
         const centreAssist = 0.95;
         race.lateralVelocity += (lateralDrive - race.lateralVelocity * lateralDamping - race.lateral * centreAssist) * dt;
         race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -0.92, 0.92);
         if (Math.abs(race.lateral) >= 0.915) race.lateralVelocity *= 0.35;
 
-        // Skid visuals only appear during genuine high-speed steering overload.
-        race.drift = clamp(excessSteering * Math.sign(steering) * 0.12, -0.08, 0.08);
+        // Drift visuals reflect actual driver-induced slip, not the corner shape.
+        race.drift = clamp((steeringOverload * highSpeedFactor + brakeTurnSlide * 0.72) * Math.sign(steering) * 0.14, -0.12, 0.12);
+
+        // Reward a complete corner sequence: brake before entry, turn in, then
+        // unwind the steering and accelerate through a clean exit on the circuit.
+        const skill = cornerSkillRef.current;
+        if (upcomingBend > 0.34 && race.brakePressure > 0.35 && race.speed < 138) {
+          skill.brakedForCorner = true;
+        }
+        if (bend > 0.30 && skill.brakedForCorner && Math.abs(steering) > 0.12 && race.brakePressure < 0.72) {
+          skill.turnedIn = true;
+        }
+        if (bend < 0.22 && skill.turnedIn && controls.accelerate && race.throttle > 0.45
+          && Math.abs(steering) < 0.42 && Math.abs(race.lateral) < 0.68) {
+          skill.exitBoostUntil = now + 900;
+          skill.brakedForCorner = false;
+          skill.turnedIn = false;
+          notify("Clean apex exit · racing-line bonus!", "success");
+        }
         if (Math.abs(race.lateral) > 1.08) {
           race.lapInvalid = true;
           race.offTrack += dt;
@@ -232,8 +260,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       setBoostActive(false);
     }
   };
-  // NOS is a tap-to-toggle burst, not another hold target. Tap once to fire,
-  // tap again to cut it; braking safely cancels the burst.
+  // NOS is a compact tap-to-toggle tactical burst, not a hold pedal.
+  // Tap once to fire, tap again to cut it; braking safely cancels the burst.
   const toggleBoost = () => {
     if (phaseRef.current !== "running" || raceRef.current.nos <= 0) return;
     const next = !controlsRef.current.boost;
