@@ -182,12 +182,18 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           race.offTrack = Math.max(0, race.offTrack - dt * 1.8);
         }
 
-        // Track limits affect pace and invalidate the lap, but missing the
-        // racing line is not a collision. Let the driver recover naturally.
-        if (Math.abs(race.lateral) > 1.48) {
-          race.speed = Math.max(24, race.speed - (32 + Math.abs(race.lateral) * 14) * dt);
-          race.lateralVelocity *= Math.max(0, 1 - dt * 1.7);
+        // Leaving the road for too long triggers a visible crash and automatic pit
+        // recovery. The lap is invalidated, but the practice session continues.
+        if ((race.offTrack > 2.35 && race.speed > 85) || (Math.abs(race.lateral) > 1.48 && race.speed > 175)) {
+          race.speed = 0;
+          race.heading = 0;
           race.lapInvalid = true;
+          controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+          phaseRef.current = "crashed";
+          setCrashMessage("CRASH! Recovering to the pit lane…");
+          setPhase("crashed");
+          raf = window.requestAnimationFrame(frame);
+          return;
         }
 
         race.progress += progressDelta;
