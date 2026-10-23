@@ -83,27 +83,23 @@ async function fetchAndCache(path, cacheName, { required = false } = {}) {
 }
 
 async function precacheShell() {
-  const shell = await caches.open(SHELL_CACHE);
   const discovered = new Set();
   for (const path of APP_SHELL) {
+    const critical = path === "/" || path === "/games";
     try {
-      const response = await fetchAndCache(path, SHELL_CACHE, { required: path === "/" || path === "/games" });
+      const response = await fetchAndCache(path, SHELL_CACHE, { required: critical });
       if (!response || !(response.headers.get("content-type") || "").includes("text/html")) continue;
       const html = await response.text();
-      for (const match of html.matchAll(/(?:src|href)=[\"'](\/_next\/static\/[^\"']+)[\"']/g)) discovered.add(match[1]);
+      for (const match of html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+)["']/g)) discovered.add(match[1]);
     } catch (error) {
-      // A temporary network failure should not brick an already-installed app.
-      console.warn("Could not refresh an app-shell resource during install:", path, error);
+      if (critical) throw error;
+      console.warn("Could not refresh an optional app-shell resource:", path, error);
     }
   }
 
-  await Promise.all([...discovered].map(async (path) => {
-    try {
-      await fetchAndCache(path, SHELL_CACHE);
-    } catch (error) {
-      console.warn("Could not precache a Next.js asset:", path, error);
-    }
-  }));
+  // Do not activate an update with an incomplete app bundle: keep the active
+  // worker and retry on a later visit if any referenced JS/CSS cannot be cached.
+  await Promise.all([...discovered].map((path) => fetchAndCache(path, SHELL_CACHE, { required: true })));
   await trimCache(SHELL_CACHE, STATIC_LIMIT + PUBLIC_PAGE_LIMIT);
 }
 
