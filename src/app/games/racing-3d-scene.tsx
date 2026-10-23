@@ -246,6 +246,9 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       }
     }
     const car = makeCar();
+    // Keep the car's proportions credible against the 12-unit road and leave
+    // more visual room around it for steering on narrow mobile screens.
+    car.scale.setScalar(0.82);
     scene.add(car);
     const groundShadow = new THREE.Mesh(
       new THREE.CircleGeometry(1, 32),
