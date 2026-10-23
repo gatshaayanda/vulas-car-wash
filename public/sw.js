@@ -195,8 +195,8 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname === "/manifest.webmanifest") {
     event.respondWith(fetch(new Request(request, { cache: "no-store" })).then((response) => {
       if (response.ok) {
-        const copy = response.clone();
-        void caches.open(SHELL_CACHE).then((cache) => cache.put(request, copy));
+        const cacheCopy = response.clone();
+        void caches.open(SHELL_CACHE).then((cache) => cache.put(request, cacheCopy));
       }
       return response;
     }).catch(async () => {
