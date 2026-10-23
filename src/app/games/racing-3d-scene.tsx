@@ -246,66 +246,9 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     groundShadow.scale.set(1.25, 2.05, 1);
     groundShadow.position.y = 0.028;
     scene.add(groundShadow);
-    const assetCar = new THREE.Group();
-    scene.add(assetCar);
-    assetCar.visible = false;
-    let alive = true;
-    // Prefer a real Kenney Racing Kit car; keep the procedural car as a safe fallback.
-    fetch("/game-assets/racing-kit/manifest.json")
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Racing Kit manifest unavailable")))
-      .then((manifest: { assets?: { name: string; path: string; format: string }[] }) => {
-        const assets = manifest.assets ?? [];
-        const selected = assets.find((asset) => /race.?car.?red|car.?red/i.test(asset.name))
-          ?? assets.find((asset) => /race.?car|vehicle.?race/i.test(asset.name))
-          ?? assets.find((asset) => /car|vehicle/i.test(asset.name));
-        if (!selected) throw new Error("No car model found in Racing Kit manifest");
-        new GLTFLoader().load(selected.path, (gltf) => {
-          if (!alive) {
-            gltf.scene.traverse((node) => {
-              const mesh = node as THREE.Mesh;
-              mesh.geometry?.dispose();
-              if (mesh.material) (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((material) => material.dispose());
-            });
-            return;
-          }
-          const model = gltf.scene;
-          const bounds = new THREE.Box3().setFromObject(model);
-          const size = bounds.getSize(new THREE.Vector3());
-          const center = bounds.getCenter(new THREE.Vector3());
-          const scale = 3.25 / Math.max(size.x, size.z, 0.01);
-          model.scale.setScalar(scale);
-          model.position.set(-center.x * scale, -bounds.min.y * scale, -center.z * scale);
-          model.rotation.y = Math.PI;
-          model.traverse((node) => {
-            const mesh = node as THREE.Mesh;
-            if (mesh.isMesh) { mesh.castShadow = true; mesh.receiveShadow = true; }
-          });
-          assetCar.add(model);
-          // GLTF cars need their own exhaust effect: the procedural fallback's flame
-          // is hidden when the Kenney model loads.
-          const flameGroup = new THREE.Group();
-          const outerFlame = new THREE.Mesh(
-            new THREE.ConeGeometry(.2, .9, 10),
-            new THREE.MeshBasicMaterial({ color: "#42dfff", transparent: true, opacity: .9 })
-          );
-          outerFlame.rotation.x = -Math.PI / 2;
-          outerFlame.position.set(0, .38, 1.72);
-          const innerFlame = new THREE.Mesh(
-            new THREE.ConeGeometry(.105, .55, 8),
-            new THREE.MeshBasicMaterial({ color: "#ffb23d", transparent: true, opacity: .96 })
-          );
-          innerFlame.rotation.x = -Math.PI / 2;
-          innerFlame.position.set(0, .38, 1.92);
-          flameGroup.add(outerFlame, innerFlame);
-          flameGroup.visible = false;
-          assetCar.add(flameGroup);
-          assetCar.userData.flame = flameGroup;
-          assetCar.userData.flameOuter = outerFlame;
-          assetCar.visible = true;
-          car.visible = false;
-        }, undefined, (error) => console.warn("Kenney racing car failed to load; using fallback car.", error));
-      })
-      .catch((error) => console.warn("Kenney Racing Kit unavailable; using fallback car.", error));
+    // Keep the approved lime-green procedural car as the one consistent car model.
+    // Do not swap it for a network-loaded model: that made the car's appearance
+    // depend on connection and cache state. The driving controls and physics are unchanged.
     const skyGlow = new THREE.Mesh(new THREE.SphereGeometry(320, 16, 10), new THREE.MeshBasicMaterial({ color: "#b9d4df", side: THREE.BackSide }));
     scene.add(skyGlow);
     const clock = new THREE.Clock();
