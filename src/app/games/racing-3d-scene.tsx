@@ -84,9 +84,8 @@ function makeCar() {
     new THREE.ConeGeometry(.22, 1.05, 10),
     new THREE.MeshBasicMaterial({ color: "#54dfff", transparent: true, opacity: .88 })
   );
-  // A cone's +Y axis becomes +Z with +PI/2, pointing behind this car.
-  flame.rotation.x = Math.PI / 2;
-  flame.position.set(0, .45, 2.12);
+  flame.rotation.x = -Math.PI / 2;
+  flame.position.set(0, .45, 2.35);
   flame.visible = false;
   car.add(flame);
   car.userData.flame = flame;
@@ -289,15 +288,14 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
             new THREE.ConeGeometry(.2, .9, 10),
             new THREE.MeshBasicMaterial({ color: "#42dfff", transparent: true, opacity: .9 })
           );
-          // Keep the exhaust effect in the same car rig and point it rearward.
-          outerFlame.rotation.x = Math.PI / 2;
-          outerFlame.position.set(0, .38, 1.82);
+          outerFlame.rotation.x = -Math.PI / 2;
+          outerFlame.position.set(0, .38, 1.72);
           const innerFlame = new THREE.Mesh(
             new THREE.ConeGeometry(.105, .55, 8),
             new THREE.MeshBasicMaterial({ color: "#ffb23d", transparent: true, opacity: .96 })
           );
-          innerFlame.rotation.x = Math.PI / 2;
-          innerFlame.position.set(0, .38, 2.02);
+          innerFlame.rotation.x = -Math.PI / 2;
+          innerFlame.position.set(0, .38, 1.92);
           flameGroup.add(outerFlame, innerFlame);
           flameGroup.visible = false;
           assetCar.add(flameGroup);
@@ -343,8 +341,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       assetCar.rotation.copy(car.rotation);
       groundShadow.position.x = carWorld.x;
       groundShadow.position.z = carWorld.z;
-      // The shadow is a flat ground-plane oval; it should not roll onto its edge
-      // as the car yaws. Keep its orientation fixed and directly beneath the rig.
+      groundShadow.rotation.z = -car.rotation.y;
       const cameraTarget = new THREE.Vector3(carWorld.x + forward.x * 10, 1.25, carWorld.z + forward.z * 10);
       const cameraPosition = new THREE.Vector3(carWorld.x - forward.x * 8.4, 4.7, carWorld.z - forward.z * 8.4);
       const frameDelta = Math.min(clock.getDelta(), .05);
