@@ -172,3 +172,38 @@
 /* Fresh commit to retrigger the preview for mobile racing-controls QA; gameplay logic unchanged. */
 
 /* QA deployment retry: gameplay and protected PWA installation behavior unchanged. */
+
+
+/* QA handling pass: compact tactical NOS and a less bulky brake control. */
+.warmup-circuit-controls .warmup-driving .nos-button{
+  grid-column:1/-1;
+  justify-self:center;
+  width:max-content;
+  min-width:0!important;
+  min-height:36px!important;
+  padding:7px 14px!important;
+  border-radius:999px!important;
+  font-size:10px!important;
+  letter-spacing:.04em;
+  box-shadow:none;
+}
+.warmup-circuit-controls .warmup-driving .nos-button[aria-pressed="true"]{
+  box-shadow:0 0 0 2px #6675d522;
+}
+.warmup-circuit-controls .warmup-driving button[aria-label="Brake"]{
+  align-self:center;
+  min-height:48px;
+  padding:8px 6px;
+  border-radius:10px;
+}
+@media(max-width:640px){
+  .warmup-circuit-controls .warmup-driving .nos-button{
+    min-height:34px!important;
+    padding:6px 13px!important;
+    font-size:10px!important;
+  }
+  .warmup-circuit-controls .warmup-driving button[aria-label="Brake"]{
+    min-height:46px;
+    font-size:10px;
+  }
+}
