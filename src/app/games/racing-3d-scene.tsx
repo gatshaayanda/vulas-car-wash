@@ -300,7 +300,6 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     };
     resize(); window.addEventListener("resize", resize); raf = requestAnimationFrame(render);
     return () => {
-      alive = false;
       cancelAnimationFrame(raf); window.removeEventListener("resize", resize);
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
