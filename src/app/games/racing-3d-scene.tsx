@@ -59,12 +59,13 @@ function makeCar() {
   const alloy = new THREE.MeshStandardMaterial({ color: "#89949a", metalness: .7, roughness: .3 });
   const glass = new THREE.MeshStandardMaterial({ color: "#244554", metalness: .45, roughness: .22 });
   const light = new THREE.MeshStandardMaterial({ color: "#ff4039", emissive: "#a51412", emissiveIntensity: .6 });
-  roundedCarBox(car, bodyMat, [2.25, .48, 3.5], [0, .62, 0], .2);
-  roundedCarBox(car, bodyMat, [1.7, .24, 1.4], [0, .9, -.5], .12);
-  roundedCarBox(car, glass, [1.2, .48, 1.05], [0, 1.18, -.65], .16);
-  box(car, dark, [2.95, .14, .32], [0, 1.03, 1.45]);
-  box(car, bodyMat, [2.7, .12, .2], [0, 1.11, 1.45]);
-  box(car, dark, [1.85, .15, .6], [0, .47, 1.38]);
+  // Lower, longer rounded shell gives the practice car a smoother touring-racer profile.
+  roundedCarBox(car, bodyMat, [2.16, .46, 3.72], [0, .61, 0], .28);
+  roundedCarBox(car, bodyMat, [1.66, .23, 1.52], [0, .88, -.53], .17);
+  roundedCarBox(car, glass, [1.22, .43, 1.12], [0, 1.15, -.69], .2);
+  roundedCarBox(car, dark, [2.72, .12, .22], [0, .48, 1.67], .045);
+  roundedCarBox(car, bodyMat, [2.58, .11, .18], [0, 1.02, 1.52], .04);
+  roundedCarBox(car, dark, [1.8, .13, .52], [0, .46, 1.35], .06);
   for (const x of [-1.15, 1.15]) {
     const tyre = new THREE.Mesh(new THREE.CylinderGeometry(.47, .47, .32, 16), rubber);
     tyre.rotation.z = Math.PI / 2;
