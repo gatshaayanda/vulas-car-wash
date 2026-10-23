@@ -141,7 +141,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.heading += (yawTarget - race.heading) * yawResponse;
         race.heading = clamp(race.heading, -0.24, 0.24);
 
-        const lateralDrive = -steering * (0.78 + speedRatio * 0.42);
+        const lateralDrive = steering * (0.78 + speedRatio * 0.42);
         const lateralDamping = 2.8 + grip * 0.8;
         const centreAssist = 0.95;
         race.lateralVelocity += (lateralDrive - race.lateralVelocity * lateralDamping - race.lateral * centreAssist) * dt;
