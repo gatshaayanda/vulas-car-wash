@@ -33,13 +33,13 @@ Firestore collections used by the active app: `admins`, `services`, `gallery`, `
 
 ## Racing and staff operations
 
-- `/games` is the 500 m traffic-and-obstacle warm-up with collision retry, steering, acceleration, braking and NOS.
+- `/games` is the 500 m traffic-and-obstacle warm-up with collision retry, steering, acceleration, braking and NOS. After opening it online once, the PWA caches its route and downloaded game code for offline play; local racing-model assets are precached where available and the game has a built-in visual fallback.
 - `/games/career` retains the separate racing career mode.
 - `/admin` is the protected staff workspace for bookings, walk-in queue, fleet enquiries, services, business settings, gallery, loyalty and server-stored racing activity.
 
 ## Online and offline behavior
 
-Firestore uses persistent local cache for supported reads. If a customer submits while offline, the app stores the draft in this browser's local storage and retries with a stable request ID when a connection returns. A local draft is **not** visible to staff and is **not** a confirmed booking until the server accepts it. Keep the app/browser data until pending requests have synced. Racing career profiles and online race rewards use `/api/racing` with Firebase ID-token verification and server-owned progression; race results played offline remain device-only and are not later submitted as trusted rewards.
+Firestore uses persistent local cache for supported reads. If a customer submits while offline, the app stores the draft in this browser's local storage and retries with a stable request ID when a connection returns. A local draft is **not** visible to staff and is **not** a confirmed booking until the server accepts it. Keep the app/browser data until pending requests have synced. Racing career profiles and online race rewards use `/api/racing` with Firebase ID-token verification and server-owned progression; race results played offline remain device-only and are not later submitted as trusted rewards. The service worker uses versioned Vula-only shell/game caches and offers a Refresh action when an update is waiting; cache version strings must be bumped when shipping changed game assets.
 
 Online requests use Firebase Anonymous Auth, so customers can begin without creating an account. Linking a guest session to Google preserves its Firebase UID for loyalty continuity on supported devices. A guest session that is never linked remains tied to that browser/device.
 
