@@ -55,7 +55,7 @@ const SHELL_CACHE = CACHE_VERSION;
 const STATIC_LIMIT = 160;
 const PUBLIC_PAGE_LIMIT = 16;
 const APP_SHELL = [
-  "/", "/games", "/offline", "/iphone-install", "/iphone-install.svg",
+  "/", "/games", "/games/career", "/offline", "/iphone-install", "/iphone-install.svg",
   "/vula-icon.svg", "/vula-icon-180.png", "/vula-icon-192.png",
   "/vula-icon-512.png", "/manifest.webmanifest"
 ];
