@@ -2,13 +2,10 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { createRacingTrack, getTrackTurn } from "./racing-track";
 import type { Controls, Phase, Race } from "./racing-warmup";
 
 type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase> };
-
-const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
 function ribbon(curve: THREE.Curve<THREE.Vector3>, width: number, segments: number, y: number) {
   const positions: number[] = [];
@@ -280,8 +277,6 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       ).normalize();
       car.position.copy(carWorld);
       car.rotation.y = Math.atan2(-tangent.x, -tangent.z) + race.heading;
-      assetCar.position.copy(car.position);
-      assetCar.rotation.copy(car.rotation);
       groundShadow.position.x = carWorld.x;
       groundShadow.position.z = carWorld.z;
       groundShadow.rotation.z = -car.rotation.y;
@@ -290,13 +285,11 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const frameDelta = Math.min(clock.getDelta(), .05);
       camera.position.lerp(cameraPosition, 1 - Math.exp(-frameDelta * 5.5));
       camera.lookAt(cameraTarget);
-      const flame = (assetCar.visible ? assetCar.userData.flame : car.userData.flame) as THREE.Object3D | undefined;
+      const flame = car.userData.flame as THREE.Object3D | undefined;
       if (flame) {
         flame.visible = controls.boost && race.nos > 0 && !controls.brake && currentPhase === "running";
         const pulse = .82 + Math.sin(clock.elapsedTime * 42) * .18;
         flame.scale.setScalar(pulse);
-        const outer = assetCar.userData.flameOuter as THREE.Mesh | undefined;
-        if (outer) outer.scale.setScalar(.86 + Math.sin(clock.elapsedTime * 55) * .2);
       }
       if (currentPhase === "running") {
         camera.fov = 63 + Math.min(8, race.speed / 28) + (controls.boost && race.nos > 0 && !controls.brake ? 5 : 0);
