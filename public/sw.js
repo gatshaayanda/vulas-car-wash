@@ -37,10 +37,10 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const rawLink = event.notification.data?.link || "/account";
   const link = rawLink.startsWith("/") ? rawLink : "/account";
-  event.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (list) => {
+  event.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
     for (const client of list) {
       if ("focus" in client) {
-        if ("navigate" in client) await client.navigate(link);
+        void client.navigate(link);
         return client.focus();
       }
     }
