@@ -120,9 +120,13 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.speed = clamp(race.speed + (acceleration - race.speed * 0.145 - braking + (boost ? 76 : 0)) * dt, 0, boost ? 250 : 205);
         race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
         if (race.nos <= 0 && controls.boost) { controls.boost = false; setBoostActive(false); }
-        const grip = 1.12 - speedRatio * 0.10 - bend * speedRatio * 0.045 - race.brakePressure * 0.025;
-        const excessSteering = Math.max(0, Math.abs(steering) * speedRatio * (0.42 + bend * 0.42) - grip);
-        const corneringLoss = excessSteering * (24 + race.speed * 0.065);
+        // Warm-up handling prioritises driver intent: ordinary steering stays planted.
+        // Grip only falls away when the driver combines near-full steering with very
+        // high speed or holds a hard brake while turning; the track itself never adds slip.
+        const grip = 1.15 - speedRatio * 0.05 - bend * speedRatio * 0.02 - race.brakePressure * 0.09;
+        const steeringLoad = Math.abs(steering) * speedRatio * (0.75 + bend * 0.25);
+        const excessSteering = Math.max(0, steeringLoad - grip - 0.12);
+        const corneringLoss = excessSteering * (12 + race.speed * 0.035);
         if (excessSteering > 0) race.speed = Math.max(0, race.speed - corneringLoss * dt);
 
         // Arcade handling: steering rotates the car's actual travel direction. The
@@ -136,12 +140,13 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.heading += (yawTarget - race.heading) * yawResponse;
         race.heading = clamp(race.heading, -0.34, 0.34);
 
-        const lateralTarget = -steering * (0.12 + speedRatio * 0.26);
-        const lateralGrip = clamp(grip - excessSteering * 0.35, 0.55, 1);
-        race.lateralVelocity += (lateralTarget - race.lateralVelocity) * (1 - Math.exp(-dt * (4.2 + lateralGrip * 2.2)));
+        const lateralTarget = -steering * (0.10 + speedRatio * 0.18);
+        const lateralGrip = clamp(grip - excessSteering * 0.2, 0.78, 1);
+        race.lateralVelocity += (lateralTarget - race.lateralVelocity) * (1 - Math.exp(-dt * (5.2 + lateralGrip * 2.2)));
         race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -1.22, 1.22);
 
-        race.drift = clamp(excessSteering * Math.sign(steering || trackTurn) * 0.65 + race.lateralVelocity * 0.08, -0.35, 0.35);
+        // Visual drift is a consequence of excessive driver input, never of the bend alone.
+        race.drift = clamp(excessSteering * Math.sign(steering) * 0.45, -0.22, 0.22);
         if (Math.abs(race.lateral) > 1.08) {
           race.lapInvalid = true;
           race.offTrack += dt;
