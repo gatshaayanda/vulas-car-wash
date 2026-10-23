@@ -7,7 +7,7 @@ import Racing3DScene from "./racing-3d-scene";
 import { subscribeSettings } from "@/lib/firebase/vula-data";
 import { createRacingTrack, getTrackTurn } from "./racing-track";
 
-export type Phase = "ready" | "countdown" | "running" | "paused" | "crashed" | "finished";
+export type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
 export type Controls = { steer: number; accelerate: boolean; brake: boolean; boost: boolean };
 export type Race = {
   progress: number; speed: number; elapsed: number; lap: number; lapTime: number; steering: number; throttle: number; brakePressure: number;
@@ -31,7 +31,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const phaseRef = useRef<Phase>("ready");
   const [phase, setPhase] = useState<Phase>("ready");
   const [countdown, setCountdown] = useState(3);
-  const [crashMessage, setCrashMessage] = useState("");
   const [speed, setSpeed] = useState(0);
   const [lapTime, setLapTime] = useState(0);
   const [bestLap, setBestLap] = useState<number | null>(null);
@@ -89,26 +88,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
 
 
   useEffect(() => {
-    if (phase !== "crashed") return;
-    const timer = window.setTimeout(() => {
-      const race = raceRef.current;
-      race.lateral = 0;
-      race.lateralVelocity = 0;
-      race.heading = 0;
-      race.offTrack = 0;
-      race.speed = 42;
-      race.last = 0;
-      race.lapInvalid = true;
-      controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-      phaseRef.current = "running";
-      setCrashMessage("");
-      setPhase("running");
-      notify("Pit recovery complete — back on track. Lap invalidated.", "error");
-    }, 1800);
-    return () => window.clearTimeout(timer);
-  }, [phase, notify]);
-
-  useEffect(() => {
     let raf = 0;
     let previous = 0;
     let lastUi = 0;
@@ -150,51 +129,28 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // circuit only changes the reference tangent as the car advances; it no longer
         // drags the car around the loop when the player is not steering.
         const progressDelta = race.speed * Math.max(0.15, Math.cos(race.heading)) * dt / 4200;
-        // Direct arcade steering: the car must turn because the player steers,
-        // not because the circuit silently pulls it around. Keep yaw as a real,
-        // persistent direction change; tyre grip gradually settles small slip but
-        // never snaps the nose back to the track tangent while a turn is held.
-        const yawResponse = 0.72 + speedRatio * 1.35;
-        const headingReturn = 0.28 + (1 - grip) * 0.45;
-        race.heading = clamp(
-          race.heading + (-steering * yawResponse - race.heading * headingReturn) * dt,
-          -0.95,
-          0.95,
-        );
+        // Predictable warm-up handling: steering creates a measured line change and
+        // modest body yaw. Ordinary steering must not force the car into a drift.
+        const yawTarget = -steering * (0.10 + speedRatio * 0.16);
+        const yawResponse = 1 - Math.exp(-dt * (3.8 + speedRatio * 1.4));
+        race.heading += (yawTarget - race.heading) * yawResponse;
+        race.heading = clamp(race.heading, -0.34, 0.34);
 
-        // The car now moves sideways primarily because it is pointing across the
-        // track. This is what makes steering visibly change the driving line instead
-        // of merely nudging the car between invisible lanes.
-        const trackLength = trackRef.current!.getLength();
-        const headingLateral = -Math.sin(race.heading) * (0.25 + speedRatio * 1.05);
-        const steeringLateral = -steering * speedRatio * 0.10;
-        const lateralTarget = headingLateral + steeringLateral;
-        const lateralGrip = clamp(grip - excessSteering * 0.5, 0.12, 1);
-        race.lateralVelocity += (lateralTarget - race.lateralVelocity) * (2.0 + lateralGrip * 1.8) * dt;
-        race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -1.9, 1.9);
+        const lateralTarget = -steering * (0.12 + speedRatio * 0.26);
+        const lateralGrip = clamp(grip - excessSteering * 0.35, 0.55, 1);
+        race.lateralVelocity += (lateralTarget - race.lateralVelocity) * (1 - Math.exp(-dt * (4.2 + lateralGrip * 2.2)));
+        race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -1.22, 1.22);
 
-        race.drift = clamp(excessSteering * Math.sign(steering || trackTurn) * 1.65 + race.lateralVelocity * 0.28, -1, 1);
+        race.drift = clamp(excessSteering * Math.sign(steering || trackTurn) * 0.65 + race.lateralVelocity * 0.08, -0.35, 0.35);
         if (Math.abs(race.lateral) > 1.08) {
-          race.speed = Math.max(0, race.speed - (20 + Math.abs(race.lateral) * 12) * dt);
           race.lapInvalid = true;
           race.offTrack += dt;
         } else {
           race.offTrack = Math.max(0, race.offTrack - dt * 1.8);
         }
 
-        // Leaving the road for too long triggers a visible crash and automatic pit
-        // recovery. The lap is invalidated, but the practice session continues.
-        if ((race.offTrack > 2.35 && race.speed > 85) || (Math.abs(race.lateral) > 1.48 && race.speed > 175)) {
-          race.speed = 0;
-          race.heading = 0;
-          race.lapInvalid = true;
-          controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-          phaseRef.current = "crashed";
-          setCrashMessage("CRASH! Recovering to the pit lane…");
-          setPhase("crashed");
-          raf = window.requestAnimationFrame(frame);
-          return;
-        }
+        // Practice has no crash/recovery interruption. Going wide can invalidate a
+        // lap, but never takes the car away from the player or resets their inputs.
 
         race.progress += progressDelta;
         race.elapsed += dt;
@@ -290,8 +246,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         {toast && <div className={"warmup-toast " + toast.kind} role="status">{toast.text}</div>}
         <div className="warmup-3d-overlay" hidden={phase === "running"} aria-live="polite">
           <span>VULA RACING · CIRCUIT PRACTICE</span>
-          <strong>{phase === "ready" ? "Find your racing line" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "crashed" ? "Pit-lane recovery" : "Nice driving!"}</strong>
-          <p>{phase === "ready" ? "Follow the green line. Brake at the boards, turn in on cue, clip the apex and unwind onto the exit." : phase === "countdown" ? "Get set. Smooth steering beats sudden corrections." : phase === "paused" ? "Take a breath. Resume when you're ready." : phase === "crashed" ? crashMessage : "Session complete. Take another lap and beat your time."}</p>
+          <strong>{phase === "ready" ? "Find your racing line" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : "Nice driving!"}</strong>
+          <p>{phase === "ready" ? "Follow the green line. Brake at the boards, turn in on cue, clip the apex and unwind onto the exit." : phase === "countdown" ? "Get set. Smooth steering beats sudden corrections." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete. Take another lap and beat your time."}</p>
         </div>
       </div>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
