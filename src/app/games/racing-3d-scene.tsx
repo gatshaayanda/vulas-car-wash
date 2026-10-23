@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { createRacingTrack, getTrackTurn } from "./racing-track";
 import type { Controls, Phase, Race } from "./racing-warmup";
 
@@ -40,17 +41,27 @@ function box(parent: THREE.Group, material: THREE.Material, size: [number, numbe
   return mesh;
 }
 
+function roundedCarBox(parent: THREE.Group, material: THREE.Material, size: [number, number, number], pos: [number, number, number], radius = .12) {
+  const geometry = new RoundedBoxGeometry(...size, 4, radius);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(...pos);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
 function makeCar() {
   const car = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: "#b9ef48", roughness: .32, metalness: .18 });
+  const bodyMat = new THREE.MeshStandardMaterial({ color: "#f04478", roughness: .27, metalness: .24 });
   const dark = new THREE.MeshStandardMaterial({ color: "#101820", roughness: .72 });
   const rubber = new THREE.MeshStandardMaterial({ color: "#090c10", roughness: .92 });
   const alloy = new THREE.MeshStandardMaterial({ color: "#89949a", metalness: .7, roughness: .3 });
   const glass = new THREE.MeshStandardMaterial({ color: "#244554", metalness: .45, roughness: .22 });
   const light = new THREE.MeshStandardMaterial({ color: "#ff4039", emissive: "#a51412", emissiveIntensity: .6 });
-  box(car, bodyMat, [2.25, .48, 3.5], [0, .62, 0]);
-  box(car, bodyMat, [1.7, .24, 1.4], [0, .9, -.5]);
-  box(car, glass, [1.2, .48, 1.05], [0, 1.18, -.65]);
+  roundedCarBox(car, bodyMat, [2.25, .48, 3.5], [0, .62, 0], .2);
+  roundedCarBox(car, bodyMat, [1.7, .24, 1.4], [0, .9, -.5], .12);
+  roundedCarBox(car, glass, [1.2, .48, 1.05], [0, 1.18, -.65], .16);
   box(car, dark, [2.95, .14, .32], [0, 1.03, 1.45]);
   box(car, bodyMat, [2.7, .12, .2], [0, 1.11, 1.45]);
   box(car, dark, [1.85, .15, .6], [0, .47, 1.38]);
@@ -243,9 +254,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     groundShadow.scale.set(1.25, 2.05, 1);
     groundShadow.position.y = 0.028;
     scene.add(groundShadow);
-    // Keep the approved lime-green procedural car as the one consistent car model.
-    // Do not swap it for a network-loaded model: that made the car's appearance
-    // depend on connection and cache state. The driving controls and physics are unchanged.
+    // Preserve the approved circuit, scenery, camera and controls; this is a visual-only car refresh.
     const skyGlow = new THREE.Mesh(new THREE.SphereGeometry(320, 16, 10), new THREE.MeshBasicMaterial({ color: "#b9d4df", side: THREE.BackSide }));
     scene.add(skyGlow);
     const clock = new THREE.Clock();
