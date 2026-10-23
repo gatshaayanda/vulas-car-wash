@@ -123,30 +123,33 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // Warm-up handling prioritises driver intent: ordinary steering stays planted.
         // Grip only falls away when the driver combines near-full steering with very
         // high speed or holds a hard brake while turning; the track itself never adds slip.
-        const grip = 1.15 - speedRatio * 0.05 - bend * speedRatio * 0.02 - race.brakePressure * 0.09;
-        const steeringLoad = Math.abs(steering) * speedRatio * (0.75 + bend * 0.25);
-        const excessSteering = Math.max(0, steeringLoad - grip - 0.12);
-        const corneringLoss = excessSteering * (12 + race.speed * 0.035);
+        // Grip stays predictable through corners. A bend by itself never triggers
+        // a skid; only a sustained, near-lock steering input at high speed can do so.
+        const grip = 1.18 - speedRatio * 0.035 - race.brakePressure * 0.055;
+        const steeringOverload = Math.max(0, Math.abs(steering) - 0.86) / 0.14;
+        const highSpeedFactor = clamp((race.speed - 145) / 60, 0, 1);
+        const excessSteering = steeringOverload * highSpeedFactor;
+        const corneringLoss = excessSteering * (4 + race.speed * 0.012);
         if (excessSteering > 0) race.speed = Math.max(0, race.speed - corneringLoss * dt);
 
-        // Arcade handling: steering rotates the car's actual travel direction. The
-        // circuit only changes the reference tangent as the car advances; it no longer
-        // drags the car around the loop when the player is not steering.
-        const progressDelta = race.speed * Math.max(0.15, Math.cos(race.heading)) * dt / 4200;
-        // Predictable warm-up handling: steering creates a measured line change and
-        // modest body yaw. Ordinary steering must not force the car into a drift.
-        const yawTarget = -steering * (0.10 + speedRatio * 0.16);
-        const yawResponse = 1 - Math.exp(-dt * (3.8 + speedRatio * 1.4));
+        // The circuit carries the car forward; steering changes its lane position.
+        // Lateral velocity is damped and gently pulled toward centre on release, so
+        // holding a direction moves across the road without pinning the car to an edge.
+        const progressDelta = race.speed * Math.max(0.4, Math.cos(race.heading)) * dt / 4200;
+        const yawTarget = -steering * (0.055 + speedRatio * 0.10);
+        const yawResponse = 1 - Math.exp(-dt * (4.8 + speedRatio));
         race.heading += (yawTarget - race.heading) * yawResponse;
-        race.heading = clamp(race.heading, -0.34, 0.34);
+        race.heading = clamp(race.heading, -0.24, 0.24);
 
-        const lateralTarget = -steering * (0.10 + speedRatio * 0.18);
-        const lateralGrip = clamp(grip - excessSteering * 0.2, 0.78, 1);
-        race.lateralVelocity += (lateralTarget - race.lateralVelocity) * (1 - Math.exp(-dt * (5.2 + lateralGrip * 2.2)));
-        race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -1.22, 1.22);
+        const lateralDrive = -steering * (0.78 + speedRatio * 0.42);
+        const lateralDamping = 2.8 + grip * 0.8;
+        const centreAssist = 0.95;
+        race.lateralVelocity += (lateralDrive - race.lateralVelocity * lateralDamping - race.lateral * centreAssist) * dt;
+        race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -0.92, 0.92);
+        if (Math.abs(race.lateral) >= 0.915) race.lateralVelocity *= 0.35;
 
-        // Visual drift is a consequence of excessive driver input, never of the bend alone.
-        race.drift = clamp(excessSteering * Math.sign(steering) * 0.45, -0.22, 0.22);
+        // Skid visuals only appear during genuine high-speed steering overload.
+        race.drift = clamp(excessSteering * Math.sign(steering) * 0.12, -0.08, 0.08);
         if (Math.abs(race.lateral) > 1.08) {
           race.lapInvalid = true;
           race.offTrack += dt;
