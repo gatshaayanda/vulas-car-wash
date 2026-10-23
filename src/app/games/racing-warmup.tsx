@@ -130,15 +130,12 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // Grip stays predictable through corners. A bend by itself never triggers
         // a skid; only a sustained, near-lock steering input at high speed can do so.
         const grip = 1.18 - speedRatio * 0.035 - race.brakePressure * 0.10;
-        const steeringOverload = Math.max(0, Math.abs(steering) - 0.86) / 0.14;
-        const highSpeedFactor = clamp((race.speed - 145) / 60, 0, 1);
-        // A slide is earned by combining speed, meaningful steering and hard braking,
-        // or by over-committing steering at very high speed. Track curvature alone
-        // never creates drift.
+        // A slide is earned only by combining speed, meaningful steering and hard
+        // braking. Ordinary steering—even through a sharp-looking bend—stays planted.
         const brakeTurnSlide = clamp((race.brakePressure - 0.38) / 0.62, 0, 1)
           * clamp((race.speed - 72) / 105, 0, 1)
           * clamp((Math.abs(steering) - 0.28) / 0.48, 0, 1);
-        const excessSteering = Math.max(steeringOverload * highSpeedFactor, brakeTurnSlide * 0.78);
+        const excessSteering = brakeTurnSlide * 0.78;
         const corneringLoss = excessSteering * (4 + race.speed * 0.012);
         if (excessSteering > 0) race.speed = Math.max(0, race.speed - corneringLoss * dt);
 
@@ -160,7 +157,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         if (Math.abs(race.lateral) >= 0.915) race.lateralVelocity *= 0.35;
 
         // Drift visuals reflect actual driver-induced slip, not the corner shape.
-        race.drift = clamp((steeringOverload * highSpeedFactor + brakeTurnSlide * 0.72) * Math.sign(steering) * 0.14, -0.12, 0.12);
+        race.drift = clamp(brakeTurnSlide * Math.sign(steering) * 0.14, -0.12, 0.12);
 
         // Reward a complete corner sequence: brake before entry, turn in, then
         // unwind the steering and accelerate through a clean exit on the circuit.
