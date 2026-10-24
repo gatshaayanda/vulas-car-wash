@@ -7,17 +7,18 @@ import Racing3DScene from "./racing-3d-scene";
 import { subscribeSettings } from "@/lib/firebase/vula-data";
 import { createRacingTrack, getTrackTurn } from "./racing-track";
 
-export type Phase = "ready" | "countdown" | "running" | "paused" | "finished";
+export type Phase = "ready" | "countdown" | "running" | "paused" | "finished" | "crashed";
 export type Controls = { steer: number; accelerate: boolean; brake: boolean; boost: boolean };
 export type Race = {
   progress: number; speed: number; elapsed: number; lap: number; lapTime: number; steering: number; throttle: number; brakePressure: number;
   bestLap: number | null; lateral: number; lateralVelocity: number; heading: number; drift: number;
   nos: number; last: number; lapInvalid: boolean; offTrack: number;
   longitudinalLoad: number; lateralG: number; wheelLock: number;
+  worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; damage: number; lastImpactAt: number; trackT: number;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0 });
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.2, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -169,53 +170,102 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
 
         // Heading and lateral motion now respond to speed, grip and load transfer.
         const grip = clamp(1.12 - updatedSpeedRatio * 0.06 - race.brakePressure * 0.08 - race.wheelLock * 0.18, 0.62, 1.12);
-        const progressDelta = race.speed * Math.max(0.4, Math.cos(race.heading)) * dt / 4200;
-        const yawTarget = -steering * (0.045 + updatedSpeedRatio * 0.095) * cornerGripRatio;
-        const yawResponse = 1 - Math.exp(-dt * (4.8 + updatedSpeedRatio));
-        race.heading += (yawTarget - race.heading) * yawResponse;
-        race.heading = clamp(race.heading, -0.24, 0.24);
+        // Independent world-space vehicle dynamics: the track no longer advances the car.
+        // Steering changes the car's yaw; tyre grip determines how much velocity follows.
+        const steerAngle = steering * (0.12 - updatedSpeedRatio * 0.045);
+        const forwardX = -Math.sin(race.worldYaw);
+        const forwardZ = -Math.cos(race.worldYaw);
+        const lateralX = Math.cos(race.worldYaw);
+        const lateralZ = -Math.sin(race.worldYaw);
+        const longitudinalVelocity = race.velocityX * forwardX + race.velocityZ * forwardZ;
+        const lateralVelocity = race.velocityX * lateralX + race.velocityZ * lateralZ;
+        const targetYawRate = Math.tan(steerAngle) * Math.max(0, longitudinalVelocity) / 2.65;
+        const gripLimit = 7.8 * clamp(1.08 - race.brakePressure * 0.35 - race.wheelLock * 0.5, 0.42, 1.08);
+        const demandedLateralAccel = targetYawRate * Math.max(0, longitudinalVelocity);
+        const gripRatio = Math.min(1, gripLimit / Math.max(0.001, Math.abs(demandedLateralAccel)));
+        const yawResponse = 1 - Math.exp(-dt * (3.5 + updatedSpeedRatio * 2.5));
+        race.worldYaw += targetYawRate * gripRatio * yawResponse * dt;
+        race.worldYaw = Math.atan2(Math.sin(race.worldYaw), Math.cos(race.worldYaw));
+        const updatedForwardX = -Math.sin(race.worldYaw);
+        const updatedForwardZ = -Math.cos(race.worldYaw);
+        const updatedLateralX = Math.cos(race.worldYaw);
+        const updatedLateralZ = -Math.sin(race.worldYaw);
+        const driveAccel = (race.throttle * 17 + (boost ? 12 : 0)) * (longitudinalVelocity < 0 ? 1.7 : 1);
+        const brakeAccel = race.brakePressure * 28 * brakeEfficiency;
+        const dragAccel = longitudinalVelocity * (0.32 + Math.abs(longitudinalVelocity) * 0.012);
+        let nextLongitudinal = longitudinalVelocity + (driveAccel - brakeAccel - dragAccel) * dt;
+        nextLongitudinal = clamp(nextLongitudinal, -7, 15.9);
+        const lateralSlipAccel = clamp(-lateralVelocity * (gripRatio < 0.98 ? 1.2 : 5.5), -gripLimit, gripLimit);
+        const nextLateral = lateralVelocity + lateralSlipAccel * dt;
+        race.velocityX = updatedForwardX * nextLongitudinal + updatedLateralX * nextLateral;
+        race.velocityZ = updatedForwardZ * nextLongitudinal + updatedLateralZ * nextLateral;
+        race.worldX += race.velocityX * dt;
+        race.worldZ += race.velocityZ * dt;
+        race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 250 : 205);
+        race.heading = Math.atan2(race.velocityX, -race.velocityZ) - race.worldYaw;
+        race.heading = Math.atan2(Math.sin(race.heading), Math.cos(race.heading));
+        race.lateral = clamp(nextLateral, -18, 18);
+        race.lateralVelocity = nextLateral;
+        race.lateralG += ((targetYawRate * gripRatio) - race.lateralG) * (1 - Math.exp(-dt * 5));
+        race.drift = clamp(race.heading * clamp(Math.abs(nextLateral) / 7, 0, 1) * 0.25, -0.22, 0.22);
 
-        const lateralDrive = steering * (0.72 + updatedSpeedRatio * 0.42) * cornerGripRatio
-          + brakeTurnSlide * Math.sign(steering) * 0.28
-          + race.wheelLock * Math.sign(steering) * 0.10;
-        const lateralDamping = 2.8 + grip * 0.8;
-        const centreAssist = 0.95;
-        race.lateralVelocity += (lateralDrive - race.lateralVelocity * lateralDamping - race.lateral * centreAssist) * dt;
-        race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -0.92, 0.92);
-        if (Math.abs(race.lateral) >= 0.915) race.lateralVelocity *= 0.35;
-        race.lateralG += ((steering * updatedSpeedRatio * cornerGripRatio) - race.lateralG) * (1 - Math.exp(-dt * 6));
-
-        // The displayed car uses these values for subtle suspension pitch and body roll.
-        race.drift = clamp((brakeTurnSlide + race.wheelLock * 0.5) * Math.sign(steering) * 0.14, -0.12, 0.12);
-        // The speed-squared estimate also sets the ABS intervention threshold above.
-
-        // Reward a complete corner sequence: brake before entry, turn in, then
-        // unwind the steering and accelerate through a clean exit on the circuit.
-        const skill = cornerSkillRef.current;
-        if (upcomingBend > 0.34 && race.brakePressure > 0.35 && race.speed < 138) {
-          skill.brakedForCorner = true;
+        // Circuit projection is used only for lap timing, track limits, and collision queries.
+        let nearestT = race.trackT;
+        let nearestDistanceSq = Number.POSITIVE_INFINITY;
+        let nearestX = 0;
+        let nearestZ = 0;
+        let nearestTangentX = 0;
+        let nearestTangentZ = -1;
+        for (let sample = 0; sample < 240; sample++) {
+          const sampleT = sample / 240;
+          const point = trackRef.current!.getPointAt(sampleT);
+          const dx = race.worldX - point.x;
+          const dz = race.worldZ - point.z;
+          const distanceSq = dx * dx + dz * dz;
+          if (distanceSq < nearestDistanceSq) {
+            nearestDistanceSq = distanceSq; nearestT = sampleT; nearestX = point.x; nearestZ = point.z;
+            const tangent = trackRef.current!.getTangentAt(sampleT);
+            nearestTangentX = tangent.x; nearestTangentZ = tangent.z;
+          }
         }
-        if (bend > 0.30 && skill.brakedForCorner && Math.abs(steering) > 0.12 && race.brakePressure < 0.72) {
-          skill.turnedIn = true;
+        const dx = race.worldX - nearestX;
+        const dz = race.worldZ - nearestZ;
+        const signedOffset = dx * -nearestTangentZ + dz * nearestTangentX;
+        const distanceFromCentre = Math.sqrt(nearestDistanceSq);
+        const outwardX = race.worldX - nearestX;
+        const outwardZ = race.worldZ - nearestZ;
+        const outwardLength = Math.max(0.001, Math.hypot(outwardX, outwardZ));
+        const normalX = outwardX / outwardLength;
+        const normalZ = outwardZ / outwardLength;
+        const impactVelocity = race.velocityX * normalX + race.velocityZ * normalZ;
+        if (distanceFromCentre > 8.35 && impactVelocity > 0 && now - race.lastImpactAt > 450) {
+          const impactKmh = impactVelocity * 3.6 / 0.28;
+          race.lastImpactAt = now;
+          race.worldX = nearestX + normalX * 8.25;
+          race.worldZ = nearestZ + normalZ * 8.25;
+          race.velocityX -= normalX * impactVelocity * (impactKmh > 115 ? 1.18 : 0.78);
+          race.velocityZ -= normalZ * impactVelocity * (impactKmh > 115 ? 1.18 : 0.78);
+          race.speed *= impactKmh > 115 ? 0.52 : impactKmh > 65 ? 0.72 : 0.88;
+          race.damage = clamp(race.damage + Math.max(0, impactKmh - 18) * (impactKmh > 115 ? 0.78 : impactKmh > 65 ? 0.38 : 0.12), 0, 100);
+          if (impactKmh > 28) notify(impactKmh > 90 ? "Heavy impact · car damaged" : "Barrier contact · speed lost", impactKmh > 90 ? "error" : "info");
+          if (race.damage >= 100 || impactKmh > 178) {
+            controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+            race.velocityX = 0; race.velocityZ = 0; race.speed = 0;
+            phaseRef.current = "crashed"; setPhase("crashed");
+            notify("Major crash · restart the session", "error");
+          }
         }
-        if (bend < 0.22 && skill.turnedIn && controls.accelerate && race.throttle > 0.45
-          && Math.abs(steering) < 0.42 && Math.abs(race.lateral) < 0.68) {
-          skill.exitBoostUntil = now + 900;
-          skill.brakedForCorner = false;
-          skill.turnedIn = false;
-          notify("Clean apex exit · racing-line bonus!", "success");
-        }
-        if (Math.abs(race.lateral) > 1.08) {
-          race.lapInvalid = true;
-          race.offTrack += dt;
-        } else {
-          race.offTrack = Math.max(0, race.offTrack - dt * 1.8);
-        }
-
+        const previousProgress = race.progress;
+        race.trackT = nearestT;
+        race.progress = nearestT < 0.08 && previousProgress % 1 > 0.82 && longitudinalVelocity > 0
+          ? Math.floor(previousProgress) + 1 + nearestT
+          : Math.floor(previousProgress) + nearestT;
+        race.offTrack = distanceFromCentre > 7.2 ? race.offTrack + dt : Math.max(0, race.offTrack - dt * 1.5);
+        if (distanceFromCentre > 7.2 || race.offTrack > 0.5) race.lapInvalid = true;
+        race.lateral = signedOffset;
         // Practice has no crash/recovery interruption. Going wide can invalidate a
         // lap, but never takes the car away from the player or resets their inputs.
 
-        race.progress += progressDelta;
         race.elapsed += dt;
         race.lapTime += dt;
         const lapNow = Math.floor(race.progress) + 1;
@@ -309,7 +359,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         {toast && <div className={"warmup-toast " + toast.kind} role="status">{toast.text}</div>}
         <div className="warmup-3d-overlay" hidden={phase === "running"} aria-live="polite">
           <span>VULA RACING · CIRCUIT PRACTICE</span>
-          <strong>{phase === "ready" ? "Find your racing line" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : "Nice driving!"}</strong>
+          <strong>{phase === "ready" ? "Find your racing line" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "crashed" ? "Car disabled" : "Nice driving!"}</strong>
           <p>{phase === "ready" ? "Follow the green line. Brake at the boards, turn in on cue, clip the apex and unwind onto the exit." : phase === "countdown" ? "Get set. Smooth steering beats sudden corrections." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete. Take another lap and beat your time."}</p>
         </div>
       </div>
