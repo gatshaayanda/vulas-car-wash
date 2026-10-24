@@ -11,7 +11,7 @@ This is the current product-owner-approved baseline for the solo circuit warm-up
 ## Vehicle handling and collision rules
 
 - The car owns its world-space position, velocity, and yaw. Circuit projection is used only for lap timing, track limits, and collision queries; it must never advance or pull the car along the track.
-- Steering changes the car trajectory through speed-dependent yaw and available tyre grip. The player may miss corners, leave the circuit, and recover by driving back onto it.
+- Continuous analog steering changes the car trajectory through speed-dependent yaw and available tyre grip. The steering stick must directly set a signed continuous steering input, and release must return it to centre. The player may miss corners, leave the circuit, and recover by driving back onto it.
 - Barrier impacts are graduated by impact velocity: minor contact should cost speed, stronger impacts should add damage, and only a severe/disabled crash ends the run. Never pit-respawn for a routine scrape.
 - Racing-line cues are advisory only and must not add automatic throttle, steering, or exit boosts.
 
@@ -30,7 +30,7 @@ This is the current product-owner-approved baseline for the solo circuit warm-up
 
 ## Mobile control ergonomics
 
-- Steering controls and pedals must occupy distinct left/right thumb zones with a clear gap; do not put the steering pad directly against GAS or BRAKE.
+- Use a true analog stick/slider for steering in the left-thumb zone, following the same continuous directional input principle as Shooters Trigger and Paws World. Gas and brake are separate large hold targets in the right-thumb zone with a visible gutter; never use adjacent tap-only left/right steering buttons.
 - Preserve reliable pointer capture and release, large touch targets, visible pressed states, and keyboard parity. Keep frequent controls reachable near the lower screen corners and reserve upper-screen space for HUD/menus.
 
 ## Verification gate
