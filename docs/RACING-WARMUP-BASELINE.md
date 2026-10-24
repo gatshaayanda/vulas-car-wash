@@ -30,8 +30,8 @@ This is the current product-owner-approved baseline for the solo circuit warm-up
 
 ## Mobile control ergonomics
 
-- Use a true analog stick/slider for steering in the left-thumb zone, following the same continuous directional input principle as Shooters Trigger and Paws World. Gas and brake are separate large hold targets in the right-thumb zone with a visible gutter; never use adjacent tap-only left/right steering buttons.
-- Preserve reliable pointer capture and release, large touch targets, visible pressed states, and keyboard parity. Keep frequent controls reachable near the lower screen corners and reserve upper-screen space for HUD/menus.
+- Use a circular, two-dimensional thumbstick in the left-thumb zone, following the familiar movement-stick pattern from Shooters Trigger and Paws World. The knob follows the thumb within a circular boundary; horizontal displacement continuously steers the car. Brake is the left pedal and gas the right pedal in the right-thumb zone, separated from steering by a clear gutter. NOS is a compact, dedicated button beneath the pedals—not a full-width bar.
+- Preserve reliable pointer capture and release, large touch targets, visible pressed states, and keyboard parity. The circular stick must visually return to centre on release. Keep frequent controls reachable near the lower screen corners and reserve upper-screen space for HUD/menus.
 
 ## Verification gate
 
