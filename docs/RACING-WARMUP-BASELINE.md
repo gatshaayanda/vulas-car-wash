@@ -11,7 +11,7 @@ This is the current product-owner-approved baseline for the solo circuit warm-up
 ## Vehicle handling and collision rules
 
 - The car owns its world-space position, velocity, and yaw. Circuit projection is used only for lap timing, track limits, and collision queries; it must never advance or pull the car along the track.
-- Continuous analog steering changes the car trajectory through speed-dependent yaw and available tyre grip. The steering stick must directly set a signed continuous steering input, and release must return it to centre. The player may miss corners, leave the circuit, and recover by driving back onto it.
+- Continuous analog steering changes the car trajectory through speed-dependent yaw and available tyre grip. The steering stick must directly set a signed continuous steering input, and release must return it to centre. **Direction invariant:** thumbstick LEFT turns the car LEFT; thumbstick RIGHT turns the car RIGHT. Keep this sign convention aligned across input, world yaw, car model orientation, and chase camera. In the current world basis the forward vector is `(-sin(yaw), 0, -cos(yaw))`, so the steering input is negated when converted to yaw angle. Add a regression check for both directions whenever vehicle orientation math changes. The player may miss corners, leave the circuit, and recover by driving back onto it.
 - Barrier impacts are graduated by impact velocity: minor contact should cost speed, stronger impacts should add damage, and only a severe/disabled crash ends the run. Never pit-respawn for a routine scrape.
 - Racing-line cues are advisory only and must not add automatic throttle, steering, or exit boosts.
 
