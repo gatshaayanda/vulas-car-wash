@@ -183,7 +183,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const lateralZ = -Math.sin(race.worldYaw);
         const longitudinalVelocity = race.velocityX * forwardX + race.velocityZ * forwardZ;
         const lateralVelocity = race.velocityX * lateralX + race.velocityZ * lateralZ;
-        const targetYawRate = Math.tan(steerAngle) * Math.max(0, longitudinalVelocity) / 2.65;
+        // Signed longitudinal velocity preserves natural counter-steering while reversing.
+        // At negative velocity, steering rotates the nose in the opposite direction as expected.
+        const targetYawRate = Math.tan(steerAngle) * longitudinalVelocity / 2.65;
         const gripLimit = 9.2 * clamp(1.08 - race.brakePressure * 0.35 - race.wheelLock * 0.5, 0.42, 1.08);
         const demandedLateralAccel = targetYawRate * Math.max(0, longitudinalVelocity);
         const gripRatio = Math.min(1, gripLimit / Math.max(0.001, Math.abs(demandedLateralAccel)));
@@ -241,11 +243,13 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const normalX = outwardX / outwardLength;
         const normalZ = outwardZ / outwardLength;
         const impactVelocity = race.velocityX * normalX + race.velocityZ * normalZ;
-        if (distanceFromCentre > 8.35 && impactVelocity > 0 && now - race.lastImpactAt > 450) {
+        // The visible rail sits at about 8.4 units from the centreline. Resolve contact
+        // before the car's body reaches it, rather than after the car has phased through.
+        if (distanceFromCentre > 7.3 && impactVelocity > 0 && now - race.lastImpactAt > 180) {
           const impactKmh = impactVelocity * 3.6 / 0.28;
           race.lastImpactAt = now;
-          race.worldX = nearestX + normalX * 8.25;
-          race.worldZ = nearestZ + normalZ * 8.25;
+          race.worldX = nearestX + normalX * 7.2;
+          race.worldZ = nearestZ + normalZ * 7.2;
           race.velocityX -= normalX * impactVelocity * (impactKmh > 115 ? 1.18 : 0.78);
           race.velocityZ -= normalZ * impactVelocity * (impactKmh > 115 ? 1.18 : 0.78);
           race.speed *= impactKmh > 115 ? 0.52 : impactKmh > 65 ? 0.72 : 0.88;
