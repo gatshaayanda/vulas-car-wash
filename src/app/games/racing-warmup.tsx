@@ -170,9 +170,13 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
 
         // Heading and lateral motion now respond to speed, grip and load transfer.
         const grip = clamp(1.12 - updatedSpeedRatio * 0.06 - race.brakePressure * 0.08 - race.wheelLock * 0.18, 0.62, 1.12);
-        // Independent world-space vehicle dynamics: the track no longer advances the car.
-        // Steering changes the car's yaw; tyre grip determines how much velocity follows.
-        const steerAngle = steering * (0.34 - updatedSpeedRatio * 0.12);
+        // GOLDEN BASE STEERING SIGN CONVENTION:
+        // The car's forward vector is (-sin(yaw), 0, -cos(yaw)); in this world
+        // coordinate system, positive yaw turns the nose toward world -X (left).
+        // Therefore negate the thumb input here so LEFT input produces a LEFT turn
+        // and RIGHT input produces a RIGHT turn, consistently with the chase camera.
+        // The track never advances the car; tyre grip determines how velocity follows.
+        const steerAngle = -steering * (0.34 - updatedSpeedRatio * 0.12);
         const forwardX = -Math.sin(race.worldYaw);
         const forwardZ = -Math.cos(race.worldYaw);
         const lateralX = Math.cos(race.worldYaw);
