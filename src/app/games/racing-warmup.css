@@ -207,3 +207,17 @@
     font-size:10px;
   }
 }
+
+
+/* Driving ergonomics: maintain separate left/right thumb zones with a clear gutter. */
+.warmup-circuit-controls{grid-template-columns:136px minmax(0,1fr);column-gap:18px}
+.warmup-circuit-controls .warmup-steering{padding-inline:10px}
+.warmup-circuit-controls .steering-pad{gap:9px}
+.warmup-circuit-controls .warmup-driving{column-gap:9px;row-gap:8px}
+.warmup-circuit-controls .warmup-driving button{min-height:64px;touch-action:none}
+@media(max-width:640px){
+ .warmup-circuit-controls{grid-template-columns:minmax(112px,.82fr) minmax(0,1.35fr);column-gap:12px}
+ .warmup-circuit-controls .warmup-steering{padding-inline:7px}
+ .warmup-circuit-controls .warmup-driving{column-gap:7px;row-gap:7px}
+}
+@media(max-width:360px){.warmup-circuit-controls{grid-template-columns:minmax(102px,.8fr) minmax(0,1.3fr);column-gap:10px}}
