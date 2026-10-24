@@ -183,7 +183,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const gripLimit = 7.8 * clamp(1.08 - race.brakePressure * 0.35 - race.wheelLock * 0.5, 0.42, 1.08);
         const demandedLateralAccel = targetYawRate * Math.max(0, longitudinalVelocity);
         const gripRatio = Math.min(1, gripLimit / Math.max(0.001, Math.abs(demandedLateralAccel)));
-        const yawResponse = 1 - Math.exp(-dt * (3.5 + updatedSpeedRatio * 2.5));
         race.worldYaw += targetYawRate * gripRatio * dt;
         race.worldYaw = Math.atan2(Math.sin(race.worldYaw), Math.cos(race.worldYaw));
         const updatedForwardX = -Math.sin(race.worldYaw);
@@ -335,7 +334,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     const knob = event.currentTarget.querySelector<HTMLElement>(".steering-stick-knob");
     if (knob) knob.style.transform = `translateX(${steer * maxTravel}px)`;
   };
-  const releaseSteerStick = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const releaseSteerStick = (event: { currentTarget: HTMLDivElement }) => {
     controlsRef.current.steer = 0;
     const knob = event.currentTarget.querySelector<HTMLElement>(".steering-stick-knob");
     if (knob) knob.style.transform = "translateX(0)";
@@ -384,7 +383,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             onPointerMove={e => { if (e.currentTarget.hasPointerCapture(e.pointerId)) steerStickPointer(e); }}
             onPointerUp={releaseSteerStick} onPointerCancel={releaseSteerStick} onLostPointerCapture={releaseSteerStick}
             onKeyDown={e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); controlsRef.current.steer = e.key === "ArrowLeft" ? -0.72 : 0.72; const knob = e.currentTarget.querySelector<HTMLElement>(".steering-stick-knob"); if (knob) knob.style.transform = `translateX(${controlsRef.current.steer * 36}px)`; } }}
-            onKeyUp={e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") releaseSteerStick({currentTarget:e.currentTarget} as ReactPointerEvent<HTMLDivElement>); }}>
+            onKeyUp={e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") releaseSteerStick({currentTarget:e.currentTarget}); }}>
             <span className="steering-stick-track" />
             <span className="steering-stick-knob"><span>↔</span></span>
           </div>
