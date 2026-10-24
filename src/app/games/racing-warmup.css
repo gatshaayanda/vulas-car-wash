@@ -221,3 +221,47 @@
  .warmup-circuit-controls .warmup-driving{column-gap:7px;row-gap:7px}
 }
 @media(max-width:360px){.warmup-circuit-controls{grid-template-columns:minmax(102px,.8fr) minmax(0,1.3fr);column-gap:10px}}
+
+
+/* True left-thumb analog steering, with pedals grouped in a separate right-thumb zone. */
+.warmup-circuit-controls{
+  display:grid!important;
+  grid-template-columns:minmax(120px,.82fr) minmax(0,1.45fr);
+  column-gap:clamp(18px,5vw,34px);
+  row-gap:14px;
+  align-items:center;
+}
+.warmup-circuit-controls .warmup-steering{min-width:0;gap:8px}
+.steering-stick{
+  width:116px;height:76px;max-width:100%;position:relative;display:grid;place-items:center;
+  border:1px solid #c7d3c2;border-radius:999px;background:linear-gradient(180deg,#e6ecdf,#d7e1d0);
+  box-shadow:inset 0 2px 5px #20351d18,0 3px 0 #b5c3b0;touch-action:none;user-select:none;-webkit-user-select:none;
+}
+.steering-stick.is-disabled{opacity:.45}
+.steering-stick-track{position:absolute;left:12%;right:12%;top:50%;height:4px;border-radius:99px;background:#b0bea8;transform:translateY(-50%);pointer-events:none}
+.steering-stick-knob{
+  position:absolute;left:50%;top:50%;width:48px;height:48px;margin:-24px 0 0 -24px;border-radius:50%;
+  display:grid;place-items:center;background:linear-gradient(145deg,#fafff3,#c5d8b9);border:3px solid #34483d;
+  box-shadow:0 3px 0 #9eae98,0 5px 12px #20351d22;color:#20351d;font-size:20px;font-weight:900;pointer-events:none;will-change:transform;
+}
+.warmup-circuit-controls .warmup-driving{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;min-width:0;align-items:stretch;
+}
+.warmup-circuit-controls .warmup-driving button{
+  min-width:0;min-height:76px;padding:12px 6px;border-radius:14px;font-size:clamp(12px,2.5vw,15px);
+  touch-action:none;user-select:none;-webkit-user-select:none;
+}
+.warmup-circuit-controls .warmup-driving .nos-button{grid-column:1/-1;min-height:44px;border-radius:999px}
+.warmup-circuit-controls .warmup-actions{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media(max-width:640px){
+  .warmup-circuit-controls{grid-template-columns:minmax(112px,.8fr) minmax(0,1.35fr);column-gap:clamp(16px,5vw,26px);row-gap:12px}
+  .steering-stick{width:100%;height:72px}
+  .steering-stick-knob{width:44px;height:44px;margin:-22px 0 0 -22px}
+  .warmup-circuit-controls .warmup-driving{gap:10px}
+  .warmup-circuit-controls .warmup-driving button{min-height:72px;padding:10px 4px}
+}
+@media(max-width:360px){
+  .warmup-circuit-controls{grid-template-columns:minmax(100px,.78fr) minmax(0,1.3fr);column-gap:14px}
+  .warmup-circuit-controls .warmup-driving{gap:8px}
+  .warmup-circuit-controls .warmup-driving button{min-height:66px;font-size:11px}
+}
