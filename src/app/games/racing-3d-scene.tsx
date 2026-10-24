@@ -272,25 +272,11 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const race = raceRef.current;
       const controls = controlsRef.current;
       const currentPhase = phaseRef.current;
-      const t = ((race.progress % 1) + 1) % 1;
-      const position = track.getPointAt(t);
-      const tangent = track.getTangentAt(t).normalize();
-      const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-      const carOffset = race.lateral * 4.6;
-      const carWorld = new THREE.Vector3(
-        position.x + side.x * carOffset,
-        .015,
-        position.z + side.z * carOffset
-      );
-      // The body and chase camera follow the simulated heading, not just the
-      // circuit tangent, so a slide or missed corner is visible to the player.
-      const forward = new THREE.Vector3(
-        tangent.x * Math.cos(race.heading) + tangent.z * Math.sin(race.heading),
-        0,
-        -tangent.x * Math.sin(race.heading) + tangent.z * Math.cos(race.heading),
-      ).normalize();
+      // Render the independent world-space vehicle state; track geometry is not a movement rail.
+      const carWorld = new THREE.Vector3(race.worldX, .015, race.worldZ);
+      const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
       car.position.copy(carWorld);
-      car.rotation.y = Math.atan2(-tangent.x, -tangent.z) + race.heading;
+      car.rotation.y = race.worldYaw;
       // Subtle suspension response: braking transfers load forward and cornering
       // rolls the body. These are visual cues driven by the physics state.
       car.rotation.x = clamp(-race.longitudinalLoad * 0.12, -0.035, 0.015);
