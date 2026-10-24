@@ -262,6 +262,43 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     // Preserve the approved circuit, scenery, camera and controls; this is a visual-only car refresh.
     const skyGlow = new THREE.Mesh(new THREE.SphereGeometry(320, 16, 10), new THREE.MeshBasicMaterial({ color: "#b9d4df", side: THREE.BackSide }));
     scene.add(skyGlow);
+
+    // Physical barrier boundary: this is the car-centre limit offset inward from
+    // the visible rail by half the car width. Swept collision prevents tunnelling
+    // across a rail between rendered/physics frames, including at tight hairpins.
+    const barrierSamples = 960;
+    const barrierLimit = 7.42;
+    const barrierLines: { ax: number; az: number; bx: number; bz: number }[] = [];
+    for (let i = 0; i < barrierSamples; i++) {
+      const t0 = i / barrierSamples;
+      const t1 = (i + 1) / barrierSamples;
+      const p0 = track.getPointAt(t0);
+      const p1 = track.getPointAt(t1);
+      const tangent0 = track.getTangentAt(t0).normalize();
+      const tangent1 = track.getTangentAt(t1).normalize();
+      const side0x = -tangent0.z, side0z = tangent0.x;
+      const side1x = -tangent1.z, side1z = tangent1.x;
+      for (const sign of [-1, 1]) {
+        barrierLines.push({
+          ax: p0.x + side0x * sign * barrierLimit,
+          az: p0.z + side0z * sign * barrierLimit,
+          bx: p1.x + side1x * sign * barrierLimit,
+          bz: p1.z + side1z * sign * barrierLimit,
+        });
+      }
+    }
+    const segmentHit = (px: number, pz: number, qx: number, qz: number, ax: number, az: number, bx: number, bz: number) => {
+      const rx = qx - px, rz = qz - pz;
+      const sx = bx - ax, sz = bz - az;
+      const denominator = rx * sz - rz * sx;
+      if (Math.abs(denominator) < 1e-8) return null;
+      const apx = ax - px, apz = az - pz;
+      const t = (apx * sz - apz * sx) / denominator;
+      const u = (apx * rz - apz * rx) / denominator;
+      return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? { t, x: px + rx * t, z: pz + rz * t } : null;
+    };
+    let previousCarX = raceRef.current.worldX;
+    let previousCarZ = raceRef.current.worldZ;
     const clock = new THREE.Clock();
     let raf = 0;
     const resize = () => {
@@ -272,6 +309,35 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const race = raceRef.current;
       const controls = controlsRef.current;
       const currentPhase = phaseRef.current;
+      // Treat the same continuous offset curves as physical walls. Test the whole
+      // previous-to-current movement segment so the car cannot step through a wall.
+      if (currentPhase === "running") {
+        let earliestHit: { t: number; x: number; z: number; ax: number; az: number; bx: number; bz: number } | null = null;
+        for (const wall of barrierLines) {
+          const hit = segmentHit(previousCarX, previousCarZ, race.worldX, race.worldZ, wall.ax, wall.az, wall.bx, wall.bz);
+          if (hit && (!earliestHit || hit.t < earliestHit.t)) earliestHit = { ...hit, ...wall };
+        }
+        if (earliestHit) {
+          const wallX = earliestHit.bx - earliestHit.ax;
+          const wallZ = earliestHit.bz - earliestHit.az;
+          const wallLength = Math.hypot(wallX, wallZ) || 1;
+          let normalX = -wallZ / wallLength;
+          let normalZ = wallX / wallLength;
+          if ((previousCarX - earliestHit.ax) * normalX + (previousCarZ - earliestHit.az) * normalZ < 0) {
+            normalX = -normalX; normalZ = -normalZ;
+          }
+          race.worldX = earliestHit.x + normalX * 0.08;
+          race.worldZ = earliestHit.z + normalZ * 0.08;
+          const outwardSpeed = race.velocityX * normalX + race.velocityZ * normalZ;
+          if (outwardSpeed < 0) {
+            race.velocityX -= normalX * outwardSpeed * 1.08;
+            race.velocityZ -= normalZ * outwardSpeed * 1.08;
+            race.speed *= 0.78;
+          }
+        }
+      }
+      previousCarX = race.worldX;
+      previousCarZ = race.worldZ;
       // Render the independent world-space vehicle state; track geometry is not a movement rail.
       const carWorld = new THREE.Vector3(race.worldX, .015, race.worldZ);
       const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
