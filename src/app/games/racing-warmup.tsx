@@ -215,14 +215,23 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.drift = clamp(race.heading * clamp(Math.abs(nextLateral) / 7, 0, 1) * 0.25, -0.22, 0.22);
 
         // Circuit projection is used only for lap timing, track limits, and collision queries.
-        let nearestT = race.trackT;
+        let nearestT = wrap(race.trackT, 1);
         let nearestDistanceSq = Number.POSITIVE_INFINITY;
         let nearestX = 0;
         let nearestZ = 0;
         let nearestTangentX = 0;
         let nearestTangentZ = -1;
-        for (let sample = 0; sample < 960; sample++) {
-          const sampleT = sample / 960;
+        // Project onto the local section of the circuit, not the globally nearest
+        // section. At hairpins and nearby return legs, a global nearest-point search
+        // can snap to the wrong branch of the road and make the car appear to cut
+        // across the track or pass through a barrier. The previous frame's trackT
+        // anchors this search while still allowing forward and reverse movement.
+        const projectionSamples = 960;
+        const projectionWindow = 36;
+        const projectionCentre = Math.round(nearestT * projectionSamples);
+        for (let offset = -projectionWindow; offset <= projectionWindow; offset++) {
+          const sample = ((projectionCentre + offset) % projectionSamples + projectionSamples) % projectionSamples;
+          const sampleT = sample / projectionSamples;
           const point = trackRef.current!.getPointAt(sampleT);
           const dx = race.worldX - point.x;
           const dz = race.worldZ - point.z;
