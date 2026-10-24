@@ -172,7 +172,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const grip = clamp(1.12 - updatedSpeedRatio * 0.06 - race.brakePressure * 0.08 - race.wheelLock * 0.18, 0.62, 1.12);
         // Independent world-space vehicle dynamics: the track no longer advances the car.
         // Steering changes the car's yaw; tyre grip determines how much velocity follows.
-        const steerAngle = steering * (0.12 - updatedSpeedRatio * 0.045);
+        const steerAngle = steering * (0.28 - updatedSpeedRatio * 0.12);
         const forwardX = -Math.sin(race.worldYaw);
         const forwardZ = -Math.cos(race.worldYaw);
         const lateralX = Math.cos(race.worldYaw);
