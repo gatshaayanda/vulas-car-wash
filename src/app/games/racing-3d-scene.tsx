@@ -290,6 +290,10 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       ).normalize();
       car.position.copy(carWorld);
       car.rotation.y = Math.atan2(-tangent.x, -tangent.z) + race.heading;
+      // Subtle suspension response: braking transfers load forward and cornering
+      // rolls the body. These are visual cues driven by the physics state.
+      car.rotation.x = clamp(-race.longitudinalLoad * 0.12, -0.035, 0.015);
+      car.rotation.z = clamp(-race.lateralG * 0.035 - race.drift * 0.12, -0.055, 0.055);
       groundShadow.position.x = carWorld.x;
       groundShadow.position.z = carWorld.z;
       groundShadow.rotation.z = -car.rotation.y;
