@@ -134,7 +134,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const gripUse = combinedDemand / availableGrip;
         // ABS modulates a near-lock brake request. A small residual slip remains
         // visible to the handling model; steering and braking compete for tyre grip.
-        const lockDemand = clamp((gripUse - 0.84) / 0.48, 0, 1) * race.brakePressure;
+        const absThreshold = estimatedStoppingDistance > 45 ? 0.78 : 0.84;
+        const lockDemand = clamp((gripUse - absThreshold) / 0.48, 0, 1) * race.brakePressure;
         const absActive = lockDemand > 0.08 && race.brakePressure > 0.55;
         const targetWheelLock = absActive ? lockDemand * 0.22 : lockDemand;
         race.wheelLock += (targetWheelLock - race.wheelLock) * (1 - Math.exp(-dt * (absActive ? 18 : 5)));
@@ -186,8 +187,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
 
         // The displayed car uses these values for subtle suspension pitch and body roll.
         race.drift = clamp((brakeTurnSlide + race.wheelLock * 0.5) * Math.sign(steering) * 0.14, -0.12, 0.12);
-        // Keep the estimate live for consistent braking/grip calculations at speed.
-        void estimatedStoppingDistance;
+        // The speed-squared estimate also sets the ABS intervention threshold above.
 
         // Reward a complete corner sequence: brake before entry, turn in, then
         // unwind the steering and accelerate through a clean exit on the circuit.
