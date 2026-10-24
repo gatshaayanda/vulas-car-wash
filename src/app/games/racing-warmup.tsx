@@ -246,23 +246,30 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const dz = race.worldZ - nearestZ;
         const signedOffset = dx * -nearestTangentZ + dz * nearestTangentX;
         const distanceFromCentre = Math.sqrt(nearestDistanceSq);
-        // Use the circuit tangent's left/right normal, not a radial vector from the
-        // centreline sample. Radial normals are unreliable around a tight hairpin.
+        // Resolve against the actual nearest-point displacement. A tangent-only
+        // signed offset can under-report penetration when the projection lands near
+        // the edge of its search window at a hairpin. The radial vector from the
+        // selected centreline point gives a hard geometric boundary in that case.
         const sideX = -nearestTangentZ;
         const sideZ = nearestTangentX;
         const sideSign = signedOffset < 0 ? -1 : 1;
-        const outwardX = sideX * sideSign;
-        const outwardZ = sideZ * sideSign;
+        const outwardX = distanceFromCentre > 0.0001 ? dx / distanceFromCentre : sideX * sideSign;
+        const outwardZ = distanceFromCentre > 0.0001 ? dz / distanceFromCentre : sideZ * sideSign;
         const impactVelocity = race.velocityX * outwardX + race.velocityZ * outwardZ;
-        // Collision resolution is unconditional: cooldowns may suppress repeated damage
-        // notifications, but must never allow the car to pass through a barrier.
-        // The rail centre is ~8.4 units from the road centre; 7.0 keeps the car body
-        // clear of the inner face even on the tightest section of the existing circuit.
-        const safeOffset = 7.0;
-        if (Math.abs(signedOffset) > safeOffset) {
-          const penetration = Math.abs(signedOffset) - safeOffset;
-          race.worldX = nearestX + sideX * sideSign * safeOffset;
-          race.worldZ = nearestZ + sideZ * sideSign * safeOffset;
+        // The road is 12 units wide and the visible rail is centred at 8.4.
+        // Keep the car centre inside the road edge so its 2.16-unit body cannot
+        // cross the rail, even when the centreline tangent is unstable at a hairpin.
+        const safeOffset = 6.65;
+        if (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset) {
+          const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
+          const correctionX = distanceFromCentre > safeOffset
+            ? outwardX
+            : sideX * sideSign;
+          const correctionZ = distanceFromCentre > safeOffset
+            ? outwardZ
+            : sideZ * sideSign;
+          race.worldX = nearestX + correctionX * safeOffset;
+          race.worldZ = nearestZ + correctionZ * safeOffset;
           if (impactVelocity > 0) {
             const impactKmh = impactVelocity * 3.6 / 0.28;
             // Remove outward velocity at the boundary, with a small rebound for a
