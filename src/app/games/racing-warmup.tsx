@@ -221,8 +221,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         let nearestZ = 0;
         let nearestTangentX = 0;
         let nearestTangentZ = -1;
-        for (let sample = 0; sample < 240; sample++) {
-          const sampleT = sample / 240;
+        for (let sample = 0; sample < 960; sample++) {
+          const sampleT = sample / 960;
           const point = trackRef.current!.getPointAt(sampleT);
           const dx = race.worldX - point.x;
           const dz = race.worldZ - point.z;
@@ -237,29 +237,47 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const dz = race.worldZ - nearestZ;
         const signedOffset = dx * -nearestTangentZ + dz * nearestTangentX;
         const distanceFromCentre = Math.sqrt(nearestDistanceSq);
-        const outwardX = race.worldX - nearestX;
-        const outwardZ = race.worldZ - nearestZ;
-        const outwardLength = Math.max(0.001, Math.hypot(outwardX, outwardZ));
-        const normalX = outwardX / outwardLength;
-        const normalZ = outwardZ / outwardLength;
-        const impactVelocity = race.velocityX * normalX + race.velocityZ * normalZ;
-        // The visible rail sits at about 8.4 units from the centreline. Resolve contact
-        // before the car's body reaches it, rather than after the car has phased through.
-        if (distanceFromCentre > 7.3 && impactVelocity > 0 && now - race.lastImpactAt > 180) {
-          const impactKmh = impactVelocity * 3.6 / 0.28;
-          race.lastImpactAt = now;
-          race.worldX = nearestX + normalX * 7.2;
-          race.worldZ = nearestZ + normalZ * 7.2;
-          race.velocityX -= normalX * impactVelocity * (impactKmh > 115 ? 1.18 : 0.78);
-          race.velocityZ -= normalZ * impactVelocity * (impactKmh > 115 ? 1.18 : 0.78);
-          race.speed *= impactKmh > 115 ? 0.52 : impactKmh > 65 ? 0.72 : 0.88;
-          race.damage = clamp(race.damage + Math.max(0, impactKmh - 18) * (impactKmh > 115 ? 0.78 : impactKmh > 65 ? 0.38 : 0.12), 0, 100);
-          if (impactKmh > 28) notify(impactKmh > 90 ? "Heavy impact · car damaged" : "Barrier contact · speed lost", impactKmh > 90 ? "error" : "info");
-          if (race.damage >= 100 || impactKmh > 178) {
-            controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-            race.velocityX = 0; race.velocityZ = 0; race.speed = 0;
-            phaseRef.current = "crashed"; setPhase("crashed");
-            notify("Major crash · restart the session", "error");
+        // Use the circuit tangent's left/right normal, not a radial vector from the
+        // centreline sample. Radial normals are unreliable around a tight hairpin.
+        const sideX = -nearestTangentZ;
+        const sideZ = nearestTangentX;
+        const sideSign = signedOffset < 0 ? -1 : 1;
+        const outwardX = sideX * sideSign;
+        const outwardZ = sideZ * sideSign;
+        const impactVelocity = race.velocityX * outwardX + race.velocityZ * outwardZ;
+        // Collision resolution is unconditional: cooldowns may suppress repeated damage
+        // notifications, but must never allow the car to pass through a barrier.
+        // The rail centre is ~8.4 units from the road centre; 7.0 keeps the car body
+        // clear of the inner face even on the tightest section of the existing circuit.
+        const safeOffset = 7.0;
+        if (Math.abs(signedOffset) > safeOffset) {
+          const penetration = Math.abs(signedOffset) - safeOffset;
+          race.worldX = nearestX + sideX * sideSign * safeOffset;
+          race.worldZ = nearestZ + sideZ * sideSign * safeOffset;
+          if (impactVelocity > 0) {
+            const impactKmh = impactVelocity * 3.6 / 0.28;
+            // Remove outward velocity at the boundary, with a small rebound for a
+            // harder hit. Tangential velocity remains so the car can scrape along a wall.
+            const restitution = impactKmh > 80 ? 0.16 : 0.04;
+            race.velocityX -= outwardX * impactVelocity * (1 + restitution);
+            race.velocityZ -= outwardZ * impactVelocity * (1 + restitution);
+            race.speed *= impactKmh > 115 ? 0.52 : impactKmh > 65 ? 0.72 : 0.88;
+            if (now - race.lastImpactAt > 180) {
+              race.lastImpactAt = now;
+              race.damage = clamp(race.damage + Math.max(0, impactKmh - 18) * (impactKmh > 115 ? 0.78 : impactKmh > 65 ? 0.38 : 0.12), 0, 100);
+              if (impactKmh > 28) notify(impactKmh > 90 ? "Heavy impact · car damaged" : "Barrier contact · speed lost", impactKmh > 90 ? "error" : "info");
+              if (race.damage >= 100 || impactKmh > 178) {
+                controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+                race.velocityX = 0; race.velocityZ = 0; race.speed = 0;
+                phaseRef.current = "crashed"; setPhase("crashed");
+                notify("Major crash · restart the session", "error");
+              }
+            }
+          } else if (penetration > 0) {
+            // If the car was already pressed against the rail or has near-zero outward
+            // velocity, keep it outside the wall anyway; reversing remains available.
+            race.velocityX *= 0.98;
+            race.velocityZ *= 0.98;
           }
         }
         const previousProgress = race.progress;
