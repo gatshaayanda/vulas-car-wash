@@ -13,10 +13,11 @@ export type Race = {
   progress: number; speed: number; elapsed: number; lap: number; lapTime: number; steering: number; throttle: number; brakePressure: number;
   bestLap: number | null; lateral: number; lateralVelocity: number; heading: number; drift: number;
   nos: number; last: number; lapInvalid: boolean; offTrack: number;
+  longitudinalLoad: number; lateralG: number; wheelLock: number;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0 });
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -112,52 +113,81 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const speedRatio = race.speed / 205;
         const throttleTarget = controls.accelerate && !controls.brake ? 1 : 0;
         const brakeTarget = controls.brake ? 1 : 0;
-        // Pedals have their own response curves so keyboard/touch inputs do not make
-        // engine torque jump between frames. Brake pressure builds more quickly than throttle.
         race.throttle += (throttleTarget - race.throttle) * (1 - Math.exp(-dt * (throttleTarget ? 3.8 : 6.5)));
-        // Brakes respond decisively on first contact; release remains smooth for trail braking.
         race.brakePressure += (brakeTarget - race.brakePressure) * (1 - Math.exp(-dt * (brakeTarget ? 32 : 12)));
         const boost = controls.boost && race.nos > 0 && !controls.brake;
-        const exitBonus = now < cornerSkillRef.current.exitBoostUntil ? 14 : 0;
-        const acceleration = 112 * race.throttle + exitBonus;
-        const braking = 315 * race.brakePressure;
-        race.speed = clamp(race.speed + (acceleration - race.speed * 0.145 - braking + (boost ? 76 : 0)) * dt, 0, boost ? 250 : 205);
+        const exitBonus = now < cornerSkillRef.current.exitBoostUntil ? 5 : 0;
+
+        // Simplified vehicle dynamics: speed is represented in km/h, forces in
+        // equivalent km/h per second. Braking integrates over time, so stopping
+        // distance emerges from the speed trajectory (rather than a fixed distance).
+        // A speed-squared stopping-distance estimate is also used to anticipate grip.
+        const speedMs = race.speed / 3.6;
+        const nominalBrakeMs2 = 9.2;
+        const estimatedStoppingDistance = speedMs * speedMs / (2 * nominalBrakeMs2);
+        const frontLoadTransfer = clamp(race.brakePressure * (0.10 + speedRatio * 0.08), 0, 0.22);
+        race.longitudinalLoad += (frontLoadTransfer - race.longitudinalLoad) * (1 - Math.exp(-dt * 7));
+        const lateralDemand = Math.abs(steering) * speedRatio * speedRatio * 0.92;
+        const longitudinalDemand = race.brakePressure * 0.94;
+        const combinedDemand = Math.sqrt(lateralDemand * lateralDemand + longitudinalDemand * longitudinalDemand);
+        const availableGrip = clamp(1.06 + race.longitudinalLoad * 0.18, 0.72, 1.12);
+        const gripUse = combinedDemand / availableGrip;
+        // ABS modulates a near-lock brake request. A small residual slip remains
+        // visible to the handling model; steering and braking compete for tyre grip.
+        const lockDemand = clamp((gripUse - 0.84) / 0.48, 0, 1) * race.brakePressure;
+        const absActive = lockDemand > 0.08 && race.brakePressure > 0.55;
+        const targetWheelLock = absActive ? lockDemand * 0.22 : lockDemand;
+        race.wheelLock += (targetWheelLock - race.wheelLock) * (1 - Math.exp(-dt * (absActive ? 18 : 5)));
+        const brakeEfficiency = 1 - race.wheelLock * (absActive ? 0.12 : 0.52);
+        const brakeDeceleration = 36 * race.brakePressure * brakeEfficiency
+          * clamp(availableGrip / Math.max(0.82, combinedDemand), 0.35, 1.08);
+        const engineAcceleration = 34 * race.throttle + exitBonus;
+        const aerodynamicDrag = race.speed * (0.055 + speedRatio * 0.025);
+        const boostAcceleration = boost ? 30 : 0;
+        race.speed = clamp(race.speed + (engineAcceleration + boostAcceleration - aerodynamicDrag - brakeDeceleration) * dt, 0, boost ? 250 : 205);
         race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
         if (race.nos <= 0 && controls.boost) { controls.boost = false; setBoostActive(false); }
-        // Warm-up handling prioritises driver intent: ordinary steering stays planted.
-        // Grip only falls away when the driver combines near-full steering with very
-        // high speed or holds a hard brake while turning; the track itself never adds slip.
-        // Grip stays predictable through corners. A bend by itself never triggers
-        // a skid; only a sustained, near-lock steering input at high speed can do so.
-        const grip = 1.18 - speedRatio * 0.035 - race.brakePressure * 0.10;
-        // A slide is earned only by combining speed, meaningful steering and hard
-        // braking. Ordinary steering—even through a sharp-looking bend—stays planted.
-        const brakeTurnSlide = clamp((race.brakePressure - 0.38) / 0.62, 0, 1)
-          * clamp((race.speed - 72) / 105, 0, 1)
-          * clamp((Math.abs(steering) - 0.28) / 0.48, 0, 1);
-        const excessSteering = brakeTurnSlide * 0.78;
-        const corneringLoss = excessSteering * (4 + race.speed * 0.012);
+
+        // A friction-circle model limits cornering when the tyres are already
+        // spending grip on braking. Low-speed steering remains stable; excess
+        // lateral demand at speed becomes slip instead of an arbitrary bend skid.
+        const updatedSpeedRatio = race.speed / 205;
+        const updatedLateralDemand = Math.abs(steering) * updatedSpeedRatio * updatedSpeedRatio * 0.92;
+        const updatedLongitudinalDemand = race.brakePressure * 0.94;
+        const remainingGrip = Math.sqrt(Math.max(0, availableGrip * availableGrip
+          - Math.min(availableGrip * availableGrip, updatedLongitudinalDemand * updatedLongitudinalDemand)));
+        const cornerGripRatio = updatedLateralDemand > 0
+          ? clamp(remainingGrip / updatedLateralDemand, 0, 1)
+          : 1;
+        const brakeTurnSlide = clamp((gripUse - 0.88) / 0.55, 0, 1)
+          * clamp((race.speed - 68) / 105, 0, 1)
+          * clamp((Math.abs(steering) - 0.22) / 0.5, 0, 1);
+        const excessSteering = (1 - cornerGripRatio) * clamp(updatedLateralDemand, 0, 1);
+        const corneringLoss = excessSteering * (3 + race.speed * 0.018);
         if (excessSteering > 0) race.speed = Math.max(0, race.speed - corneringLoss * dt);
 
-        // The circuit carries the car forward; steering changes its lane position.
-        // Lateral velocity is damped and gently pulled toward centre on release, so
-        // holding a direction moves across the road without pinning the car to an edge.
+        // Heading and lateral motion now respond to speed, grip and load transfer.
+        const grip = clamp(1.12 - updatedSpeedRatio * 0.06 - race.brakePressure * 0.08 - race.wheelLock * 0.18, 0.62, 1.12);
         const progressDelta = race.speed * Math.max(0.4, Math.cos(race.heading)) * dt / 4200;
-        const yawTarget = -steering * (0.055 + speedRatio * 0.10);
-        const yawResponse = 1 - Math.exp(-dt * (4.8 + speedRatio));
+        const yawTarget = -steering * (0.045 + updatedSpeedRatio * 0.095) * cornerGripRatio;
+        const yawResponse = 1 - Math.exp(-dt * (4.8 + updatedSpeedRatio));
         race.heading += (yawTarget - race.heading) * yawResponse;
         race.heading = clamp(race.heading, -0.24, 0.24);
 
-        const lateralDrive = steering * (0.78 + speedRatio * 0.42)
-          + brakeTurnSlide * Math.sign(steering) * 0.24;
+        const lateralDrive = steering * (0.72 + updatedSpeedRatio * 0.42) * cornerGripRatio
+          + brakeTurnSlide * Math.sign(steering) * 0.28
+          + race.wheelLock * Math.sign(steering) * 0.10;
         const lateralDamping = 2.8 + grip * 0.8;
         const centreAssist = 0.95;
         race.lateralVelocity += (lateralDrive - race.lateralVelocity * lateralDamping - race.lateral * centreAssist) * dt;
         race.lateral = clamp(race.lateral + race.lateralVelocity * dt, -0.92, 0.92);
         if (Math.abs(race.lateral) >= 0.915) race.lateralVelocity *= 0.35;
+        race.lateralG += ((steering * updatedSpeedRatio * cornerGripRatio) - race.lateralG) * (1 - Math.exp(-dt * 6));
 
-        // Drift visuals reflect actual driver-induced slip, not the corner shape.
-        race.drift = clamp(brakeTurnSlide * Math.sign(steering) * 0.14, -0.12, 0.12);
+        // The displayed car uses these values for subtle suspension pitch and body roll.
+        race.drift = clamp((brakeTurnSlide + race.wheelLock * 0.5) * Math.sign(steering) * 0.14, -0.12, 0.12);
+        // Keep the estimate live for consistent braking/grip calculations at speed.
+        void estimatedStoppingDistance;
 
         // Reward a complete corner sequence: brake before entry, turn in, then
         // unwind the steering and accelerate through a clean exit on the circuit.
