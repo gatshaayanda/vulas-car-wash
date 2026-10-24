@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 import { subscribeSettings } from "@/lib/firebase/vula-data";
@@ -18,7 +18,7 @@ export type Race = {
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.2, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0 });
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -184,7 +184,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const demandedLateralAccel = targetYawRate * Math.max(0, longitudinalVelocity);
         const gripRatio = Math.min(1, gripLimit / Math.max(0.001, Math.abs(demandedLateralAccel)));
         const yawResponse = 1 - Math.exp(-dt * (3.5 + updatedSpeedRatio * 2.5));
-        race.worldYaw += targetYawRate * gripRatio * yawResponse * dt;
+        race.worldYaw += targetYawRate * gripRatio * dt;
         race.worldYaw = Math.atan2(Math.sin(race.worldYaw), Math.cos(race.worldYaw));
         const updatedForwardX = -Math.sin(race.worldYaw);
         const updatedForwardZ = -Math.cos(race.worldYaw);
@@ -326,9 +326,19 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
 
   // Digital steering is deliberately predictable: hold LEFT or RIGHT.
   // It avoids the angle-sensitive virtual wheel that made thumbs fight the pedals.
-  const holdSteer = (direction: -1 | 1, down: boolean) => {
-    if (down) controlsRef.current.steer = direction * 0.68;
-    else if (Math.sign(controlsRef.current.steer) === direction) controlsRef.current.steer = 0;
+  const steerStickPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const maxTravel = Math.max(1, rect.width * 0.32);
+    const offsetX = event.clientX - (rect.left + rect.width / 2);
+    const steer = clamp(offsetX / maxTravel, -1, 1);
+    controlsRef.current.steer = steer;
+    const knob = event.currentTarget.querySelector<HTMLElement>(".steering-stick-knob");
+    if (knob) knob.style.transform = `translateX(${steer * maxTravel}px)`;
+  };
+  const releaseSteerStick = (event: ReactPointerEvent<HTMLDivElement>) => {
+    controlsRef.current.steer = 0;
+    const knob = event.currentTarget.querySelector<HTMLElement>(".steering-stick-knob");
+    if (knob) knob.style.transform = "translateX(0)";
   };
   const hold = (key: "accelerate" | "brake", down: boolean) => {
     controlsRef.current[key] = down;
@@ -365,13 +375,20 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       </div>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
-        <div className="warmup-steering" aria-label="Steering controls">
+        <div className="warmup-steering" aria-label="Analog steering">
           <span className="steering-caption">STEER</span>
-          <div className="steering-pad">
-            <button type="button" className="steer-button" aria-label="Steer left" aria-pressed={controlsRef.current.steer < 0} disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); holdSteer(-1, true); }} onPointerUp={() => holdSteer(-1, false)} onPointerCancel={() => holdSteer(-1, false)} onLostPointerCapture={() => holdSteer(-1, false)}>←</button>
-            <button type="button" className="steer-button" aria-label="Steer right" aria-pressed={controlsRef.current.steer > 0} disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); holdSteer(1, true); }} onPointerUp={() => holdSteer(1, false)} onPointerCancel={() => holdSteer(1, false)} onLostPointerCapture={() => holdSteer(1, false)}>→</button>
+          <div className={"steering-stick" + (phase !== "running" ? " is-disabled" : "")}
+            role="slider" aria-label="Steering analog stick" aria-valuemin={-100} aria-valuemax={100} aria-valuenow={Math.round(controlsRef.current.steer * 100)}
+            tabIndex={phase === "running" ? 0 : -1}
+            onPointerDown={e => { if (phase !== "running") return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); steerStickPointer(e); }}
+            onPointerMove={e => { if (e.currentTarget.hasPointerCapture(e.pointerId)) steerStickPointer(e); }}
+            onPointerUp={releaseSteerStick} onPointerCancel={releaseSteerStick} onLostPointerCapture={releaseSteerStick}
+            onKeyDown={e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); controlsRef.current.steer = e.key === "ArrowLeft" ? -0.72 : 0.72; const knob = e.currentTarget.querySelector<HTMLElement>(".steering-stick-knob"); if (knob) knob.style.transform = `translateX(${controlsRef.current.steer * 36}px)`; } }}
+            onKeyUp={e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") releaseSteerStick({currentTarget:e.currentTarget} as ReactPointerEvent<HTMLDivElement>); }}>
+            <span className="steering-stick-track" />
+            <span className="steering-stick-knob"><span>↔</span></span>
           </div>
-          <span className="steering-caption">Hold to turn</span>
+          <span className="steering-caption">Slide left / right</span>
         </div>
         <div className="warmup-driving">
           <button type="button" className="accelerate-button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>GAS ↑</button>
