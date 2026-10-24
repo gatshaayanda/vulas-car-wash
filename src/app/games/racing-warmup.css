@@ -265,3 +265,127 @@
   .warmup-circuit-controls .warmup-driving{gap:8px}
   .warmup-circuit-controls .warmup-driving button{min-height:66px;font-size:11px}
 }
+
+
+/* Final mobile control pass: real circular thumbstick + conventional pedal order. */
+.warmup-circuit-controls{
+  grid-template-columns:minmax(96px,.82fr) minmax(0,1.45fr);
+  column-gap:clamp(14px,4vw,24px);
+  align-items:center;
+}
+.warmup-circuit-controls .warmup-steering{
+  min-width:0;
+  padding:8px 4px;
+  gap:8px;
+  background:transparent;
+  border:0;
+  box-shadow:none;
+}
+.warmup-circuit-controls .steering-stick{
+  width:100px;
+  height:100px;
+  max-width:100%;
+  border:3px solid #34483d;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 28%,#f8fbf3 0%,#dce6d5 65%,#c4d2bd 100%);
+  box-shadow:inset 0 0 0 5px #c8d6c2,inset 0 0 0 7px #aabca4,0 4px 0 #a6b7a0;
+  touch-action:none;
+  overflow:hidden;
+}
+.warmup-circuit-controls .steering-stick-track{
+  left:17%;
+  right:17%;
+  top:50%;
+  height:4px;
+  background:#9eaf97;
+}
+.warmup-circuit-controls .steering-stick::before{
+  content:"";
+  position:absolute;
+  inset:20%;
+  border:1px solid #aab9a4;
+  border-radius:50%;
+  pointer-events:none;
+}
+.warmup-circuit-controls .steering-stick-knob{
+  width:42px;
+  height:42px;
+  margin:-21px 0 0 -21px;
+  border:2px solid #25392e;
+  background:linear-gradient(145deg,#ffffff,#c9d9c0);
+  box-shadow:0 3px 0 #9eae98,0 4px 8px #20351d35;
+  font-size:0;
+}
+.warmup-circuit-controls .steering-stick-knob span{
+  width:9px;height:9px;border-radius:50%;background:#34483d;display:block;
+}
+.warmup-circuit-controls .warmup-driving{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  min-width:0;
+  align-items:stretch;
+}
+.warmup-circuit-controls .warmup-driving button{
+  min-width:0;
+  min-height:70px;
+  padding:10px 5px;
+  border-radius:14px;
+  font-size:clamp(11px,2.7vw,14px);
+  line-height:1.15;
+  touch-action:none;
+}
+.warmup-circuit-controls .warmup-driving button[aria-label="Brake"]{
+  grid-column:1;
+  background:#f5e5df;
+  border:2px solid #dfc1b7;
+  color:#6f2f24;
+  box-shadow:inset 0 -3px 0 #e7d0c7;
+}
+.warmup-circuit-controls .warmup-driving .accelerate-button{
+  grid-column:2;
+  background:#d9efb4;
+  border:2px solid #91b83e;
+  color:#20351d;
+  box-shadow:inset 0 -3px 0 #b7d875;
+}
+.warmup-circuit-controls .warmup-driving .nos-button{
+  grid-column:1/-1;
+  justify-self:center;
+  width:fit-content;
+  min-width:76px!important;
+  min-height:38px!important;
+  padding:6px 13px!important;
+  border-radius:999px!important;
+  font-size:10px!important;
+  line-height:1;
+  letter-spacing:.05em;
+  background:#e5e8fa;
+  border:2px solid #aab2e6;
+  color:#303c83;
+  box-shadow:none;
+}
+.warmup-circuit-controls .warmup-driving .nos-button[aria-pressed="true"]{
+  background:#cbd1ff;
+  border-color:#6675d5;
+  box-shadow:0 0 0 3px #6675d522;
+}
+@media(max-width:640px){
+  .warmup-circuit-controls{
+    grid-template-columns:minmax(92px,.78fr) minmax(0,1.45fr);
+    column-gap:clamp(12px,3.8vw,20px);
+    row-gap:12px;
+  }
+  .warmup-circuit-controls .steering-stick{width:92px;height:92px}
+  .warmup-circuit-controls .steering-stick-knob{width:40px;height:40px;margin:-20px 0 0 -20px}
+  .warmup-circuit-controls .warmup-driving{gap:8px}
+  .warmup-circuit-controls .warmup-driving button{min-height:68px;padding:9px 4px}
+  .warmup-circuit-controls .warmup-driving .nos-button{min-height:36px!important}
+}
+@media(max-width:360px){
+  .warmup-circuit-controls{grid-template-columns:minmax(84px,.72fr) minmax(0,1.45fr);column-gap:10px}
+  .warmup-circuit-controls .steering-stick{width:84px;height:84px}
+  .warmup-circuit-controls .steering-stick-knob{width:36px;height:36px;margin:-18px 0 0 -18px}
+  .warmup-circuit-controls .warmup-driving{gap:6px}
+  .warmup-circuit-controls .warmup-driving button{min-height:62px;font-size:10px}
+}
