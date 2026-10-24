@@ -103,7 +103,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       if (phaseRef.current === "running" && dt > 0) {
         const controls = controlsRef.current;
         // Smooth steering inputs before applying tyre force; ease back to centre on release.
-        const steerEase = 1 - Math.exp(-dt * (Math.abs(controls.steer) > Math.abs(race.steering) ? 7.5 : 4.5));
+        const steerEase = 1 - Math.exp(-dt * (Math.abs(controls.steer) > Math.abs(race.steering) ? 10.5 : 6.5));
         race.steering += (controls.steer - race.steering) * steerEase;
         const steering = race.steering;
         const t = wrap(race.progress, 1);
@@ -172,7 +172,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const grip = clamp(1.12 - updatedSpeedRatio * 0.06 - race.brakePressure * 0.08 - race.wheelLock * 0.18, 0.62, 1.12);
         // Independent world-space vehicle dynamics: the track no longer advances the car.
         // Steering changes the car's yaw; tyre grip determines how much velocity follows.
-        const steerAngle = steering * (0.28 - updatedSpeedRatio * 0.12);
+        const steerAngle = steering * (0.34 - updatedSpeedRatio * 0.12);
         const forwardX = -Math.sin(race.worldYaw);
         const forwardZ = -Math.cos(race.worldYaw);
         const lateralX = Math.cos(race.worldYaw);
@@ -180,7 +180,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const longitudinalVelocity = race.velocityX * forwardX + race.velocityZ * forwardZ;
         const lateralVelocity = race.velocityX * lateralX + race.velocityZ * lateralZ;
         const targetYawRate = Math.tan(steerAngle) * Math.max(0, longitudinalVelocity) / 2.65;
-        const gripLimit = 7.8 * clamp(1.08 - race.brakePressure * 0.35 - race.wheelLock * 0.5, 0.42, 1.08);
+        const gripLimit = 9.2 * clamp(1.08 - race.brakePressure * 0.35 - race.wheelLock * 0.5, 0.42, 1.08);
         const demandedLateralAccel = targetYawRate * Math.max(0, longitudinalVelocity);
         const gripRatio = Math.min(1, gripLimit / Math.max(0.001, Math.abs(demandedLateralAccel)));
         race.worldYaw += targetYawRate * gripRatio * dt;
@@ -323,21 +323,26 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     return () => { window.removeEventListener("keydown", keyDown); window.removeEventListener("keyup", keyUp); window.removeEventListener("blur", release); };
   }, [pauseRace, embedded, expanded]);
 
-  // Digital steering is deliberately predictable: hold LEFT or RIGHT.
-  // It avoids the angle-sensitive virtual wheel that made thumbs fight the pedals.
+  // Circular thumbstick, like the movement controls in Shooters Trigger/Paws World.
+  // The knob follows the thumb in two dimensions; horizontal displacement steers the car.
   const steerStickPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    const maxTravel = Math.max(1, rect.width * 0.32);
-    const offsetX = event.clientX - (rect.left + rect.width / 2);
-    const steer = clamp(offsetX / maxTravel, -1, 1);
-    controlsRef.current.steer = steer;
+    const maxX = Math.max(1, rect.width * 0.28);
+    const maxY = Math.max(1, rect.height * 0.28);
+    const rawX = (event.clientX - (rect.left + rect.width / 2)) / maxX;
+    const rawY = (event.clientY - (rect.top + rect.height / 2)) / maxY;
+    const magnitude = Math.hypot(rawX, rawY);
+    const scale = magnitude > 1 ? 1 / magnitude : 1;
+    const x = rawX * scale;
+    const y = rawY * scale;
+    controlsRef.current.steer = clamp(x, -1, 1);
     const knob = event.currentTarget.querySelector<HTMLElement>(".steering-stick-knob");
-    if (knob) knob.style.transform = `translateX(${steer * maxTravel}px)`;
+    if (knob) knob.style.transform = `translate3d(${x * maxX}px, ${y * maxY}px, 0)`;
   };
   const releaseSteerStick = (event: { currentTarget: HTMLDivElement }) => {
     controlsRef.current.steer = 0;
     const knob = event.currentTarget.querySelector<HTMLElement>(".steering-stick-knob");
-    if (knob) knob.style.transform = "translateX(0)";
+    if (knob) knob.style.transform = "translate3d(0, 0, 0)";
   };
   const hold = (key: "accelerate" | "brake", down: boolean) => {
     controlsRef.current[key] = down;
@@ -377,26 +382,26 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         <div className="warmup-steering" aria-label="Analog steering">
           <span className="steering-caption">STEER</span>
           <div className={"steering-stick" + (phase !== "running" ? " is-disabled" : "")}
-            role="slider" aria-label="Steering analog stick" aria-valuemin={-100} aria-valuemax={100} aria-valuenow={Math.round(controlsRef.current.steer * 100)}
+            role="slider" aria-label="Steering thumbstick" aria-valuemin={-100} aria-valuemax={100} aria-valuenow={Math.round(controlsRef.current.steer * 100)}
             tabIndex={phase === "running" ? 0 : -1}
             onPointerDown={e => { if (phase !== "running") return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); steerStickPointer(e); }}
             onPointerMove={e => { if (e.currentTarget.hasPointerCapture(e.pointerId)) steerStickPointer(e); }}
             onPointerUp={releaseSteerStick} onPointerCancel={releaseSteerStick} onLostPointerCapture={releaseSteerStick}
-            onKeyDown={e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); controlsRef.current.steer = e.key === "ArrowLeft" ? -0.72 : 0.72; const knob = e.currentTarget.querySelector<HTMLElement>(".steering-stick-knob"); if (knob) knob.style.transform = `translateX(${controlsRef.current.steer * 36}px)`; } }}
+            onKeyDown={e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); const steer = e.key === "ArrowLeft" ? -0.72 : 0.72; controlsRef.current.steer = steer; const knob = e.currentTarget.querySelector<HTMLElement>(".steering-stick-knob"); if (knob) knob.style.transform = `translate3d(${steer * 25}px, 0, 0)`; } }}
             onKeyUp={e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") releaseSteerStick({currentTarget:e.currentTarget}); }}>
             <span className="steering-stick-track" />
-            <span className="steering-stick-knob"><span>↔</span></span>
+            <span className="steering-stick-knob"><span>●</span></span>
           </div>
-          <span className="steering-caption">Slide left / right</span>
+          <span className="steering-caption">Move thumb to steer</span>
         </div>
         <div className="warmup-driving">
-          <button type="button" className="accelerate-button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>GAS ↑</button>
           <button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>BRAKE ↓</button>
+          <button type="button" className="accelerate-button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>GAS ↑</button>
           <button type="button" className="nos-button" aria-label="Toggle NOS burst" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0} onClick={toggleBoost}>{boostActive ? "NOS ON ⚡" : "TAP NOS ⚡"}</button>
         </div>
         <div className="warmup-actions">{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start driving ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Drive again ↻</button>}<button type="button" className="vula-button secondary" onClick={() => reset(false)}>Restart ↻</button></div>
       </div>
-      <p className="warmup-help">Phone: hold ← / → with your left thumb; hold GAS or BRAKE with your right. Tap NOS once for a burst, tap again to stop. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause.</p>
+      <p className="warmup-help">Phone: move the circular thumbstick with your left thumb; BRAKE is left and GAS is right under your right thumb. Tap NOS once for a burst, tap again to stop. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause.</p>
     </section>
     {!embedded && <footer className="vula-footer"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></Link><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></footer>}
   </div>;
