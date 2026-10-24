@@ -8,6 +8,13 @@ This is the current product-owner-approved baseline for the solo circuit warm-up
 - The existing mobile/keyboard control inputs and button behaviour: steering left/right, accelerator, brake, and tap-to-toggle NOS. Keep the current control layout and input semantics unless the product owner explicitly authorizes a change.
 - Offline/PWA and installation infrastructure. Racing changes must not touch the approved installation mechanism, manifest, icons, service worker, or cache namespaces.
 
+## Vehicle handling and collision rules
+
+- The car owns its world-space position, velocity, and yaw. Circuit projection is used only for lap timing, track limits, and collision queries; it must never advance or pull the car along the track.
+- Steering changes the car trajectory through speed-dependent yaw and available tyre grip. The player may miss corners, leave the circuit, and recover by driving back onto it.
+- Barrier impacts are graduated by impact velocity: minor contact should cost speed, stronger impacts should add damage, and only a severe/disabled crash ends the run. Never pit-respawn for a routine scrape.
+- Racing-line cues are advisory only and must not add automatic throttle, steering, or exit boosts.
+
 ## Warm-up handling rules
 
 - The player is practising alone. No AI rivals, traffic, forced slipstream, scripted boost, or environmental effect may activate unless the player input or a real gameplay interaction triggers it.
@@ -20,6 +27,11 @@ This is the current product-owner-approved baseline for the solo circuit warm-up
 
 - The current pink-red, rounded-body car is the approved visual direction. Car styling may improve independently, but must not change car handling, control inputs, track geometry, environment layout, camera, or HUD.
 - Avoid network-dependent model swaps that cause the car to change appearance between online/offline sessions.
+
+## Mobile control ergonomics
+
+- Steering controls and pedals must occupy distinct left/right thumb zones with a clear gap; do not put the steering pad directly against GAS or BRAKE.
+- Preserve reliable pointer capture and release, large touch targets, visible pressed states, and keyboard parity. Keep frequent controls reachable near the lower screen corners and reserve upper-screen space for HUD/menus.
 
 ## Verification gate
 
