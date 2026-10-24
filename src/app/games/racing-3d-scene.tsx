@@ -7,6 +7,7 @@ import { createRacingTrack, getTrackTurn } from "./racing-track";
 import type { Controls, Phase, Race } from "./racing-warmup";
 
 type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase> };
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 function ribbon(curve: THREE.Curve<THREE.Vector3>, width: number, segments: number, y: number) {
   const positions: number[] = [];
