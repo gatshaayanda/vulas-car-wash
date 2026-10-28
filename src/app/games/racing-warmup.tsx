@@ -224,11 +224,19 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.worldX += race.velocityX * dt;
         race.worldZ += race.velocityZ * dt;
         race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 250 : 205);
-        race.heading = Math.atan2(-race.velocityX, -race.velocityZ) - race.worldYaw;
-        race.heading = Math.atan2(Math.sin(race.heading), Math.cos(race.heading));
+        const finalForwardX = -Math.sin(race.worldYaw);
+        const finalForwardZ = -Math.cos(race.worldYaw);
         const finalLateralX = Math.cos(race.worldYaw);
         const finalLateralZ = -Math.sin(race.worldYaw);
+        const finalLongitudinalVelocity = race.velocityX * finalForwardX + race.velocityZ * finalForwardZ;
         const finalLateralVelocity = race.velocityX * finalLateralX + race.velocityZ * finalLateralZ;
+        // Measure sideslip against the car's forward direction, not the world
+        // velocity sign; pure reverse travel must not look like a 180-degree drift.
+        race.heading = Math.atan2(-race.velocityX, -race.velocityZ) - race.worldYaw;
+        race.heading = Math.atan2(Math.sin(race.heading), Math.cos(race.heading));
+        if (finalLongitudinalVelocity < -0.2) {
+          race.heading = Math.atan2(Math.sin(race.heading - Math.PI), Math.cos(race.heading - Math.PI));
+        }
         race.lateral = clamp(finalLateralVelocity, -18, 18);
         race.lateralVelocity = finalLateralVelocity;
         race.lateralG += ((targetYawRate * yawGrip) - race.lateralG) * (1 - Math.exp(-dt * 5));
