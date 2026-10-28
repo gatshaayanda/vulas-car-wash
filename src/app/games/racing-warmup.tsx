@@ -210,6 +210,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const lateralAccel = clamp(demandedLateralAccel - lateralVelocity * slipRecovery,
           -availableLateralGrip, availableLateralGrip);
 
+        // Drift invariant: preserve world-space momentum while the chassis yaws.
         // Integrate forces against the current world velocity; do not reconstruct
         // velocity from a freshly rotated chassis basis (which suppresses drifting).
         race.velocityX += (forwardX * longitudinalAccel + lateralX * lateralAccel) * dt;
