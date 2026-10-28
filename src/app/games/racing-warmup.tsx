@@ -168,14 +168,14 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const corneringLoss = excessSteering * (3 + race.speed * 0.018);
         if (excessSteering > 0) race.speed = Math.max(0, race.speed - corneringLoss * dt);
 
-        // Heading and lateral motion now respond to speed, grip and load transfer.
-        const grip = clamp(1.12 - updatedSpeedRatio * 0.06 - race.brakePressure * 0.08 - race.wheelLock * 0.18, 0.62, 1.12);
+        // Vehicle dynamics must integrate tyre forces in WORLD space. The old
+        // implementation decomposed velocity in the old car basis, rotated the
+        // chassis, then rebuilt velocity in the new basis every frame. That rotated
+        // the velocity vector with the nose and erased the very slip angle needed
+        // for a sustained, controllable drift.
         // GOLDEN BASE STEERING SIGN CONVENTION:
-        // The car's forward vector is (-sin(yaw), 0, -cos(yaw)); in this world
-        // coordinate system, positive yaw turns the nose toward world -X (left).
-        // Therefore negate the thumb input here so LEFT input produces a LEFT turn
-        // and RIGHT input produces a RIGHT turn, consistently with the chase camera.
-        // The track never advances the car; tyre grip determines how velocity follows.
+        // Forward is (-sin(yaw), 0, -cos(yaw)); positive yaw turns toward world -X.
+        // Negating the signed steering input keeps left thumb input turning left.
         const steerAngle = -steering * (0.34 - updatedSpeedRatio * 0.12);
         const forwardX = -Math.sin(race.worldYaw);
         const forwardZ = -Math.cos(race.worldYaw);
@@ -183,36 +183,57 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const lateralZ = -Math.sin(race.worldYaw);
         const longitudinalVelocity = race.velocityX * forwardX + race.velocityZ * forwardZ;
         const lateralVelocity = race.velocityX * lateralX + race.velocityZ * lateralZ;
-        // Signed longitudinal velocity preserves natural counter-steering while reversing.
-        // At negative velocity, steering rotates the nose in the opposite direction as expected.
+        // Signed velocity keeps steering/recovery natural when backing up.
         const targetYawRate = Math.tan(steerAngle) * longitudinalVelocity / 2.65;
         const gripLimit = 9.2 * clamp(1.08 - race.brakePressure * 0.35 - race.wheelLock * 0.5, 0.42, 1.08);
-        const demandedLateralAccel = targetYawRate * Math.max(0, longitudinalVelocity);
-        const gripRatio = Math.min(1, gripLimit / Math.max(0.001, Math.abs(demandedLateralAccel)));
-        race.worldYaw += targetYawRate * gripRatio * dt;
+        // Braking and cornering share tyre grip. Hard trail-braking therefore
+        // leaves less lateral force available and can naturally start a slide.
+        const brakeGripShare = clamp(race.brakePressure * 0.9, 0, 0.9);
+        const availableLateralGrip = gripLimit * Math.sqrt(Math.max(0.08, 1 - brakeGripShare * brakeGripShare));
+        const demandedLateralAccel = -targetYawRate * longitudinalVelocity;
+        const gripRatio = clamp(availableLateralGrip / Math.max(0.001, Math.abs(demandedLateralAccel)), 0, 1);
+        // Chassis yaw does not get artificially locked to the velocity heading
+        // when the tyres saturate; this is what lets the rear step out under load.
+        const yawGrip = gripRatio < 1 ? 0.76 + gripRatio * 0.24 : 1;
+        race.worldYaw += targetYawRate * yawGrip * dt;
         race.worldYaw = Math.atan2(Math.sin(race.worldYaw), Math.cos(race.worldYaw));
-        const updatedForwardX = -Math.sin(race.worldYaw);
-        const updatedForwardZ = -Math.cos(race.worldYaw);
-        const updatedLateralX = Math.cos(race.worldYaw);
-        const updatedLateralZ = -Math.sin(race.worldYaw);
+
         const driveAccel = (race.throttle * 17 + (boost ? 12 : 0)) * (longitudinalVelocity < 0 ? 1.7 : 1);
         const brakeAccel = race.brakePressure * 28 * brakeEfficiency;
         const dragAccel = longitudinalVelocity * (0.32 + Math.abs(longitudinalVelocity) * 0.012);
-        let nextLongitudinal = longitudinalVelocity + (driveAccel - brakeAccel - dragAccel) * dt;
-        nextLongitudinal = clamp(nextLongitudinal, -7, 15.9);
-        const lateralSlipAccel = clamp(-lateralVelocity * (gripRatio < 0.98 ? 1.2 : 5.5), -gripLimit, gripLimit);
-        const nextLateral = lateralVelocity + lateralSlipAccel * dt;
-        race.velocityX = updatedForwardX * nextLongitudinal + updatedLateralX * nextLateral;
-        race.velocityZ = updatedForwardZ * nextLongitudinal + updatedLateralZ * nextLateral;
+        const nextLongitudinal = clamp(longitudinalVelocity + (driveAccel - brakeAccel - dragAccel) * dt, -7, 15.9);
+        const longitudinalAccel = dt > 0 ? (nextLongitudinal - longitudinalVelocity) / dt : 0;
+        // Normal grip recentres lateral slip progressively. Once the friction
+        // circle is exceeded, weaker recovery lets momentum carry the car sideways
+        // until the driver counter-steers or eases off the brake/throttle.
+        const slipRecovery = gripRatio < 0.98 ? 0.42 : 2.6;
+        const lateralAccel = clamp(demandedLateralAccel - lateralVelocity * slipRecovery,
+          -availableLateralGrip, availableLateralGrip);
+
+        // Integrate forces against the current world velocity; do not reconstruct
+        // velocity from a freshly rotated chassis basis (which suppresses drifting).
+        race.velocityX += (forwardX * longitudinalAccel + lateralX * lateralAccel) * dt;
+        race.velocityZ += (forwardZ * longitudinalAccel + lateralZ * lateralAccel) * dt;
+        const maxWorldSpeed = (boost ? 250 : 205) * 0.28 / 3.6;
+        const worldSpeed = Math.hypot(race.velocityX, race.velocityZ);
+        if (worldSpeed > maxWorldSpeed) {
+          const speedScale = maxWorldSpeed / worldSpeed;
+          race.velocityX *= speedScale;
+          race.velocityZ *= speedScale;
+        }
         race.worldX += race.velocityX * dt;
         race.worldZ += race.velocityZ * dt;
         race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 250 : 205);
         race.heading = Math.atan2(race.velocityX, -race.velocityZ) - race.worldYaw;
         race.heading = Math.atan2(Math.sin(race.heading), Math.cos(race.heading));
-        race.lateral = clamp(nextLateral, -18, 18);
-        race.lateralVelocity = nextLateral;
-        race.lateralG += ((targetYawRate * gripRatio) - race.lateralG) * (1 - Math.exp(-dt * 5));
-        race.drift = clamp(race.heading * clamp(Math.abs(nextLateral) / 7, 0, 1) * 0.25, -0.22, 0.22);
+        const finalLateralX = Math.cos(race.worldYaw);
+        const finalLateralZ = -Math.sin(race.worldYaw);
+        const finalLateralVelocity = race.velocityX * finalLateralX + race.velocityZ * finalLateralZ;
+        race.lateral = clamp(finalLateralVelocity, -18, 18);
+        race.lateralVelocity = finalLateralVelocity;
+        race.lateralG += ((targetYawRate * yawGrip) - race.lateralG) * (1 - Math.exp(-dt * 5));
+        // A meaningful, signed slip angle feeds the car's body lean and drift visuals.
+        race.drift = clamp(race.heading * clamp(Math.abs(finalLateralVelocity) / 2.8, 0, 1) * 0.8, -0.65, 0.65);
 
         // Circuit projection is used only for lap timing, track limits, and collision queries.
         let nearestT = wrap(race.trackT, 1);
