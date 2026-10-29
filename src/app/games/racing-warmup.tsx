@@ -213,6 +213,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
 
         // Drift invariant: preserve world-space momentum while the chassis yaws.
         // Keep this physics path independent of UI refresh cadence.
+        // QA checkpoint: keep this world-space integration intact; rebuilding velocity
+        // from the new chassis heading would make the car snap straight and kill drift.
         // Integrate forces against the current world velocity; do not reconstruct
         // velocity from a freshly rotated chassis basis (which suppresses drifting).
         race.velocityX += (forwardX * longitudinalAccel + lateralX * lateralAccel) * dt;
