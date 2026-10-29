@@ -211,7 +211,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           -availableLateralGrip, availableLateralGrip);
 
         // Drift invariant: preserve world-space momentum while the chassis yaws.
-  // Keep this physics path independent of UI refresh cadence.
+        // Keep this physics path independent of UI refresh cadence.
         // Integrate forces against the current world velocity; do not reconstruct
         // velocity from a freshly rotated chassis basis (which suppresses drifting).
         race.velocityX += (forwardX * longitudinalAccel + lateralX * lateralAccel) * dt;
