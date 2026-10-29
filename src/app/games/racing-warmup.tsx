@@ -89,8 +89,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     return () => window.clearTimeout(timer);
   }, [phase, countdown]);
 
-
-
   useEffect(() => {
     let raf = 0;
     let previous = 0;
