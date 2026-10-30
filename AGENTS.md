@@ -40,3 +40,10 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Run `npm run verify:identity`, `npm run lint`, `npx tsc --noEmit`, and `npm run build` where feasible. Inspect GitHub Actions results and fix regressions caused by changes.
 - Protect secrets, avoid fake success messages, and report separately: code committed/pushed, checks passed, Firebase rules/indexes deployed, production deployment verified.
 - At handoff, include exact commit, remaining configuration, known limitations and device QA steps. The product owner handles Vercel deployment unless explicitly delegated.
+
+## Protected Vula Racing golden baseline
+- The approved golden racing baseline is commit `83a46fbb907ab0ee61c272b99c4ed4fcf823ba8d` (drift physics presentation, stable chassis-aligned chase camera, rear-tyre smoke and skid marks). Preserve this commit in history as the permanent rollback/reference point; never rewrite or force-push it.
+- Future racing work must build forward from this baseline. Do not replace its vehicle physics, steering, drift model, camera, controls, car presentation or drift effects unless the product owner explicitly authorizes that exact change.
+- Track-only work must remain isolated to track geometry, barrier visuals and collision/track-boundary handling. Do not regress the golden driving feel while changing track behaviour.
+- Barrier contacts during practice must remain recoverable. Never force a game-over, disable controls or respawn the player because of a normal track-edge collision.
+- Use one authoritative track-boundary solver. Do not add competing render-loop collision corrections that can disagree with the driving simulation at curved segment joins.
