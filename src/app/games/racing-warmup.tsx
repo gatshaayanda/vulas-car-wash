@@ -226,8 +226,63 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           race.velocityX *= speedScale;
           race.velocityZ *= speedScale;
         }
+        const sweepStartX = race.worldX;
+        const sweepStartZ = race.worldZ;
         race.worldX += race.velocityX * dt;
         race.worldZ += race.velocityZ * dt;
+
+        // Sweep the car's complete frame movement in short substeps against the
+        // same closed track envelope. This catches thin endpoint gaps and fast
+        // corner exits even when a rendered frame is delayed.
+        const trackSafetyOffset = 7.15;
+        const sweepDx = race.worldX - sweepStartX;
+        const sweepDz = race.worldZ - sweepStartZ;
+        const sweepDistance = Math.hypot(sweepDx, sweepDz);
+        const sweepSteps = Math.min(12, Math.max(1, Math.ceil(sweepDistance / 0.28)));
+        const sweepSamples = 1920;
+        const sweepCentre = Math.round(race.trackT * sweepSamples);
+        for (let step = 1; step <= sweepSteps; step++) {
+          const fraction = step / sweepSteps;
+          const sampleX = sweepStartX + sweepDx * fraction;
+          const sampleZ = sweepStartZ + sweepDz * fraction;
+          let nearestDistanceSq = Number.POSITIVE_INFINITY;
+          let nearestX = 0, nearestZ = 0, nearestTangentX = 0, nearestTangentZ = -1;
+          for (let offset = -72; offset <= 72; offset++) {
+            const sample = ((sweepCentre + offset) % sweepSamples + sweepSamples) % sweepSamples;
+            const sampleT = sample / sweepSamples;
+            const point = trackRef.current!.getPointAt(sampleT);
+            const dx = sampleX - point.x, dz = sampleZ - point.z;
+            const distanceSq = dx * dx + dz * dz;
+            if (distanceSq < nearestDistanceSq) {
+              nearestDistanceSq = distanceSq;
+              nearestX = point.x; nearestZ = point.z;
+              const tangent = trackRef.current!.getTangentAt(sampleT);
+              nearestTangentX = tangent.x; nearestTangentZ = tangent.z;
+            }
+          }
+          const distance = Math.sqrt(nearestDistanceSq);
+          const dx = sampleX - nearestX, dz = sampleZ - nearestZ;
+          const sideX = -nearestTangentZ, sideZ = nearestTangentX;
+          const signedOffset = dx * sideX + dz * sideZ;
+          if (distance > trackSafetyOffset || Math.abs(signedOffset) > trackSafetyOffset) {
+            const normalX = distance > trackSafetyOffset && distance > 0.0001
+              ? dx / distance : sideX * (signedOffset < 0 ? -1 : 1);
+            const normalZ = distance > trackSafetyOffset && distance > 0.0001
+              ? dz / distance : sideZ * (signedOffset < 0 ? -1 : 1);
+            const remainingX = race.worldX - sampleX;
+            const remainingZ = race.worldZ - sampleZ;
+            const outwardRemainder = Math.max(0, remainingX * normalX + remainingZ * normalZ);
+            race.worldX = nearestX + normalX * trackSafetyOffset + remainingX - normalX * outwardRemainder;
+            race.worldZ = nearestZ + normalZ * trackSafetyOffset + remainingZ - normalZ * outwardRemainder;
+            const outwardVelocity = race.velocityX * normalX + race.velocityZ * normalZ;
+            if (outwardVelocity > 0) {
+              race.velocityX -= normalX * outwardVelocity * 1.04;
+              race.velocityZ -= normalZ * outwardVelocity * 1.04;
+              race.speed *= 0.88;
+            }
+            break;
+          }
+        }
         race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 290 : 230);
         const finalForwardX = -Math.sin(race.worldYaw);
         const finalForwardZ = -Math.cos(race.worldYaw);
@@ -297,7 +352,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // cross the rail, even when the centreline tangent is unstable at a hairpin.
         // One consistent swept-frame safety envelope, inside the visible rail
         // centreline at 8.4 units. Keep the car on the road without crash/respawn.
-        const safeOffset = 7.15;
+        const safeOffset = trackSafetyOffset;
         if (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset) {
           const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
           const correctionX = distanceFromCentre > safeOffset
