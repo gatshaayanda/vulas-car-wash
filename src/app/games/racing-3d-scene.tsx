@@ -397,14 +397,14 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
         rearTyres.forEach((point, index) => {
           const buffer = skidBuffers[index];
           if (buffer.previous) {
-            const offset = buffer.count * 6;
-            buffer.positions[offset] = buffer.previous.x; buffer.positions[offset + 1] = 0.052; buffer.positions[offset + 2] = buffer.previous.z;
-            buffer.positions[offset + 3] = point.x; buffer.positions[offset + 4] = 0.052; buffer.positions[offset + 5] = point.z;
-            buffer.count = Math.min(skidCapacity, buffer.count + 1);
-            if (buffer.count === skidCapacity) {
+            if (buffer.count >= skidCapacity) {
               buffer.positions.copyWithin(0, 6);
               buffer.count = skidCapacity - 1;
             }
+            const offset = buffer.count * 6;
+            buffer.positions[offset] = buffer.previous.x; buffer.positions[offset + 1] = 0.052; buffer.positions[offset + 2] = buffer.previous.z;
+            buffer.positions[offset + 3] = point.x; buffer.positions[offset + 4] = 0.052; buffer.positions[offset + 5] = point.z;
+            buffer.count += 1;
             buffer.geometry.attributes.position.needsUpdate = true;
             buffer.geometry.setDrawRange(0, buffer.count * 2);
           }
