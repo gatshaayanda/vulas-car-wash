@@ -260,8 +260,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // can snap to the wrong branch of the road and make the car appear to cut
         // across the track or pass through a barrier. The previous frame's trackT
         // anchors this search while still allowing forward and reverse movement.
-        const projectionSamples = 960;
-        const projectionWindow = 36;
+        const projectionSamples = 1920;
+        // Keep projection on the current circuit branch while giving tight corners
+        // and frame-time spikes enough search room to avoid jumping over the boundary.
+        const projectionWindow = 72;
         const projectionCentre = Math.round(nearestT * projectionSamples);
         for (let offset = -projectionWindow; offset <= projectionWindow; offset++) {
           const sample = ((projectionCentre + offset) % projectionSamples + projectionSamples) % projectionSamples;
@@ -293,7 +295,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // The road is 12 units wide and the visible rail is centred at 8.4.
         // Keep the car centre inside the road edge so its 2.16-unit body cannot
         // cross the rail, even when the centreline tangent is unstable at a hairpin.
-        const safeOffset = 6.65;
+        // One consistent swept-frame safety envelope, inside the visible rail
+        // centreline at 8.4 units. Keep the car on the road without crash/respawn.
+        const safeOffset = 7.15;
         if (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset) {
           const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
           const correctionX = distanceFromCentre > safeOffset
@@ -316,12 +320,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
               race.lastImpactAt = now;
               race.damage = clamp(race.damage + Math.max(0, impactKmh - 18) * (impactKmh > 115 ? 0.78 : impactKmh > 65 ? 0.38 : 0.12), 0, 100);
               if (impactKmh > 28) notify(impactKmh > 90 ? "Heavy impact · car damaged" : "Barrier contact · speed lost", impactKmh > 90 ? "error" : "info");
-              if (race.damage >= 100 || impactKmh > 178) {
-                controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-                race.velocityX = 0; race.velocityZ = 0; race.speed = 0;
-                phaseRef.current = "crashed"; setPhase("crashed");
-                notify("Major crash · restart the session", "error");
-              }
+              // Barrier contact is recoverable practice feedback, never a forced
+              // game-over/respawn. Keep damage below the crash threshold.
+              race.damage = Math.min(99, race.damage);
             }
           } else if (penetration > 0) {
             // If the car was already pressed against the rail or has near-zero outward
