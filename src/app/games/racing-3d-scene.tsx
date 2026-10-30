@@ -251,6 +251,30 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     // more visual room around it for steering on narrow mobile screens.
     car.scale.setScalar(0.82);
     scene.add(car);
+
+    // Drift feedback is tied to real chassis-vs-velocity slip, never camera motion.
+    const skidMaterial = new THREE.LineBasicMaterial({ color: "#171b1b", transparent: true, opacity: 0.62, depthWrite: false });
+    const skidCapacity = 420;
+    const skidBuffers = [-1, 1].map(() => {
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(skidCapacity * 6);
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+      geometry.setDrawRange(0, 0);
+      const line = new THREE.LineSegments(geometry, skidMaterial);
+      line.frustumCulled = false;
+      scene.add(line);
+      return { geometry, positions, count: 0, previous: null as THREE.Vector3 | null };
+    });
+    const smokeMaterial = new THREE.MeshBasicMaterial({ color: "#d9dedb", transparent: true, opacity: 0.24, depthWrite: false });
+    const smokePool = Array.from({ length: 26 }, () => {
+      const puff = new THREE.Mesh(new THREE.SphereGeometry(0.18, 7, 6), smokeMaterial.clone());
+      puff.visible = false;
+      scene.add(puff);
+      return { mesh: puff, velocity: new THREE.Vector3(), life: 0, maxLife: 1 };
+    });
+    let smokeCursor = 0;
+    let lastEffectAt = 0;
+    let effectClock = 0;
     const groundShadow = new THREE.Mesh(
       new THREE.CircleGeometry(1, 32),
       new THREE.MeshBasicMaterial({ color: 0x101914, transparent: true, opacity: 0.28, depthWrite: false }),
@@ -340,13 +364,9 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       previousCarZ = race.worldZ;
       // Render the independent world-space vehicle state; track geometry is not a movement rail.
       const carWorld = new THREE.Vector3(race.worldX, .015, race.worldZ);
-      const chassisForward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
-      const velocityLength = Math.hypot(race.velocityX, race.velocityZ);
-      // Chase the direction the car is actually travelling, not its nose. During a drift
-      // the camera keeps following momentum while the chassis visibly points across it.
-      const forward = velocityLength > 0.7
-        ? new THREE.Vector3(race.velocityX / velocityLength, 0, race.velocityZ / velocityLength)
-        : chassisForward;
+      // Keep the chase camera aligned to the car's nose. The sideways travel
+      // remains visible around the chassis instead of rotating the whole view.
+      const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
       car.position.copy(carWorld);
       car.rotation.y = race.worldYaw;
       // Subtle suspension response: braking transfers load forward and cornering
@@ -361,8 +381,54 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const cameraTarget = new THREE.Vector3(carWorld.x + forward.x * 10, 1.25, carWorld.z + forward.z * 10);
       const cameraPosition = new THREE.Vector3(carWorld.x - forward.x * 8.4, 4.7, carWorld.z - forward.z * 8.4);
       const frameDelta = Math.min(clock.getDelta(), .05);
-      camera.position.lerp(cameraPosition, 1 - Math.exp(-frameDelta * (Math.abs(race.drift) > 0.22 ? 2.8 : 4.2)));
+      camera.position.lerp(cameraPosition, 1 - Math.exp(-frameDelta * 4.2));
       camera.lookAt(cameraTarget);
+      // Rear tyres leave short, fading-in-place rubber traces while the car is
+      // genuinely sliding. Bounded buffers prevent unbounded geometry growth.
+      const slip = Math.abs(race.drift);
+      const driftIntensity = clamp((slip - 0.13) / 0.55, 0, 1) * clamp((race.speed - 28) / 55, 0, 1);
+      effectClock += frameDelta;
+      const rearTyres = [-1, 1].map(side => {
+        const local = new THREE.Vector3(side * 0.94, 0.035, 0.8 * 0.82);
+        return local.applyAxisAngle(new THREE.Vector3(0, 1, 0), race.worldYaw).add(carWorld);
+      });
+      if (currentPhase === "running" && driftIntensity > 0.04 && effectClock - lastEffectAt > 0.035) {
+        lastEffectAt = effectClock;
+        rearTyres.forEach((point, index) => {
+          const buffer = skidBuffers[index];
+          if (buffer.previous) {
+            const offset = buffer.count * 6;
+            buffer.positions[offset] = buffer.previous.x; buffer.positions[offset + 1] = 0.052; buffer.positions[offset + 2] = buffer.previous.z;
+            buffer.positions[offset + 3] = point.x; buffer.positions[offset + 4] = 0.052; buffer.positions[offset + 5] = point.z;
+            buffer.count = Math.min(skidCapacity, buffer.count + 1);
+            if (buffer.count === skidCapacity) {
+              buffer.positions.copyWithin(0, 6);
+              buffer.count = skidCapacity - 1;
+            }
+            buffer.geometry.attributes.position.needsUpdate = true;
+            buffer.geometry.setDrawRange(0, buffer.count * 2);
+          }
+          buffer.previous = point.clone();
+          const puff = smokePool[smokeCursor++ % smokePool.length];
+          puff.mesh.position.set(point.x, 0.18, point.z);
+          puff.mesh.scale.setScalar(0.55 + driftIntensity * 0.75);
+          puff.mesh.visible = true;
+          puff.life = 0.55 + driftIntensity * 0.45;
+          puff.maxLife = puff.life;
+          puff.velocity.set((Math.random() - 0.5) * 0.7 + race.velocityX * -0.025, 0.65 + driftIntensity * 0.55, (Math.random() - 0.5) * 0.7 + race.velocityZ * -0.025);
+          (puff.mesh.material as THREE.MeshBasicMaterial).opacity = 0.12 + driftIntensity * 0.2;
+        });
+      } else if (driftIntensity < 0.04) {
+        skidBuffers.forEach(buffer => { buffer.previous = null; });
+      }
+      smokePool.forEach(puff => {
+        if (!puff.mesh.visible) return;
+        puff.life -= frameDelta;
+        if (puff.life <= 0) { puff.mesh.visible = false; return; }
+        puff.mesh.position.addScaledVector(puff.velocity, frameDelta);
+        puff.mesh.scale.multiplyScalar(1 + frameDelta * 1.5);
+        (puff.mesh.material as THREE.MeshBasicMaterial).opacity = (0.12 + driftIntensity * 0.2) * (puff.life / puff.maxLife);
+      });
       const flame = car.userData.flame as THREE.Object3D | undefined;
       if (flame) {
         flame.visible = controls.boost && race.nos > 0 && !controls.brake && currentPhase === "running";
