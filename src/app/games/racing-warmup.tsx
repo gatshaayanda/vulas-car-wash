@@ -185,8 +185,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // Braking while turning deliberately unloads rear grip: the same steering input
         // creates a stronger yaw response under a high-speed trail-brake, rather than
         // the brake simply scrubbing speed and keeping the car planted.
-        const targetYawRate = Math.tan(steerAngle) * longitudinalVelocity / 2.65 * (1 + brakeTurnSlide * 0.72);
-        const gripLimit = 7.6 * clamp(1.04 - race.brakePressure * 0.48 - race.wheelLock * 0.58, 0.28, 1.04);
+        const targetYawRate = Math.tan(steerAngle) * longitudinalVelocity / 2.65 * (1 + brakeTurnSlide * 0.48);
+        const gripLimit = 8.2 * clamp(1.04 - race.brakePressure * 0.48 - race.wheelLock * 0.58, 0.28, 1.04);
         // Braking and cornering share tyre grip. Hard trail-braking therefore
         // leaves less lateral force available and can naturally start a slide.
         const brakeGripShare = clamp(race.brakePressure * 1.05, 0, 0.97);
@@ -207,7 +207,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // Normal grip recentres lateral slip progressively. Once the friction
         // circle is exceeded, weaker recovery lets momentum carry the car sideways
         // until the driver counter-steers or eases off the brake/throttle.
-        const slipRecovery = gripRatio < 0.98 ? 0.22 : 1.65;
+        const slipRecovery = gripRatio < 0.98 ? 0.42 : 1.65;
         const lateralAccel = clamp(demandedLateralAccel - lateralVelocity * slipRecovery,
           -availableLateralGrip, availableLateralGrip);
 
