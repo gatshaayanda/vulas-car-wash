@@ -148,7 +148,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "This track is locked until you reach its division." }, { status: 403 });
       }
       const raceId = crypto.randomUUID();
-      await store.doc(`racingSessions/${uid}_${raceId}`).create({ uid, racerId, track, startedAt: Date.now(), status: "started" });
+      const botDifficulty = ["easy", "normal", "hard"].includes(String(body.botDifficulty)) ? String(body.botDifficulty) : "normal";
+      await store.doc(`racingSessions/${uid}_${raceId}`).create({ uid, racerId, track, botDifficulty, startedAt: Date.now(), status: "started" });
       return NextResponse.json({ raceId, sync: "server" }, { headers: { "Cache-Control": "no-store" } });
     }
     if (body.action === "finish") {
@@ -187,7 +188,9 @@ export async function POST(request: Request) {
         if (!current) throw new Error("Racer profile not found.");
         const normalizedTime = Number(serverElapsed.toFixed(2));
         const seed = Array.from(raceId).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-        const rivalOne = 38 + (seed % 1600) / 100 + Math.max(0, 2 - current.upgrade) * 1.2;
+        const difficulty = String(session.data()?.botDifficulty || "normal");
+        const rivalBase = difficulty === "easy" ? 58 : difficulty === "hard" ? 46 : 51;
+        const rivalOne = rivalBase + ((seed % 500) / 100 - 2.5) + Math.max(0, 2 - current.upgrade) * .7;
         const place = normalizedTime <= rivalOne ? 1 : 2;
         const credits = rewards[place];
         const historyItem = { id: raceId, track, place, time: normalizedTime, credits, at: now, verified: true };
