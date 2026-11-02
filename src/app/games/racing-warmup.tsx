@@ -375,6 +375,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             const restitution = impactKmh > 80 ? 0.16 : 0.04;
             race.velocityX -= outwardX * impactVelocity * (1 + restitution);
             race.velocityZ -= outwardZ * impactVelocity * (1 + restitution);
+            // Off-centre wall strikes rotate the chassis instead of preserving a frictionless heading.
+            race.angularVelocity += (outwardX * race.velocityZ - outwardZ * race.velocityX) * 0.012;
             race.speed *= impactKmh > 115 ? 0.52 : impactKmh > 65 ? 0.72 : 0.88;
             if (now - race.lastImpactAt > 180) {
               race.lastImpactAt = now;
