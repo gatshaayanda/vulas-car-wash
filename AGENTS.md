@@ -58,7 +58,7 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - The separate `/games` garage/warm-up and `/games/career` experiences are not the Quick Break card. Do not change them when implementing homepage Quick Break requests.
 
 ### Next implementation stages
-1. **Driving bot:** upgrade Kago from spline pace-following to steering/throttle/braking decisions, corner-speed profiles, marker awareness, controlled mistakes and recovery.
+1. **Driving bot — first tactical pass implemented:** Kago now makes lateral steering and avoidance decisions, attacks reachable cars ahead, modulates pace into corners, uses NOS on attack runs, and visibly drifts. Further work: robust overtaking/path planning, controlled mistakes, and recovery.
 2. **Full opponent vehicle physics:** evolve the current bumper-contact response into shared vehicle dynamics for both cars: suspension/load transfer, tyre grip and slip, braking/acceleration, steering response, wall impacts, spin/recovery and damage consequences. Preserve the approved player driving feel while making Kago obey the same physical limits.
 3. **Full vehicle dynamics and collision QA:** add/validate suspension travel, tyre load transfer, grip/slip, braking and steering response for Kago; test head-on, side-swipe and rear-end hits at low/high speed, repeated contacts, barrier scrapes, frame spikes and recovery. Verify both chassis separate, transfer momentum, lose speed, yaw/spin, accumulate consequential damage, remain inside the physical rails and never tunnel through each other.
 4. **Race presentation:** improve grid placement, synchronized countdown, position changes and lap-result comparison inside Quick Break.
