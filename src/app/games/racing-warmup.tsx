@@ -396,7 +396,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.progress = nearestT < 0.08 && previousProgress % 1 > 0.82 && longitudinalVelocity > 0
           ? Math.floor(previousProgress) + 1 + nearestT
           : Math.floor(previousProgress) + nearestT;
-        const botTargetSpeed = botDifficultyRef.current === "Easy" ? 11.5 : botDifficultyRef.current === "Hard" ? 17.5 : 14.5;
+        const botTargetSpeed = (botDifficultyRef.current === "Easy" ? 11.5 : botDifficultyRef.current === "Hard" ? 17.5 : 14.5) * (1 - clamp(race.botDamage * 0.0035, 0, 0.35));
         const botTurn = Math.abs(getTrackTurn(trackRef.current!, race.botProgress, .006));
         race.botSpeed += (botTargetSpeed * (1 - clamp(botTurn * 28, 0, .65) * .16) - race.botSpeed) * (1 - Math.exp(-dt * 1.8));
         // Kago is a solid vehicle. Its body has its own yaw, lateral momentum and
@@ -445,9 +445,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           race.worldZ += normalZ * correction * inversePlayerMass;
           race.botLateral -= (normalX * botSideX + normalZ * botSideZ) * correction * inverseBotMass;
           race.botLateral = clamp(race.botLateral, botMinLateral, botMaxLateral);
-
           const botForwardX = -botTangent.x;
           const botForwardZ = -botTangent.z;
+          race.botProgress = wrap(race.botProgress - (normalX * botForwardX + normalZ * botForwardZ) * correction * inverseBotMass / botTrack.getLength(), 1);
           const botVelocityX = botForwardX * race.botSpeed + botSideX * race.botLateralVelocity;
           const botVelocityZ = botForwardZ * race.botSpeed + botSideZ * race.botLateralVelocity;
           const relativeX = race.velocityX - botVelocityX;
@@ -488,7 +488,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             }
           }
         }
-        race.botSpeed = clamp(race.botSpeed * (1 - race.botDamage * 0.0008), 0, 20);
         race.botProgress += race.botSpeed / botTrack.getLength() * dt;
         race.offTrack = distanceFromCentre > 7.2 ? race.offTrack + dt : Math.max(0, race.offTrack - dt * 1.5);
         if (distanceFromCentre > 7.2 || race.offTrack > 0.5) race.lapInvalid = true;
