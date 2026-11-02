@@ -294,6 +294,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     let smokeCursor = 0;
     let lastEffectAt = 0;
     let effectClock = 0;
+    let lastBotEffectAt = 0;
     const sparkPool = Array.from({ length: 34 }, () => {
       const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(.055, 0), new THREE.MeshBasicMaterial({ color: "#ffb52e", transparent: true, opacity: 1 }));
       mesh.visible = false; scene.add(mesh);
@@ -397,7 +398,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
         skidBuffers.forEach(buffer => { buffer.previous = null; });
       }
       const botDriftIntensity = clamp((race.botDrift - .07) / .28, 0, 1) * clamp((race.botSpeed - 9) / 10, 0, 1);
-      if (currentPhase === "running" && botDriftIntensity > .08 && effectClock - lastEffectAt > .055) {
+      if (currentPhase === "running" && botDriftIntensity > .08 && effectClock - lastBotEffectAt > .055) {
+        lastBotEffectAt = effectClock;
         const botRear = [-1, 1].map(side => new THREE.Vector3(side * .82, .04, .68 * .72).applyAxisAngle(new THREE.Vector3(0, 1, 0), botCar.rotation.y).add(botWorld));
         botRear.forEach(point => {
           const puff = smokePool[smokeCursor++ % smokePool.length];
@@ -409,7 +411,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       }
       if (race.lastImpactAt > seenImpactAt && race.impactStrength > .05) {
         seenImpactAt = race.lastImpactAt;
-        const impactPoint = carWorld.clone().add(botWorld).multiplyScalar(.5);
+        const impactPoint = new THREE.Vector3(race.impactX, .45, race.impactZ);
         for (let i = 0; i < 18; i++) {
           const spark = sparkPool[sparkCursor++ % sparkPool.length];
           const angle = Math.random() * Math.PI * 2;
