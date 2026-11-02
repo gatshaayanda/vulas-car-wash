@@ -14,11 +14,11 @@ export type Race = {
   bestLap: number | null; lateral: number; lateralVelocity: number; heading: number; drift: number;
   nos: number; last: number; lapInvalid: boolean; offTrack: number;
   longitudinalLoad: number; lateralG: number; wheelLock: number;
-  worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; damage: number; lastImpactAt: number; trackT: number; botProgress: number; botSpeed: number;
+  worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; damage: number; lastImpactAt: number; trackT: number; botProgress: number; botSpeed: number; botLateral: number; botLateralVelocity: number;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 14.5 });
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 14.5, botLateral: 0, botLateralVelocity: 0 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -397,7 +397,60 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const botTargetSpeed = botDifficultyRef.current === "Easy" ? 11.5 : botDifficultyRef.current === "Hard" ? 17.5 : 14.5;
         const botTurn = Math.abs(getTrackTurn(trackRef.current!, race.botProgress, .006));
         race.botSpeed += (botTargetSpeed * (1 - clamp(botTurn * 28, 0, .65) * .16) - race.botSpeed) * (1 - Math.exp(-dt * 1.8));
-        race.botProgress += race.botSpeed / trackRef.current!.getLength() * dt;
+        // Kago has a world-space contact body: lateral movement and momentum persist
+        // between frames instead of allowing the player to pass through the car.
+        race.botLateralVelocity *= Math.exp(-dt * 1.9);
+        race.botLateral += race.botLateralVelocity * dt;
+        race.botLateral = clamp(race.botLateral, -3.8, 3.8);
+        const botTrack = trackRef.current!;
+        const botT = wrap(race.botProgress, 1);
+        const botPoint = botTrack.getPointAt(botT);
+        const botTangent = botTrack.getTangentAt(botT).normalize();
+        const botSideX = -botTangent.z;
+        const botSideZ = botTangent.x;
+        const botX = botPoint.x + botSideX * (-2.45 + race.botLateral);
+        const botZ = botPoint.z + botSideZ * (-2.45 + race.botLateral);
+        let contactX = race.worldX - botX;
+        let contactZ = race.worldZ - botZ;
+        let contactDistance = Math.hypot(contactX, contactZ);
+        const contactRadius = 2.05; // scaled chassis envelopes with a small bumper allowance
+        if (contactDistance < contactRadius) {
+          if (contactDistance < 0.001) {
+            contactX = botSideX; contactZ = botSideZ; contactDistance = 1;
+          }
+          const normalX = contactX / contactDistance;
+          const normalZ = contactZ / contactDistance;
+          const overlap = contactRadius - contactDistance;
+          // Split positional correction by mass so neither car can remain embedded.
+          race.worldX += normalX * overlap * 0.56;
+          race.worldZ += normalZ * overlap * 0.56;
+          race.botLateral -= (normalX * botSideX + normalZ * botSideZ) * overlap * 0.44;
+          race.botLateral = clamp(race.botLateral, -3.8, 3.8);
+          const botVelocityX = -botTangent.x * race.botSpeed + botSideX * race.botLateralVelocity;
+          const botVelocityZ = -botTangent.z * race.botSpeed + botSideZ * race.botLateralVelocity;
+          const relativeNormalSpeed = (race.velocityX - botVelocityX) * normalX + (race.velocityZ - botVelocityZ) * normalZ;
+          if (relativeNormalSpeed < 0) {
+            const playerMass = 1.15;
+            const botMass = 1.0;
+            const restitution = 0.12;
+            const impulse = -(1 + restitution) * relativeNormalSpeed / (1 / playerMass + 1 / botMass);
+            race.velocityX += normalX * impulse / playerMass;
+            race.velocityZ += normalZ * impulse / playerMass;
+            const botImpulseX = -normalX * impulse / botMass;
+            const botImpulseZ = -normalZ * impulse / botMass;
+            race.botSpeed = clamp(race.botSpeed + (botImpulseX * -botTangent.x + botImpulseZ * -botTangent.z), 1.5, 20);
+            race.botLateralVelocity += botImpulseX * botSideX + botImpulseZ * botSideZ;
+            race.botSpeed *= 0.985;
+            race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 290 : 230);
+            if (now - race.lastImpactAt > 500) {
+              race.lastImpactAt = now;
+              const impactKmh = Math.abs(relativeNormalSpeed) * 3.6 / 0.28;
+              race.damage = Math.min(99, race.damage + Math.max(0, impactKmh - 12) * 0.16);
+              if (impactKmh > 12) notify(impactKmh > 55 ? "Hard contact · speed lost" : "Car contact · both cars deflected", impactKmh > 55 ? "error" : "info");
+            }
+          }
+        }
+        race.botProgress += race.botSpeed / botTrack.getLength() * dt;
         race.offTrack = distanceFromCentre > 7.2 ? race.offTrack + dt : Math.max(0, race.offTrack - dt * 1.5);
         if (distanceFromCentre > 7.2 || race.offTrack > 0.5) race.lapInvalid = true;
         race.lateral = signedOffset;
