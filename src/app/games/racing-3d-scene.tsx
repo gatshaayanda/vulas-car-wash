@@ -294,6 +294,13 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     let smokeCursor = 0;
     let lastEffectAt = 0;
     let effectClock = 0;
+    const sparkPool = Array.from({ length: 34 }, () => {
+      const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(.055, 0), new THREE.MeshBasicMaterial({ color: "#ffb52e", transparent: true, opacity: 1 }));
+      mesh.visible = false; scene.add(mesh);
+      return { mesh, velocity: new THREE.Vector3(), life: 0, maxLife: .42 };
+    });
+    let sparkCursor = 0;
+    let seenImpactAt = 0;
     const groundShadow = new THREE.Mesh(
       new THREE.CircleGeometry(1, 32),
       new THREE.MeshBasicMaterial({ color: 0x101914, transparent: true, opacity: 0.28, depthWrite: false }),
@@ -333,6 +340,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const botWorld = botPoint.clone().addScaledVector(botSide, -2.45 + race.botLateral);
       botCar.position.set(botWorld.x, .015, botWorld.z);
       botCar.rotation.y = Math.atan2(-botTangent.x, -botTangent.z) + race.botYawOffset;
+      botCar.rotation.z = clamp(-race.botDrift * Math.sign(race.botYawOffset || 1) * .12, -.14, .14);
+      botCar.rotation.x = clamp((race.botBoosting ? -.035 : 0) + race.botDamage * .00012, -.05, .035);
       nameTag.position.set(botWorld.x, 3.0, botWorld.z);
       nameTag.visible = currentPhase !== "ready" || race.botProgress > .025;
       // Subtle suspension response: braking transfers load forward and cornering
@@ -387,6 +396,38 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       } else if (driftIntensity < 0.04) {
         skidBuffers.forEach(buffer => { buffer.previous = null; });
       }
+      const botDriftIntensity = clamp((race.botDrift - .07) / .28, 0, 1) * clamp((race.botSpeed - 9) / 10, 0, 1);
+      if (currentPhase === "running" && botDriftIntensity > .08 && effectClock - lastEffectAt > .055) {
+        const botRear = [-1, 1].map(side => new THREE.Vector3(side * .82, .04, .68 * .72).applyAxisAngle(new THREE.Vector3(0, 1, 0), botCar.rotation.y).add(botWorld));
+        botRear.forEach(point => {
+          const puff = smokePool[smokeCursor++ % smokePool.length];
+          puff.mesh.position.set(point.x, .16, point.z); puff.mesh.scale.setScalar(.42 + botDriftIntensity * .58);
+          puff.mesh.visible = true; puff.life = .42 + botDriftIntensity * .35; puff.maxLife = puff.life;
+          puff.velocity.set((Math.random() - .5) * .45, .42 + botDriftIntensity * .4, (Math.random() - .5) * .45);
+          (puff.mesh.material as THREE.MeshBasicMaterial).opacity = .1 + botDriftIntensity * .18;
+        });
+      }
+      if (race.lastImpactAt > seenImpactAt && race.impactStrength > .05) {
+        seenImpactAt = race.lastImpactAt;
+        const impactPoint = carWorld.clone().add(botWorld).multiplyScalar(.5);
+        for (let i = 0; i < 18; i++) {
+          const spark = sparkPool[sparkCursor++ % sparkPool.length];
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 2.2 + Math.random() * 7.5 * race.impactStrength;
+          spark.mesh.position.copy(impactPoint).add(new THREE.Vector3((Math.random() - .5) * .8, .35 + Math.random() * .7, (Math.random() - .5) * .8));
+          spark.velocity.set(Math.cos(angle) * speed, .8 + Math.random() * 3.2, Math.sin(angle) * speed);
+          spark.life = .22 + Math.random() * .24; spark.maxLife = spark.life; spark.mesh.visible = true;
+          (spark.mesh.material as THREE.MeshBasicMaterial).opacity = .9;
+        }
+      }
+      sparkPool.forEach(spark => {
+        if (!spark.mesh.visible) return;
+        spark.life -= frameDelta;
+        if (spark.life <= 0) { spark.mesh.visible = false; return; }
+        spark.mesh.position.addScaledVector(spark.velocity, frameDelta);
+        spark.velocity.y -= 8.5 * frameDelta;
+        (spark.mesh.material as THREE.MeshBasicMaterial).opacity = spark.life / spark.maxLife;
+      });
       smokePool.forEach(puff => {
         if (!puff.mesh.visible) return;
         puff.life -= frameDelta;
@@ -396,6 +437,11 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
         (puff.mesh.material as THREE.MeshBasicMaterial).opacity = (0.12 + driftIntensity * 0.2) * (puff.life / puff.maxLife);
       });
       const flame = car.userData.flame as THREE.Object3D | undefined;
+      const botFlame = botCar.userData.flame as THREE.Object3D | undefined;
+      if (botFlame) {
+        botFlame.visible = race.botBoosting && race.botNOS > 0 && currentPhase === "running";
+        botFlame.scale.setScalar(.78 + Math.sin(clock.elapsedTime * 38) * .22);
+      }
       if (flame) {
         flame.visible = controls.boost && race.nos > 0 && !controls.brake && currentPhase === "running";
         const pulse = .82 + Math.sin(clock.elapsedTime * 42) * .18;
