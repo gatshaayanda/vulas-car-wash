@@ -50,27 +50,31 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 
 ## Racing opponents roadmap (approved direction)
 
-### Current delivered foundation — single offline AI rival
-- The /games/career race now has one computer-controlled opponent: Kago “The Attacker”. The opponent advances independently during the race, is visible in the race scene/HUD, and the player's finish position is determined by which driver reaches the finish first.
-- Opponent difficulty is selectable (Easy / Normal / Hard) in Race Control → Opponent and saved in device-local browser settings. The default is Normal.
-- Career racing remains playable offline. The opponent is local simulation, not a network player. The authenticated /api/racing result path also compares the player against one server-calculated rival, not two synthetic rivals.
-- This first bot is a pace-based prototype for proving the head-to-head loop. It does not yet navigate track geometry, make lane choices, overtake, avoid collisions or use NOS. Do not describe it as a finished physics-driven bot.
-- The standalone /games 500 m warm-up (racing-hub.tsx) is deliberately untouched. Do not merge this bot into that prototype or change its golden controls without explicit approval.
+### Landing-page 500 m warm-up — current local AI prototype
+- The public landing-page game at `/games` is implemented by `src/app/games/racing-hub.tsx`; its styles are in `src/app/games/racing.css`. This is the customer-facing warm-up target when the product owner asks for a bot in the landing-page game.
+- The landing-page race now presents one offline AI rival: Kago “The Attacker”, shown as a pink car on the same 500 m road. The opponent menu is visible above the race scene and lets the player select Easy / Normal / Hard before the countdown. Normal is the default.
+- The 500 m warm-up compares player and bot distance and shows a head-to-head position/result. The bot currently follows a simple independent pace model; it is not yet a physics-driven opponent and does not yet steer around markers, choose lanes dynamically, overtake, collide, recover or use NOS.
+- The landing-page game remains a local/offline prototype. Do not represent the bot as an online player or trusted leaderboard result.
+
+### Separate career game
+- `/games/career` is a separate experience implemented by `src/app/games/racing-career-hub.tsx`. Its Race Control save menus and its own pace-based Kago rival are independent of the landing-page warm-up.
+- Do not redirect customers to Career to find landing-page racing features. When a request says landing page, implement and verify the change in `racing-hub.tsx` and its associated styles.
+- Keep career save/profile/championship systems separate unless the product owner explicitly asks to connect them.
 
 ### Next implementation stages
-1. **Inspect and model the track:** define a stable racing line/waypoints, corner zones, track boundaries and collision-safe recovery for each career circuit.
-2. **Upgrade the bot controller:** replace pace-only progress with steering/throttle/braking decisions along the racing line; add speed profiles for corners, controlled mistakes, recovery and difficulty tuning.
-3. **Shared driving model:** reuse the player's movement/collision rules where architecture permits; keep the player's approved vehicle feel and controls unchanged.
-4. **Race presentation:** add proper grid placement, synchronized countdown, lap/finish logic, opponent identity/colour, position changes and consistent local/server results.
-5. **Local race QA:** test Easy/Normal/Hard, bot wins and player wins, pause/resume, save checkpoints, mobile performance, offline play and service-worker cached launch.
-6. **Online multiplayer foundation:** only after local races are reliable, add a separately hosted persistent multiplayer service (Colyseus is the current candidate). Do not use ordinary Vercel serverless request handlers as persistent real-time sockets.
-7. **Private rooms and matchmaking:** create/join by room code first, then automatic matchmaking, reconnect handling and player presence.
-8. **Authoritative race validation:** server owns race sessions/results; validate player inputs and track progress rather than trusting client-submitted positions or rewards. Evaluate shared deterministic physics only after the current client physics are understood.
-9. **Hybrid grids and competition:** let real players race alongside AI fillers; then add verified leaderboards, championships and seasonal standings.
+1. **Track model:** define stable racing-line waypoints, corner zones, road boundaries and safe recovery for the landing-page circuit.
+2. **Driving bot:** upgrade Kago from pace-only progress to steering/throttle/braking decisions, marker awareness, corner speed profiles, controlled mistakes and recovery.
+3. **Shared driving rules:** reuse player movement and collision rules where architecture permits without changing the player's approved controls or driving feel.
+4. **Race presentation:** add grid placement, synchronized countdown, opponent position changes, finish ordering and clear result presentation.
+5. **Local QA:** test Easy/Normal/Hard, bot wins and player wins, marker interactions, pause/resume, restart, mobile controls, offline play and service-worker cached launch.
+6. **Online multiplayer foundation:** only after local races are reliable, add a separately hosted persistent multiplayer service (Colyseus remains a candidate). Do not use ordinary Vercel serverless request handlers as persistent real-time sockets.
+7. **Private rooms and matchmaking:** room codes first, then automatic matchmaking, reconnect handling and player presence.
+8. **Authoritative validation:** server owns online race sessions/results; validate player inputs and track progress rather than trusting client-submitted positions or rewards.
+9. **Hybrid grids and competition:** allow real players to race alongside AI fillers, then add verified leaderboards, championships and seasonal standings.
 
 ### Non-negotiable protections
-- Work only in gatshaayanda/vulas-car-wash for Vula Racing tasks unless the product owner explicitly names another repository.
-- Preserve the approved golden vehicle, steering, drift, camera, controls, collisions, effects, PWA install/offline behavior and existing Race Control save menus. Do not rewrite the 500 m practice experience as part of career AI work.
+- Work only in `gatshaayanda/vulas-car-wash` for Vula Racing tasks unless the product owner explicitly names another repository.
+- Preserve the approved golden vehicle, steering, drift, camera, controls, collisions, effects, PWA install/offline behavior and existing Race Control save menus. Do not change the career experience while implementing a landing-page request.
 - Never claim a bot is physics-driven, online, server-authoritative or capable of overtaking until those exact capabilities are implemented and tested.
 - Keep offline results device-only. Only server-verified results may enter shared leaderboards or award verified online credits.
 - Do not add a multiplayer service, credentials, deployment or recurring cost without a separate implementation plan and explicit approval.

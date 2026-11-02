@@ -51,3 +51,15 @@
 @media(max-width:640px){.warmup-signals{gap:4px}.warmup-steering .warmup-signals button{flex:1;padding:5px 3px;font-size:9px}}
 
 .warmup-steering .warmup-signals button:disabled{opacity:.45;cursor:not-allowed}
+
+/* Landing-page 500 m head-to-head opponent selector. */
+.warmup-opponent-menu{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 12px;padding:13px 16px;border:1px solid #dce3d7;border-radius:10px;background:#fff}
+.warmup-opponent-menu>div{display:grid;gap:3px}
+.warmup-opponent-menu>div>span,.warmup-opponent-menu label{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#657264;font-weight:800}
+.warmup-opponent-menu strong{font:700 18px/1.2 "Space Grotesk",system-ui,sans-serif;color:#172820}
+.warmup-opponent-menu small{font-size:11px;color:#687568}
+.warmup-opponent-menu label{display:grid;gap:5px;min-width:116px}
+.warmup-opponent-menu select{min-height:38px;padding:7px 28px 7px 10px;border:1px solid #ccd6c8;border-radius:8px;background:#f7f8f3;color:#172820;font:700 13px system-ui}
+.warmup-opponent-menu select:disabled{opacity:.65}
+.warmup-hud{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media(max-width:640px){.warmup-hud{grid-template-columns:repeat(2,minmax(0,1fr))}.warmup-opponent-menu{align-items:flex-start}.warmup-opponent-menu label{min-width:104px}}
