@@ -50,27 +50,22 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 
 ## Racing opponents roadmap (approved direction)
 
-### Landing-page 500 m warm-up — current local AI prototype
-- The public landing-page game at `/games` is implemented by `src/app/games/racing-hub.tsx`; its styles are in `src/app/games/racing.css`. This is the customer-facing warm-up target when the product owner asks for a bot in the landing-page game.
-- The landing-page race now presents one offline AI rival: Kago “The Attacker”, shown as a pink car on the same 500 m road. The opponent menu is visible above the race scene and lets the player select Easy / Normal / Hard before the countdown. Normal is the default.
-- The 500 m warm-up compares player and bot distance and shows a head-to-head position/result. The bot currently follows a simple independent pace model; it is not yet a physics-driven opponent and does not yet steer around markers, choose lanes dynamically, overtake, collide, recover or use NOS.
-- The landing-page game remains a local/offline prototype. Do not represent the bot as an online player or trusted leaderboard result.
-
-### Separate career game
-- `/games/career` is a separate experience implemented by `src/app/games/racing-career-hub.tsx`. Its Race Control save menus and its own pace-based Kago rival are independent of the landing-page warm-up.
-- Do not redirect customers to Career to find landing-page racing features. When a request says landing page, implement and verify the change in `racing-hub.tsx` and its associated styles.
-- Keep career save/profile/championship systems separate unless the product owner explicitly asks to connect them.
+### Homepage Quick Break — current offline AI opponent
+- The requested customer-facing experience is the **VULA RACING · QUICK BREAK** card on the homepage, with “Take a quick lap” and “Play now”. It is rendered by `src/app/games/racing-warmup.tsx` inside `src/app/page.tsx`; its 3D scene is `src/app/games/racing-3d-scene.tsx` and styles are `src/app/games/racing-warmup.css`.
+- All Quick Break bot work must be implemented in those files. Do not substitute `/games` Racing Garage or `/games/career`.
+- The Quick Break circuit includes one offline AI rival, Kago, visible as a second car on the same 3D circuit. The in-game opponent selector offers Easy / Normal / Hard; Normal is default. Kago follows the actual track spline at a difficulty-dependent pace and the HUD reports the distance gap.
+- This is a track-following pace AI, not yet a physics-driven rival: it does not yet make independent steering corrections, overtake, avoid collisions, or use NOS. It is not an online player.
+- The separate `/games` garage/warm-up and `/games/career` experiences are not the Quick Break card. Do not change them when implementing homepage Quick Break requests.
 
 ### Next implementation stages
-1. **Track model:** define stable racing-line waypoints, corner zones, road boundaries and safe recovery for the landing-page circuit.
-2. **Driving bot:** upgrade Kago from pace-only progress to steering/throttle/braking decisions, marker awareness, corner speed profiles, controlled mistakes and recovery.
-3. **Shared driving rules:** reuse player movement and collision rules where architecture permits without changing the player's approved controls or driving feel.
-4. **Race presentation:** add grid placement, synchronized countdown, opponent position changes, finish ordering and clear result presentation.
-5. **Local QA:** test Easy/Normal/Hard, bot wins and player wins, marker interactions, pause/resume, restart, mobile controls, offline play and service-worker cached launch.
-6. **Online multiplayer foundation:** only after local races are reliable, add a separately hosted persistent multiplayer service (Colyseus remains a candidate). Do not use ordinary Vercel serverless request handlers as persistent real-time sockets.
-7. **Private rooms and matchmaking:** room codes first, then automatic matchmaking, reconnect handling and player presence.
-8. **Authoritative validation:** server owns online race sessions/results; validate player inputs and track progress rather than trusting client-submitted positions or rewards.
-9. **Hybrid grids and competition:** allow real players to race alongside AI fillers, then add verified leaderboards, championships and seasonal standings.
+1. **Driving bot:** upgrade Kago from spline pace-following to steering/throttle/braking decisions, corner-speed profiles, marker awareness, controlled mistakes and recovery.
+2. **Shared driving rules:** reuse player movement and collision rules where architecture permits without changing the approved player controls or driving feel.
+3. **Race presentation:** improve grid placement, synchronized countdown, position changes and lap-result comparison inside Quick Break.
+4. **Local QA:** test Easy/Normal/Hard, bot/player pace gaps, repeated laps, pause/resume, restart, mobile controls, offline play and cached launch.
+5. **Online multiplayer foundation:** only after local races are reliable, add a separately hosted persistent multiplayer service (Colyseus remains a candidate). Do not use ordinary Vercel serverless request handlers as persistent real-time sockets.
+6. **Private rooms and matchmaking:** room codes first, then automatic matchmaking, reconnect handling and player presence.
+7. **Authoritative validation:** server owns online race sessions/results; validate player inputs and track progress rather than trusting client-submitted positions or rewards.
+8. **Hybrid grids and competition:** allow real players to race alongside AI fillers, then add verified leaderboards, championships and seasonal standings.
 
 ### Non-negotiable protections
 - Work only in `gatshaayanda/vulas-car-wash` for Vula Racing tasks unless the product owner explicitly names another repository.
