@@ -103,6 +103,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       const dt = previous ? Math.min((now - previous) / 1000, 0.035) : 0;
       previous = now;
       if (phaseRef.current === "running" && dt > 0) {
+        const frameStartX = race.worldX;
+        const frameStartZ = race.worldZ;
+        const frameStartYaw = race.worldYaw;
         const controls = controlsRef.current;
         // Smooth steering inputs before applying tyre force; ease back to centre on release.
         const steerEase = 1 - Math.exp(-dt * (Math.abs(controls.steer) > Math.abs(race.steering) ? 10.5 : 6.5));
@@ -477,10 +480,28 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         }
         const botX = botPoint.x + botSideX * (-2.45 + race.botLateral);
         const botZ = botPoint.z + botSideZ * (-2.45 + race.botLateral);
-        const contact = vehicleContact(
-          { x: race.worldX, z: race.worldZ, yaw: race.worldYaw, halfWidth: 0.96, halfLength: 1.64 },
-          { x: botX, z: botZ, yaw: botYaw, halfWidth: 0.84, halfLength: 1.45 },
-        );
+        // Continuous swept SAT: sample the player's complete frame path against
+        // Kago's oriented chassis. The simulation caps dt at 35 ms; these short
+        // intervals prevent a fast bumper from skipping across the rival between
+        // rendered frames. On first contact, stop at the impact pose before solving.
+        const playerEndX = race.worldX, playerEndZ = race.worldZ, playerEndYaw = race.worldYaw;
+        let contact: ReturnType<typeof vehicleContact> = null;
+        for (let sweep = 0; sweep <= 8; sweep++) {
+          const fraction = sweep / 8;
+          const yawDelta = Math.atan2(Math.sin(playerEndYaw - frameStartYaw), Math.cos(playerEndYaw - frameStartYaw));
+          const sampleX = frameStartX + (playerEndX - frameStartX) * fraction;
+          const sampleZ = frameStartZ + (playerEndZ - frameStartZ) * fraction;
+          const sampleYaw = frameStartYaw + yawDelta * fraction;
+          const sampleContact = vehicleContact(
+            { x: sampleX, z: sampleZ, yaw: sampleYaw, halfWidth: 0.96, halfLength: 1.64 },
+            { x: botX, z: botZ, yaw: botYaw, halfWidth: 0.84, halfLength: 1.45 },
+          );
+          if (sampleContact) {
+            contact = sampleContact;
+            race.worldX = sampleX; race.worldZ = sampleZ; race.worldYaw = sampleYaw;
+            break;
+          }
+        }
         if (contact) {
           const { normalX, normalZ, penetration } = contact;
           const inversePlayerMass = 1 / 1.25;
