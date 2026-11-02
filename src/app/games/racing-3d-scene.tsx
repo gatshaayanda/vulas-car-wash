@@ -52,9 +52,9 @@ function roundedCarBox(parent: THREE.Group, material: THREE.Material, size: [num
   return mesh;
 }
 
-function makeCar() {
+function makeCar(bodyColor = "#f04478") {
   const car = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: "#f04478", roughness: .27, metalness: .24 });
+  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: .27, metalness: .24 });
   const dark = new THREE.MeshStandardMaterial({ color: "#101820", roughness: .72 });
   const rubber = new THREE.MeshStandardMaterial({ color: "#090c10", roughness: .92 });
   const alloy = new THREE.MeshStandardMaterial({ color: "#89949a", metalness: .7, roughness: .3 });
