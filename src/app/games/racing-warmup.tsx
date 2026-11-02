@@ -14,11 +14,11 @@ export type Race = {
   bestLap: number | null; lateral: number; lateralVelocity: number; heading: number; drift: number;
   nos: number; last: number; lapInvalid: boolean; offTrack: number;
   longitudinalLoad: number; lateralG: number; wheelLock: number;
-  worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; damage: number; lastImpactAt: number; trackT: number;
+  worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; damage: number; lastImpactAt: number; trackT: number; botProgress: number; botSpeed: number;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0 });
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 5.2 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -33,7 +33,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const phaseRef = useRef<Phase>("ready");
   const [phase, setPhase] = useState<Phase>("ready");
   const [countdown, setCountdown] = useState(3);
-  const [speed, setSpeed] = useState(0);
+  const [speed, setSpeed] = useState(0);\n  const [botDifficulty, setBotDifficulty] = useState<"Easy" | "Normal" | "Hard">("Normal");\n  const botDifficultyRef = useRef<"Easy" | "Normal" | "Hard">("Normal");\n  const [rivalGap, setRivalGap] = useState(0);
   const [lapTime, setLapTime] = useState(0);
   const [bestLap, setBestLap] = useState<number | null>(null);
   const [lap, setLap] = useState(1);
@@ -66,7 +66,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     raceRef.current = newRace();
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-    setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setBoostActive(false);
+    setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setBoostActive(false); setRivalGap(0);
     setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
   }, []);
   const startRace = useCallback(() => reset(true), [reset]);
@@ -391,7 +391,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.progress = nearestT < 0.08 && previousProgress % 1 > 0.82 && longitudinalVelocity > 0
           ? Math.floor(previousProgress) + 1 + nearestT
           : Math.floor(previousProgress) + nearestT;
-        race.offTrack = distanceFromCentre > 7.2 ? race.offTrack + dt : Math.max(0, race.offTrack - dt * 1.5);
+        const botTargetSpeed = botDifficultyRef.current === "Easy" ? 4.35 : botDifficultyRef.current === "Hard" ? 6.15 : 5.25;\n        const botTurn = Math.abs(getTrackTurn(trackRef.current!, race.botProgress, .006));\n        race.botSpeed += (botTargetSpeed * (1 - clamp(botTurn * 28, 0, .65) * .16) - race.botSpeed) * (1 - Math.exp(-dt * 1.8));\n        race.botProgress += race.botSpeed / trackRef.current!.getLength() * dt;\n        race.offTrack = distanceFromCentre > 7.2 ? race.offTrack + dt : Math.max(0, race.offTrack - dt * 1.5);
         if (distanceFromCentre > 7.2 || race.offTrack > 0.5) race.lapInvalid = true;
         race.lateral = signedOffset;
         // Practice has no crash/recovery interruption. Going wide can invalidate a
@@ -498,7 +498,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     {!embedded && <><div className="vula-status"><span className="status-dot online" />Vula Racing · solo circuit practice</div><header className="vula-nav"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Racing warm-up</small></span></Link><nav><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></nav></header><section className="vula-section warmup-intro"><p className="vula-eyebrow">VULA RACING · SOLO PRACTICE</p><h1>Find your racing line.</h1><p>Follow the recommended line: brake before turn-in, ease off through the apex, then build throttle on exit. Save NOS for straights.</p></section></>}
     {embedded && <div className="race-inline-heading"><div><p className="vula-eyebrow">VULA RACING · CIRCUIT PRACTICE</p><h2>Find your racing line.</h2><p>One more lap? Smooth corners, clean exits, well-timed NOS.</p></div><button type="button" className="vula-button secondary" onClick={() => { if (phaseRef.current === "running") pauseRace(); setExpanded(false); }}>Close game ×</button></div>}
     <section className="vula-section warmup-game">
-      <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Lap</span><strong>{lap}</strong></div><div><span>Current lap</span><strong>{fmt(lapTime)}</strong></div><div><span>Best lap</span><strong>{fmt(bestLap)}</strong></div></div>
+      <div className="warmup-opponent-menu"><div><span>RACE OPPONENT</span><strong>Kago · The Attacker</strong><small>Offline AI rival · runs on this circuit</small></div><label>Difficulty<select value={botDifficulty} disabled={phase === "running" || phase === "countdown"} onChange={event => { const next = event.target.value as "Easy" | "Normal" | "Hard"; botDifficultyRef.current = next; setBotDifficulty(next); }}><option>Easy</option><option>Normal</option><option>Hard</option></select></label></div>\n      <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Lap</span><strong>{lap}</strong></div><div><span>Current lap</span><strong>{fmt(lapTime)}</strong></div><div><span>Best lap</span><strong>{fmt(bestLap)}</strong></div><div><span>Rival gap</span><strong>{Math.abs(Math.round(rivalGap))}m <small>{rivalGap >= 0 ? "Kago ahead" : "You ahead"}</small></strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} />
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
