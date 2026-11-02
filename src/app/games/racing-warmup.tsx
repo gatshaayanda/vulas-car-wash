@@ -18,7 +18,7 @@ export type Race = {
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 5.2 });
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 14.5 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -394,7 +394,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.progress = nearestT < 0.08 && previousProgress % 1 > 0.82 && longitudinalVelocity > 0
           ? Math.floor(previousProgress) + 1 + nearestT
           : Math.floor(previousProgress) + nearestT;
-        const botTargetSpeed = botDifficultyRef.current === "Easy" ? 4.35 : botDifficultyRef.current === "Hard" ? 6.15 : 5.25;
+        const botTargetSpeed = botDifficultyRef.current === "Easy" ? 11.5 : botDifficultyRef.current === "Hard" ? 17.5 : 14.5;
         const botTurn = Math.abs(getTrackTurn(trackRef.current!, race.botProgress, .006));
         race.botSpeed += (botTargetSpeed * (1 - clamp(botTurn * 28, 0, .65) * .16) - race.botSpeed) * (1 - Math.exp(-dt * 1.8));
         race.botProgress += race.botSpeed / trackRef.current!.getLength() * dt;
