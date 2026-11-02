@@ -6,6 +6,7 @@ import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 import { subscribeSettings } from "@/lib/firebase/vula-data";
 import { createRacingTrack, getTrackTurn } from "./racing-track";
+import { vehicleContact } from "./racing-collision";
 
 export type Phase = "ready" | "countdown" | "running" | "paused" | "finished" | "crashed";
 export type Controls = { steer: number; accelerate: boolean; brake: boolean; boost: boolean };
@@ -14,11 +15,11 @@ export type Race = {
   bestLap: number | null; lateral: number; lateralVelocity: number; heading: number; drift: number;
   nos: number; last: number; lapInvalid: boolean; offTrack: number;
   longitudinalLoad: number; lateralG: number; wheelLock: number;
-  worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; damage: number; lastImpactAt: number; trackT: number; botProgress: number; botSpeed: number; botLateral: number; botLateralVelocity: number;
+  worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; angularVelocity: number; damage: number; lastImpactAt: number; trackT: number; botProgress: number; botSpeed: number; botLateral: number; botLateralVelocity: number; botYawOffset: number; botAngularVelocity: number; botDamage: number;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 14.5, botLateral: 0, botLateralVelocity: 0 });
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, angularVelocity: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 14.5, botLateral: 0, botLateralVelocity: 0, botYawOffset: 0, botAngularVelocity: 0, botDamage: 0 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -144,7 +145,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const brakeEfficiency = 1 - race.wheelLock * (absActive ? 0.12 : 0.52);
         const brakeDeceleration = 36 * race.brakePressure * brakeEfficiency
           * clamp(availableGrip / Math.max(0.82, combinedDemand), 0.35, 1.08);
-        const engineAcceleration = 42 * race.throttle + exitBonus;
+        const engineAcceleration = (42 * race.throttle + exitBonus) * (1 - race.damage * 0.0038);
         const aerodynamicDrag = race.speed * (0.055 + speedRatio * 0.025);
         const boostAcceleration = boost ? 52 : 0;
         race.speed = clamp(race.speed + (engineAcceleration + boostAcceleration - aerodynamicDrag - brakeDeceleration) * dt, 0, boost ? 290 : 230);
@@ -188,8 +189,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // Braking while turning deliberately unloads rear grip: the same steering input
         // creates a stronger yaw response under a high-speed trail-brake, rather than
         // the brake simply scrubbing speed and keeping the car planted.
-        const targetYawRate = Math.tan(steerAngle) * longitudinalVelocity / 2.65 * (1 + brakeTurnSlide * 0.48);
-        const gripLimit = 8.2 * clamp(1.04 - race.brakePressure * 0.48 - race.wheelLock * 0.58, 0.28, 1.04);
+        const targetYawRate = Math.tan(steerAngle) * longitudinalVelocity / 2.65 * (1 + brakeTurnSlide * 0.48) * (1 - race.damage * 0.0018);
+        const gripLimit = 8.2 * clamp(1.04 - race.brakePressure * 0.48 - race.wheelLock * 0.58, 0.28, 1.04) * (1 - race.damage * 0.0018);
         // Braking and cornering share tyre grip. Hard trail-braking therefore
         // leaves less lateral force available and can naturally start a slide.
         const brakeGripShare = clamp(race.brakePressure * 1.05, 0, 0.97);
@@ -199,7 +200,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // Chassis yaw does not get artificially locked to the velocity heading
         // when the tyres saturate; this is what lets the rear step out under load.
         const yawGrip = gripRatio < 1 ? 0.88 + gripRatio * 0.12 : 1;
-        race.worldYaw += targetYawRate * yawGrip * dt;
+        race.angularVelocity *= Math.exp(-dt * 2.8);
+        race.worldYaw += (targetYawRate * yawGrip + race.angularVelocity) * dt;
         race.worldYaw = Math.atan2(Math.sin(race.worldYaw), Math.cos(race.worldYaw));
 
         const driveAccel = (race.throttle * 20 + (boost ? 20 : 0)) * (longitudinalVelocity < 0 ? 1.7 : 1);
@@ -397,59 +399,96 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const botTargetSpeed = botDifficultyRef.current === "Easy" ? 11.5 : botDifficultyRef.current === "Hard" ? 17.5 : 14.5;
         const botTurn = Math.abs(getTrackTurn(trackRef.current!, race.botProgress, .006));
         race.botSpeed += (botTargetSpeed * (1 - clamp(botTurn * 28, 0, .65) * .16) - race.botSpeed) * (1 - Math.exp(-dt * 1.8));
-        // Kago has a world-space contact body: lateral movement and momentum persist
-        // between frames instead of allowing the player to pass through the car.
-        race.botLateralVelocity *= Math.exp(-dt * 1.9);
+        // Kago is a solid vehicle. Its body has its own yaw, lateral momentum and
+        // angular response; it is not a point or a ghost on the racing line.
+        race.botAngularVelocity *= Math.exp(-dt * 2.6);
+        race.botYawOffset += race.botAngularVelocity * dt;
+        race.botYawOffset = clamp(race.botYawOffset, -0.62, 0.62);
+        race.botLateralVelocity *= Math.exp(-dt * 1.1);
+        const previousBotLateral = race.botLateral;
         race.botLateral += race.botLateralVelocity * dt;
-        race.botLateral = clamp(race.botLateral, -3.8, 3.8);
         const botTrack = trackRef.current!;
         const botT = wrap(race.botProgress, 1);
         const botPoint = botTrack.getPointAt(botT);
         const botTangent = botTrack.getTangentAt(botT).normalize();
         const botSideX = -botTangent.z;
         const botSideZ = botTangent.x;
+        const botYaw = Math.atan2(-botTangent.x, -botTangent.z) + race.botYawOffset;
+        // The rails sit at +/-8.4. Keep the whole scaled chassis inside their
+        // inner face, then bounce and damage Kago when its body reaches a rail.
+        const botMinLateral = -3.35;
+        const botMaxLateral = 8.15;
+        if (race.botLateral < botMinLateral || race.botLateral > botMaxLateral) {
+          const wallSide = race.botLateral < botMinLateral ? 1 : -1;
+          const wallImpact = Math.abs(race.botLateralVelocity);
+          race.botLateral = clamp(race.botLateral, botMinLateral, botMaxLateral);
+          race.botLateralVelocity = Math.abs(race.botLateralVelocity) * wallSide * 0.24;
+          race.botSpeed *= wallImpact > 3.2 ? 0.68 : 0.84;
+          race.botDamage = clamp(race.botDamage + wallImpact * 2.2, 0, 100);
+          race.botAngularVelocity += wallSide * wallImpact * 0.035;
+        }
         const botX = botPoint.x + botSideX * (-2.45 + race.botLateral);
         const botZ = botPoint.z + botSideZ * (-2.45 + race.botLateral);
-        let contactX = race.worldX - botX;
-        let contactZ = race.worldZ - botZ;
-        let contactDistance = Math.hypot(contactX, contactZ);
-        const contactRadius = 2.05; // scaled chassis envelopes with a small bumper allowance
-        if (contactDistance < contactRadius) {
-          if (contactDistance < 0.001) {
-            contactX = botSideX; contactZ = botSideZ; contactDistance = 1;
-          }
-          const normalX = contactX / contactDistance;
-          const normalZ = contactZ / contactDistance;
-          const overlap = contactRadius - contactDistance;
-          // Split positional correction by mass so neither car can remain embedded.
-          race.worldX += normalX * overlap * 0.56;
-          race.worldZ += normalZ * overlap * 0.56;
-          race.botLateral -= (normalX * botSideX + normalZ * botSideZ) * overlap * 0.44;
-          race.botLateral = clamp(race.botLateral, -3.8, 3.8);
-          const botVelocityX = -botTangent.x * race.botSpeed + botSideX * race.botLateralVelocity;
-          const botVelocityZ = -botTangent.z * race.botSpeed + botSideZ * race.botLateralVelocity;
-          const relativeNormalSpeed = (race.velocityX - botVelocityX) * normalX + (race.velocityZ - botVelocityZ) * normalZ;
+        const contact = vehicleContact(
+          { x: race.worldX, z: race.worldZ, yaw: race.worldYaw, halfWidth: 0.96, halfLength: 1.64 },
+          { x: botX, z: botZ, yaw: botYaw, halfWidth: 0.84, halfLength: 1.45 },
+        );
+        if (contact) {
+          const { normalX, normalZ, penetration } = contact;
+          const inversePlayerMass = 1 / 1.25;
+          const inverseBotMass = 1 / 1.05;
+          const inverseMassTotal = inversePlayerMass + inverseBotMass;
+          // Positional correction prevents persistent interpenetration even when
+          // the two chassis arrive already overlapping after a frame hitch.
+          const correction = Math.max(0, penetration - 0.012) * 0.82 / inverseMassTotal;
+          race.worldX += normalX * correction * inversePlayerMass;
+          race.worldZ += normalZ * correction * inversePlayerMass;
+          race.botLateral -= (normalX * botSideX + normalZ * botSideZ) * correction * inverseBotMass;
+          race.botLateral = clamp(race.botLateral, botMinLateral, botMaxLateral);
+
+          const botForwardX = -botTangent.x;
+          const botForwardZ = -botTangent.z;
+          const botVelocityX = botForwardX * race.botSpeed + botSideX * race.botLateralVelocity;
+          const botVelocityZ = botForwardZ * race.botSpeed + botSideZ * race.botLateralVelocity;
+          const relativeX = race.velocityX - botVelocityX;
+          const relativeZ = race.velocityZ - botVelocityZ;
+          const relativeNormalSpeed = relativeX * normalX + relativeZ * normalZ;
           if (relativeNormalSpeed < 0) {
-            const playerMass = 1.15;
-            const botMass = 1.0;
-            const restitution = 0.12;
-            const impulse = -(1 + restitution) * relativeNormalSpeed / (1 / playerMass + 1 / botMass);
-            race.velocityX += normalX * impulse / playerMass;
-            race.velocityZ += normalZ * impulse / playerMass;
-            const botImpulseX = -normalX * impulse / botMass;
-            const botImpulseZ = -normalZ * impulse / botMass;
-            race.botSpeed = clamp(race.botSpeed + (botImpulseX * -botTangent.x + botImpulseZ * -botTangent.z), 1.5, 20);
-            race.botLateralVelocity += botImpulseX * botSideX + botImpulseZ * botSideZ;
-            race.botSpeed *= 0.985;
+            // A firm low-restitution chassis impact transfers momentum rather
+            // than allowing either vehicle to ghost through the other.
+            const restitution = 0.22;
+            const normalImpulse = -(1 + restitution) * relativeNormalSpeed / inverseMassTotal;
+            const impulseX = normalX * normalImpulse;
+            const impulseZ = normalZ * normalImpulse;
+            race.velocityX += impulseX * inversePlayerMass;
+            race.velocityZ += impulseZ * inversePlayerMass;
+            race.botSpeed -= (impulseX * botForwardX + impulseZ * botForwardZ) * inverseBotMass;
+            race.botLateralVelocity -= (impulseX * botSideX + impulseZ * botSideZ) * inverseBotMass;
+            // Tyre/body friction transfers some tangential momentum too. This
+            // makes side-swipes scrub speed and shove both cars sideways.
+            const tangentX = -normalZ, tangentZ = normalX;
+            const relativeTangent = relativeX * tangentX + relativeZ * tangentZ;
+            const tangentImpulse = clamp(-relativeTangent / inverseMassTotal * 0.42, -normalImpulse * 0.38, normalImpulse * 0.38);
+            race.velocityX += tangentX * tangentImpulse * inversePlayerMass;
+            race.velocityZ += tangentZ * tangentImpulse * inversePlayerMass;
+            race.botLateralVelocity -= (tangentX * tangentImpulse * botSideX + tangentZ * tangentImpulse * botSideZ) * inverseBotMass;
+
+            const impactArmX = -normalX * 0.9;
+            const impactArmZ = -normalZ * 0.9;
+            race.angularVelocity += (impactArmX * impulseZ - impactArmZ * impulseX) * 0.022;
+            race.botAngularVelocity -= (impactArmX * impulseZ - impactArmZ * impulseX) * 0.026;
+            race.botSpeed = clamp(race.botSpeed, 0, 20);
             race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 290 : 230);
-            if (now - race.lastImpactAt > 500) {
+            const impactKmh = Math.abs(relativeNormalSpeed) * 3.6 / 0.28;
+            race.damage = clamp(race.damage + Math.max(0, impactKmh - 8) * 0.24, 0, 99);
+            race.botDamage = clamp(race.botDamage + Math.max(0, impactKmh - 8) * 0.22, 0, 100);
+            if (now - race.lastImpactAt > 420 && impactKmh > 7) {
               race.lastImpactAt = now;
-              const impactKmh = Math.abs(relativeNormalSpeed) * 3.6 / 0.28;
-              race.damage = Math.min(99, race.damage + Math.max(0, impactKmh - 12) * 0.16);
-              if (impactKmh > 12) notify(impactKmh > 55 ? "Hard contact · speed lost" : "Car contact · both cars deflected", impactKmh > 55 ? "error" : "info");
+              notify(impactKmh > 65 ? "Heavy crash · both cars damaged" : "Vehicle impact · momentum transferred", impactKmh > 65 ? "error" : "info");
             }
           }
         }
+        race.botSpeed = clamp(race.botSpeed * (1 - race.botDamage * 0.0008), 0, 20);
         race.botProgress += race.botSpeed / botTrack.getLength() * dt;
         race.offTrack = distanceFromCentre > 7.2 ? race.offTrack + dt : Math.max(0, race.offTrack - dt * 1.5);
         if (distanceFromCentre > 7.2 || race.offTrack > 0.5) race.lapInvalid = true;
