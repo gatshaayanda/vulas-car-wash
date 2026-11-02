@@ -54,7 +54,7 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - The requested customer-facing experience is the **VULA RACING · QUICK BREAK** card on the homepage, with “Take a quick lap” and “Play now”. It is rendered by `src/app/games/racing-warmup.tsx` inside `src/app/page.tsx`; its 3D scene is `src/app/games/racing-3d-scene.tsx` and styles are `src/app/games/racing-warmup.css`.
 - All Quick Break bot work must be implemented in those files. Do not substitute `/games` Racing Garage or `/games/career`.
 - The Quick Break circuit includes one offline AI rival, Kago, visible as a second car on the same 3D circuit. The in-game opponent selector offers Easy / Normal / Hard; Normal is default. Kago follows the actual track spline at a difficulty-dependent pace and the HUD reports the distance gap.
-- This is a track-following pace AI, not yet a physics-driven rival: it does not yet make independent steering corrections, overtake, avoid collisions, or use NOS. It is not an online player.
+- Kago is an offline tactical AI rival with independent lateral steering, proximity avoidance, catch-up attacks, braking decisions, corner slip/drift presentation and NOS bursts. Vehicle contact is resolved in the local race simulation; this is not an online player or a server-authoritative rigid-body simulation.
 - The separate `/games` garage/warm-up and `/games/career` experiences are not the Quick Break card. Do not change them when implementing homepage Quick Break requests.
 
 ### Next implementation stages
