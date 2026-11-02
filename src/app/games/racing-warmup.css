@@ -389,3 +389,17 @@
   .warmup-circuit-controls .warmup-driving{gap:6px}
   .warmup-circuit-controls .warmup-driving button{min-height:62px;font-size:10px}
 }
+
+/* Quick Break opponent selector — lives inside the actual homepage practice game. */
+.warmup-opponent-menu{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 10px;padding:11px 14px;border:1px solid #dce3d7;border-radius:11px;background:#fff}
+.warmup-opponent-menu>div{display:grid;gap:3px;min-width:0}
+.warmup-opponent-menu>div>span,.warmup-opponent-menu label{font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:#657264;font-weight:900}
+.warmup-opponent-menu strong{font:700 16px/1.2 "Space Grotesk",system-ui,sans-serif;color:#172820}
+.warmup-opponent-menu small{font-size:10px;color:#687568}
+.warmup-opponent-menu label{display:grid;gap:4px;min-width:108px}
+.warmup-opponent-menu select{min-height:36px;padding:6px 24px 6px 9px;border:1px solid #ccd6c8;border-radius:8px;background:#f7f8f3;color:#172820;font:800 12px system-ui}
+.warmup-opponent-menu select:disabled{opacity:.62}
+.warmup-circuit-hud{grid-template-columns:repeat(5,minmax(0,1fr))}
+.warmup-circuit-hud>div:last-child strong{font-size:17px}
+.warmup-circuit-hud>div:last-child strong small{display:block;font-size:9px}
+@media(max-width:640px){.warmup-opponent-menu{gap:8px;padding:10px}.warmup-opponent-menu strong{font-size:14px}.warmup-opponent-menu small{font-size:9px}.warmup-opponent-menu label{min-width:94px}.warmup-circuit-hud{grid-template-columns:repeat(2,minmax(0,1fr))}}

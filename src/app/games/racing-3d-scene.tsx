@@ -52,9 +52,9 @@ function roundedCarBox(parent: THREE.Group, material: THREE.Material, size: [num
   return mesh;
 }
 
-function makeCar() {
+function makeCar(bodyColor = "#f04478") {
   const car = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: "#f04478", roughness: .27, metalness: .24 });
+  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: .27, metalness: .24 });
   const dark = new THREE.MeshStandardMaterial({ color: "#101820", roughness: .72 });
   const rubber = new THREE.MeshStandardMaterial({ color: "#090c10", roughness: .92 });
   const alloy = new THREE.MeshStandardMaterial({ color: "#89949a", metalness: .7, roughness: .3 });
@@ -251,6 +251,25 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     // more visual room around it for steering on narrow mobile screens.
     car.scale.setScalar(0.82);
     scene.add(car);
+    const botCar = makeCar("#f2bd45");
+    botCar.scale.setScalar(0.72);
+    scene.add(botCar);
+    const nameCanvas = document.createElement("canvas");
+    nameCanvas.width = 512; nameCanvas.height = 128;
+    const nameContext = nameCanvas.getContext("2d");
+    if (nameContext) {
+      nameContext.fillStyle = "#14241f";
+      nameContext.fillRect(8, 8, 496, 112);
+      nameContext.fillStyle = "#ffffff";
+      nameContext.font = "bold 54px system-ui";
+      nameContext.textAlign = "center";
+      nameContext.textBaseline = "middle";
+      nameContext.fillText("KAGO · BOT", 256, 66);
+    }
+    const nameTexture = new THREE.CanvasTexture(nameCanvas);
+    const nameTag = new THREE.Sprite(new THREE.SpriteMaterial({ map: nameTexture, transparent: true, depthTest: false }));
+    nameTag.scale.set(4.8, 1.2, 1);
+    scene.add(nameTag);
 
     // Drift feedback is tied to real chassis-vs-velocity slip, never camera motion.
     const skidMaterial = new THREE.LineBasicMaterial({ color: "#171b1b", transparent: true, opacity: 0.62, depthWrite: false });
@@ -307,6 +326,15 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
       car.position.copy(carWorld);
       car.rotation.y = race.worldYaw;
+      const botT = ((race.botProgress % 1) + 1) % 1;
+      const botPoint = track.getPointAt(botT);
+      const botTangent = track.getTangentAt(botT).normalize();
+      const botSide = new THREE.Vector3(-botTangent.z, 0, botTangent.x).normalize();
+      const botWorld = botPoint.clone().addScaledVector(botSide, -2.45);
+      botCar.position.set(botWorld.x, .015, botWorld.z);
+      botCar.rotation.y = Math.atan2(-botTangent.x, -botTangent.z);
+      nameTag.position.set(botWorld.x, 3.0, botWorld.z);
+      nameTag.visible = currentPhase !== "ready" || race.botProgress > .025;
       // Subtle suspension response: braking transfers load forward and cornering
       // rolls the body. These are visual cues driven by the physics state.
       car.rotation.x = clamp(-race.longitudinalLoad * 0.22, -0.075, 0.025);
