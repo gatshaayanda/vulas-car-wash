@@ -330,9 +330,9 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const botPoint = track.getPointAt(botT);
       const botTangent = track.getTangentAt(botT).normalize();
       const botSide = new THREE.Vector3(-botTangent.z, 0, botTangent.x).normalize();
-      const botWorld = botPoint.clone().addScaledVector(botSide, -2.45);
+      const botWorld = botPoint.clone().addScaledVector(botSide, -2.45 + race.botLateral);
       botCar.position.set(botWorld.x, .015, botWorld.z);
-      botCar.rotation.y = Math.atan2(-botTangent.x, -botTangent.z);
+      botCar.rotation.y = Math.atan2(-botTangent.x, -botTangent.z) + clamp(race.botLateralVelocity * 0.035, -0.22, 0.22);
       nameTag.position.set(botWorld.x, 3.0, botWorld.z);
       nameTag.visible = currentPhase !== "ready" || race.botProgress > .025;
       // Subtle suspension response: braking transfers load forward and cornering
