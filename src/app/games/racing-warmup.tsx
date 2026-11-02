@@ -15,11 +15,11 @@ export type Race = {
   bestLap: number | null; lateral: number; lateralVelocity: number; heading: number; drift: number;
   nos: number; last: number; lapInvalid: boolean; offTrack: number;
   longitudinalLoad: number; lateralG: number; wheelLock: number;
-  worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; angularVelocity: number; damage: number; lastImpactAt: number; trackT: number; botProgress: number; botSpeed: number; botLateral: number; botLateralVelocity: number; botYawOffset: number; botAngularVelocity: number; botDamage: number;
+  worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; angularVelocity: number; damage: number; lastImpactAt: number; impactStrength: number; impactX: number; impactZ: number; trackT: number; botProgress: number; botSpeed: number; botLateral: number; botLateralVelocity: number; botYawOffset: number; botAngularVelocity: number; botDamage: number; botNOS: number; botBoosting: boolean; botDrift: number;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, angularVelocity: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 14.5, botLateral: 0, botLateralVelocity: 0, botYawOffset: 0, botAngularVelocity: 0, botDamage: 0 });
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, angularVelocity: 0, damage: 0, lastImpactAt: 0, impactStrength: 0, impactX: 0, impactZ: 0, trackT: 0, botProgress: .025, botSpeed: 14.5, botLateral: 0, botLateralVelocity: 0, botYawOffset: 0, botAngularVelocity: 0, botDamage: 0, botNOS: 100, botBoosting: false, botDrift: 0 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -103,6 +103,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       const dt = previous ? Math.min((now - previous) / 1000, 0.035) : 0;
       previous = now;
       if (phaseRef.current === "running" && dt > 0) {
+        const frameStartX = race.worldX;
+        const frameStartZ = race.worldZ;
+        const frameStartYaw = race.worldYaw;
         const controls = controlsRef.current;
         // Smooth steering inputs before applying tyre force; ease back to centre on release.
         const steerEase = 1 - Math.exp(-dt * (Math.abs(controls.steer) > Math.abs(race.steering) ? 10.5 : 6.5));
@@ -397,6 +400,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
               // Barrier contact is recoverable practice feedback, never a forced
               // game-over/respawn. Keep damage below the crash threshold.
               race.damage = Math.min(99, race.damage);
+              race.impactStrength = clamp(impactKmh / 100, 0.08, 1);
+              race.impactX = race.worldX; race.impactZ = race.worldZ;
             }
           } else if (penetration > 0) {
             // If the car was already pressed against the rail or has near-zero outward
@@ -410,28 +415,59 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.progress = nearestT < 0.08 && previousProgress % 1 > 0.82 && longitudinalVelocity > 0
           ? Math.floor(previousProgress) + 1 + nearestT
           : Math.floor(previousProgress) + nearestT;
-        const botTargetSpeed = (botDifficultyRef.current === "Easy" ? 11.5 : botDifficultyRef.current === "Hard" ? 17.5 : 14.5) * (1 - clamp(race.botDamage * 0.0035, 0, 0.35));
-        const botTurn = Math.abs(getTrackTurn(trackRef.current!, race.botProgress, .006));
-        race.botSpeed += (botTargetSpeed * (1 - clamp(botTurn * 28, 0, .65) * .16) - race.botSpeed) * (1 - Math.exp(-dt * 1.8));
-        // Kago is a solid vehicle. Its body has its own yaw, lateral momentum and
-        // angular response; it is not a point or a ghost on the racing line.
-        race.botAngularVelocity *= Math.exp(-dt * 2.6);
-        race.botYawOffset += race.botAngularVelocity * dt;
-        race.botYawOffset = clamp(race.botYawOffset, -0.62, 0.62);
-        race.botLateralVelocity *= Math.exp(-dt * 1.1);
-        const previousBotLateral = race.botLateral;
-        race.botLateral += race.botLateralVelocity * dt;
         const botTrack = trackRef.current!;
         const botT = wrap(race.botProgress, 1);
         const botPoint = botTrack.getPointAt(botT);
         const botTangent = botTrack.getTangentAt(botT).normalize();
         const botSideX = -botTangent.z;
         const botSideZ = botTangent.x;
+        const botMinLateral = -3.35;
+        const botMaxLateral = 8.15;
+        const playerDx = race.worldX - botPoint.x;
+        const playerDz = race.worldZ - botPoint.z;
+        const playerAlong = playerDx * botTangent.x + playerDz * botTangent.z;
+        const playerAcross = playerDx * botSideX + playerDz * botSideZ;
+        const botCentreAcross = -2.45 + race.botLateral;
+        const lateralThreat = playerAcross - botCentreAcross;
+        const playerInCombatRange = Math.abs(playerAlong) < 12 && Math.abs(lateralThreat) < 4.4;
+        // Kago attacks a reachable car ahead, brakes when closing too quickly,
+        // and chooses the clearer side when a collision course develops.
+        const evadeSign = lateralThreat >= 0 ? -1 : 1;
+        const evadeRoom = evadeSign < 0 ? race.botLateral - botMinLateral : botMaxLateral - race.botLateral;
+        const attackRun = playerAlong > 2.2 && playerAlong < 38 && Math.abs(lateralThreat) < 3.8;
+        const playerClosingFast = playerAlong > 0 && playerAlong < 4.2 && !attackRun
+          && race.speed / (3.6 / 0.28) < race.botSpeed + 2.4;
+        const targetLateral = playerInCombatRange && evadeRoom > 0.8
+          ? clamp(race.botLateral + evadeSign * Math.min(2.5, evadeRoom * 0.7), botMinLateral + 0.8, botMaxLateral - 0.8) : 0;
+        const botSteer = clamp((targetLateral - race.botLateral) * 0.85 - race.botLateralVelocity * 0.42, -1, 1);
+        race.botLateralVelocity += botSteer * (playerInCombatRange ? 5.8 : 3.2) * dt;
+        race.botLateralVelocity *= Math.exp(-dt * (playerInCombatRange ? 1.25 : 1.7));
+        const previousBotLateral = race.botLateral;
+        race.botLateral += race.botLateralVelocity * dt;
+        const botTurnSigned = getTrackTurn(botTrack, race.botProgress, .006);
+        const botTurn = Math.abs(botTurnSigned);
+        const basePace = botDifficultyRef.current === "Easy" ? 13.5 : botDifficultyRef.current === "Hard" ? 20.5 : 17.5;
+        const attackBonus = attackRun ? (botDifficultyRef.current === "Hard" ? 4.2 : 2.8) : 0;
+        const cornerPenalty = clamp(botTurn * 30, 0, .7) * 2.8;
+        const botTargetSpeed = clamp(basePace + attackBonus - cornerPenalty, 9, 23) * (1 - clamp(race.botDamage * 0.0035, 0, 0.35));
+        const botCanBoost = race.botNOS > 0 && attackRun && playerAlong > 5 && playerAlong < 27
+          && race.botSpeed < botTargetSpeed + 1.8 && !playerClosingFast && botTurn < .025;
+        race.botBoosting = botCanBoost;
+        if (botCanBoost) race.botNOS = Math.max(0, race.botNOS - 30 * dt);
+        else race.botNOS = Math.min(100, race.botNOS + 8 * dt);
+        const desiredBotSpeed = botTargetSpeed + (botCanBoost ? 5.5 : 0);
+        race.botSpeed += (desiredBotSpeed * (playerClosingFast ? 0.62 : 1) - race.botSpeed) * (1 - Math.exp(-dt * (botCanBoost ? 2.6 : 1.8)));
+        // Kago rotates into fast corners and settles on exit, leaving visible
+        // rear slip rather than travelling as a rigid marker on the racing line.
+        const desiredBotDrift = botTurn > .012 && race.botSpeed > 13
+          ? -Math.sign(botTurnSigned) * clamp(botTurn * 2.8, .035, .19) : 0;
+        race.botYawOffset += (desiredBotDrift - race.botYawOffset) * (1 - Math.exp(-dt * (botTurn > .012 ? 2.4 : 3.8)));
+        race.botAngularVelocity = (desiredBotDrift - race.botYawOffset) * .9;
+        race.botYawOffset = clamp(race.botYawOffset, -.48, .48);
+        race.botDrift = clamp(Math.abs(race.botYawOffset) + Math.abs(race.botLateralVelocity) * .055, 0, 1);
         const botYaw = Math.atan2(-botTangent.x, -botTangent.z) + race.botYawOffset;
         // The rails sit at +/-8.4. Keep the whole scaled chassis inside their
         // inner face, then bounce and damage Kago when its body reaches a rail.
-        const botMinLateral = -3.35;
-        const botMaxLateral = 8.15;
         if (race.botLateral < botMinLateral || race.botLateral > botMaxLateral) {
           const wallSide = race.botLateral < botMinLateral ? 1 : -1;
           const wallImpact = Math.abs(race.botLateralVelocity);
@@ -440,13 +476,32 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           race.botSpeed *= wallImpact > 3.2 ? 0.68 : 0.84;
           race.botDamage = clamp(race.botDamage + wallImpact * 2.2, 0, 100);
           race.botAngularVelocity += wallSide * wallImpact * 0.035;
+          race.botBoosting = false;
         }
         const botX = botPoint.x + botSideX * (-2.45 + race.botLateral);
         const botZ = botPoint.z + botSideZ * (-2.45 + race.botLateral);
-        const contact = vehicleContact(
-          { x: race.worldX, z: race.worldZ, yaw: race.worldYaw, halfWidth: 0.96, halfLength: 1.64 },
-          { x: botX, z: botZ, yaw: botYaw, halfWidth: 0.84, halfLength: 1.45 },
-        );
+        // Continuous swept SAT: sample the player's complete frame path against
+        // Kago's oriented chassis. The simulation caps dt at 35 ms; these short
+        // intervals prevent a fast bumper from skipping across the rival between
+        // rendered frames. On first contact, stop at the impact pose before solving.
+        const playerEndX = race.worldX, playerEndZ = race.worldZ, playerEndYaw = race.worldYaw;
+        let contact: ReturnType<typeof vehicleContact> = null;
+        for (let sweep = 0; sweep <= 8; sweep++) {
+          const fraction = sweep / 8;
+          const yawDelta = Math.atan2(Math.sin(playerEndYaw - frameStartYaw), Math.cos(playerEndYaw - frameStartYaw));
+          const sampleX = frameStartX + (playerEndX - frameStartX) * fraction;
+          const sampleZ = frameStartZ + (playerEndZ - frameStartZ) * fraction;
+          const sampleYaw = frameStartYaw + yawDelta * fraction;
+          const sampleContact = vehicleContact(
+            { x: sampleX, z: sampleZ, yaw: sampleYaw, halfWidth: 0.96, halfLength: 1.64 },
+            { x: botX, z: botZ, yaw: botYaw, halfWidth: 0.84, halfLength: 1.45 },
+          );
+          if (sampleContact) {
+            contact = sampleContact;
+            race.worldX = sampleX; race.worldZ = sampleZ; race.worldYaw = sampleYaw;
+            break;
+          }
+        }
         if (contact) {
           const { normalX, normalZ, penetration } = contact;
           const inversePlayerMass = 1 / 1.25;
@@ -459,8 +514,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           race.worldZ += normalZ * correction * inversePlayerMass;
           race.botLateral -= (normalX * botSideX + normalZ * botSideZ) * correction * inverseBotMass;
           race.botLateral = clamp(race.botLateral, botMinLateral, botMaxLateral);
-          const botForwardX = -botTangent.x;
-          const botForwardZ = -botTangent.z;
+          const botForwardX = botTangent.x;
+          const botForwardZ = botTangent.z;
           race.botProgress = wrap(race.botProgress - (normalX * botForwardX + normalZ * botForwardZ) * correction * inverseBotMass / botTrack.getLength(), 1);
           const botVelocityX = botForwardX * race.botSpeed + botSideX * race.botLateralVelocity;
           const botVelocityZ = botForwardZ * race.botSpeed + botSideZ * race.botLateralVelocity;
@@ -491,13 +546,16 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             const impactArmZ = tangentZ * 0.7;
             race.angularVelocity += (impactArmX * impulseZ - impactArmZ * impulseX) * 0.022;
             race.botAngularVelocity -= (impactArmX * impulseZ - impactArmZ * impulseX) * 0.026;
-            race.botSpeed = clamp(race.botSpeed, 0, 20);
+            race.botSpeed = clamp(race.botSpeed, 0, 25);
             race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 290 : 230);
             const impactKmh = Math.abs(relativeNormalSpeed) * 3.6 / 0.28;
             race.damage = clamp(race.damage + Math.max(0, impactKmh - 8) * 0.24, 0, 99);
             race.botDamage = clamp(race.botDamage + Math.max(0, impactKmh - 8) * 0.22, 0, 100);
-            if (now - race.lastImpactAt > 420 && impactKmh > 7) {
+            if (now - race.lastImpactAt > 180 && impactKmh > 5) {
               race.lastImpactAt = now;
+              race.impactStrength = clamp(impactKmh / 95, 0.12, 1);
+              race.impactX = (race.worldX + botX) * 0.5;
+              race.impactZ = (race.worldZ + botZ) * 0.5;
               notify(impactKmh > 65 ? "Heavy crash · both cars damaged" : "Vehicle impact · momentum transferred", impactKmh > 65 ? "error" : "info");
             }
           }
