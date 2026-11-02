@@ -269,16 +269,24 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           const dx = sampleX - nearestX, dz = sampleZ - nearestZ;
           const sideX = -nearestTangentZ, sideZ = nearestTangentX;
           const signedOffset = dx * sideX + dz * sideZ;
-          if (distance > trackSafetyOffset || Math.abs(signedOffset) > trackSafetyOffset) {
-            const normalX = distance > trackSafetyOffset && distance > 0.0001
-              ? dx / distance : sideX * (signedOffset < 0 ? -1 : 1);
-            const normalZ = distance > trackSafetyOffset && distance > 0.0001
-              ? dz / distance : sideZ * (signedOffset < 0 ? -1 : 1);
+          const wallSign = signedOffset < 0 ? -1 : 1;
+          const wallNormalX = sideX * wallSign;
+          const wallNormalZ = sideZ * wallSign;
+          const chassisRightX = Math.cos(race.worldYaw), chassisRightZ = -Math.sin(race.worldYaw);
+          const chassisForwardX = -Math.sin(race.worldYaw), chassisForwardZ = -Math.cos(race.worldYaw);
+          const chassisExtent = Math.abs(chassisRightX * wallNormalX + chassisRightZ * wallNormalZ) * 0.96
+            + Math.abs(chassisForwardX * wallNormalX + chassisForwardZ * wallNormalZ) * 1.64;
+          const barrierSafeOffset = 8.29 - chassisExtent;
+          if (distance > barrierSafeOffset || Math.abs(signedOffset) > barrierSafeOffset) {
+            const normalX = distance > barrierSafeOffset && distance > 0.0001
+              ? dx / distance : wallNormalX;
+            const normalZ = distance > barrierSafeOffset && distance > 0.0001
+              ? dz / distance : wallNormalZ;
             const remainingX = race.worldX - sampleX;
             const remainingZ = race.worldZ - sampleZ;
             const outwardRemainder = Math.max(0, remainingX * normalX + remainingZ * normalZ);
-            race.worldX = nearestX + normalX * trackSafetyOffset + remainingX - normalX * outwardRemainder;
-            race.worldZ = nearestZ + normalZ * trackSafetyOffset + remainingZ - normalZ * outwardRemainder;
+            race.worldX = nearestX + normalX * barrierSafeOffset + remainingX - normalX * outwardRemainder;
+            race.worldZ = nearestZ + normalZ * barrierSafeOffset + remainingZ - normalZ * outwardRemainder;
             const outwardVelocity = race.velocityX * normalX + race.velocityZ * normalZ;
             if (outwardVelocity > 0) {
               race.velocityX -= normalX * outwardVelocity * 1.04;
@@ -357,7 +365,11 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // cross the rail, even when the centreline tangent is unstable at a hairpin.
         // One consistent swept-frame safety envelope, inside the visible rail
         // centreline at 8.4 units. Keep the car on the road without crash/respawn.
-        const safeOffset = trackSafetyOffset;
+        const chassisRightX = Math.cos(race.worldYaw), chassisRightZ = -Math.sin(race.worldYaw);
+        const chassisForwardX = -Math.sin(race.worldYaw), chassisForwardZ = -Math.cos(race.worldYaw);
+        const chassisExtent = Math.abs(chassisRightX * outwardX + chassisRightZ * outwardZ) * 0.96
+          + Math.abs(chassisForwardX * outwardX + chassisForwardZ * outwardZ) * 1.64;
+        const safeOffset = 8.29 - chassisExtent;
         if (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset) {
           const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
           const correctionX = distanceFromCentre > safeOffset
@@ -475,8 +487,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             race.velocityZ += tangentZ * tangentImpulse * inversePlayerMass;
             race.botLateralVelocity -= (tangentX * tangentImpulse * botSideX + tangentZ * tangentImpulse * botSideZ) * inverseBotMass;
 
-            const impactArmX = -normalX * 0.9;
-            const impactArmZ = -normalZ * 0.9;
+            const impactArmX = tangentX * 0.7;
+            const impactArmZ = tangentZ * 0.7;
             race.angularVelocity += (impactArmX * impulseZ - impactArmZ * impulseX) * 0.022;
             race.botAngularVelocity -= (impactArmX * impulseZ - impactArmZ * impulseX) * 0.026;
             race.botSpeed = clamp(race.botSpeed, 0, 20);
