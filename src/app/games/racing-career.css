@@ -59,3 +59,13 @@
 @media(max-width:620px){.race-control-backdrop{padding:0;align-items:flex-end}.race-control-drawer{width:100%;max-height:92dvh;border-radius:15px 15px 0 0;padding:15px 13px calc(14px + env(safe-area-inset-bottom))}.race-save-slots{grid-template-columns:1fr}.race-save-slot>p{min-height:0}.race-control-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.race-control-footer{align-items:flex-start;flex-direction:column}.race-live-actions{justify-content:flex-end}.race-play-head{align-items:flex-start}}
 
 .race-retire-confirm{background:#fff0e8;border:1px solid #f0c9b2;border-radius:9px;padding:13px;margin:12px 0}.race-retire-confirm strong{font-size:13px}.race-retire-confirm p{font-size:11px;color:#765b4e;line-height:1.5}.race-retire-confirm button{margin:3px 5px 0 0}
+
+
+/* Single AI rival setup */
+.race-bot-card{display:flex;align-items:center;gap:12px;padding:14px;background:#eaf0e4;border:1px solid #d5e1cc;border-radius:10px;margin:12px 0 18px}
+.race-bot-avatar{width:44px;height:44px;flex:0 0 44px;display:grid;place-items:center;border-radius:10px;background:#d86b4e;color:#fff;font-weight:900;font-size:20px}
+.race-bot-card>div:nth-child(2){display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}
+.race-bot-card strong{font-size:13px}.race-bot-card span{font-size:10px;color:#68766a;line-height:1.4}.race-bot-card>b{font-size:9px;letter-spacing:.08em;background:#fff;padding:7px 8px;border-radius:99px;white-space:nowrap}
+.race-sensitivity-setting select{grid-column:1/-1;width:100%;min-height:42px;border:1px solid #d6dfd1;border-radius:7px;padding:9px;background:#fff;color:#14221e;font:inherit}
+.race-hud{flex-wrap:wrap}.race-car.rival-a{background:#dc714f;color:#fff;z-index:1}
+@media(max-width:620px){.race-hud{justify-content:center}.race-hud span{flex:1;min-width:72px}}
