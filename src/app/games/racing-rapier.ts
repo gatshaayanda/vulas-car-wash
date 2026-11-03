@@ -20,7 +20,12 @@ const FIXED_STEP = 1 / 60;
 const MAX_STEPS_PER_FRAME = 4;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const wrap = (value: number) => ((value % 1) + 1) % 1;
-const yawQuaternion = (yaw: number) => ({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) });
+// Rapier 0.12's vehicle controller drives along local +X. Rotate the chassis
+// by +90° so local +X maps to the game's established world-space -Z forward axis.
+const yawQuaternion = (yaw: number) => {
+  const bodyYaw = yaw + Math.PI / 2;
+  return { x: 0, y: Math.sin(bodyYaw / 2), z: 0, w: Math.cos(bodyYaw / 2) };
+};
 
 export class RapierRacePhysics {
   private accumulator = 0;
@@ -77,7 +82,7 @@ export class RapierRacePhysics {
         .setAdditionalSolverIterations(4);
       const body = world.createRigidBody(bodyDesc);
       world.createCollider(
-        R.ColliderDesc.cuboid(0.91, 0.34, 1.58).setDensity(350).setFriction(0.72).setRestitution(0.08),
+        R.ColliderDesc.cuboid(1.58, 0.34, 0.91).setDensity(100).setFriction(0.72).setRestitution(0.08),
         body,
       );
       const controller = world.createVehicleController(body);
@@ -94,9 +99,9 @@ export class RapierRacePhysics {
           0.26,
           0.37,
         );
-        controller.setWheelSuspensionStiffness(index, 32);
-        controller.setWheelSuspensionCompression(index, 4.4);
-        controller.setWheelSuspensionRelaxation(index, 5.2);
+        controller.setWheelSuspensionStiffness(index, 100);
+        controller.setWheelSuspensionCompression(index, 10);
+        controller.setWheelSuspensionRelaxation(index, 10);
         controller.setWheelMaxSuspensionForce(index, 14000);
         controller.setWheelSideFrictionStiffness(index, 2.4);
         controller.setWheelFrictionSlip(index, 4.2);
