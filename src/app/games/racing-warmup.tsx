@@ -467,10 +467,13 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const botLateral = race.botVelocityX * botSideX + race.botVelocityZ * botSideZ;
         const botYawRate = Math.tan(-race.botSteering * .42) * botLongitudinal / 2.8;
         race.botWorldYaw = Math.atan2(Math.sin(race.botWorldYaw + botYawRate * dt), Math.cos(race.botWorldYaw + botYawRate * dt));
-        // Keep acceleration and braking close to the player's world-space force scale.
-        const botDrive = race.botThrottle * 3.45 + (botUseNos ? 4.05 : 0);
-        const botDrag = botLongitudinal * (.16 + Math.abs(botLongitudinal) * .012);
-        const nextBotLongitudinal = clamp(botLongitudinal + (botDrive - race.botBrake * 3.05 - botDrag) * dt, 0, botTargetSpeed * (botUseNos ? 1.08 : 1.0));
+        // Match the player's established engine, braking and aerodynamic drag model.
+        // The old 3.45 drive force could not overcome drag at the advertised target
+        // speeds, so Kago settled well below race pace and never challenged the player.
+        // Keep the bot's own throttle, brake, NOS reserve and speed cap independent.
+        const botDrive = race.botThrottle * 20 + (botUseNos ? 20 : 0);
+        const botDrag = botLongitudinal * (.24 + Math.abs(botLongitudinal) * .009);
+        const nextBotLongitudinal = clamp(botLongitudinal + (botDrive - race.botBrake * 13.5 - botDrag) * dt, 0, botTargetSpeed * (botUseNos ? 1.08 : 1.0));
         const botLongAccel = dt > 0 ? (nextBotLongitudinal - botLongitudinal) / dt : 0;
         const botLateralAccel = clamp(-botYawRate * botLongitudinal - botLateral * (cornerDemand > .7 ? .58 : 1.35), -7.2, 7.2);
         race.botVelocityX += (botForwardX * botLongAccel + botSideX * botLateralAccel) * dt;
