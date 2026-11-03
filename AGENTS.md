@@ -54,18 +54,25 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - The requested customer-facing experience is the **VULA RACING · QUICK BREAK** card on the homepage, with “Take a quick lap” and “Play now”. It is rendered by `src/app/games/racing-warmup.tsx` inside `src/app/page.tsx`; its 3D scene is `src/app/games/racing-3d-scene.tsx` and styles are `src/app/games/racing-warmup.css`.
 - All Quick Break bot work must be implemented in those files. Do not substitute `/games` Racing Garage or `/games/career`.
 - The Quick Break circuit includes one offline AI rival, Kago, visible as a second car on the same 3D circuit. The in-game opponent selector offers Easy / Normal / Hard; Normal is default. Kago follows the actual track spline at a difficulty-dependent pace and the HUD reports the distance gap.
-- This is a track-following pace AI, not yet a physics-driven rival: it does not yet make independent steering corrections, overtake, avoid collisions, or use NOS. It is not an online player.
+- Kago is an offline tactical AI rival with independent lateral steering, proximity avoidance, catch-up attacks, braking decisions, corner slip/drift presentation and NOS bursts. Vehicle contact is resolved in the local race simulation; this is not an online player or a server-authoritative rigid-body simulation.
 - The separate `/games` garage/warm-up and `/games/career` experiences are not the Quick Break card. Do not change them when implementing homepage Quick Break requests.
 
 ### Next implementation stages
-1. **Driving bot:** upgrade Kago from spline pace-following to steering/throttle/braking decisions, corner-speed profiles, marker awareness, controlled mistakes and recovery.
-2. **Shared driving rules:** reuse player movement and collision rules where architecture permits without changing the approved player controls or driving feel.
-3. **Race presentation:** improve grid placement, synchronized countdown, position changes and lap-result comparison inside Quick Break.
-4. **Local QA:** test Easy/Normal/Hard, bot/player pace gaps, repeated laps, pause/resume, restart, mobile controls, offline play and cached launch.
-5. **Online multiplayer foundation:** only after local races are reliable, add a separately hosted persistent multiplayer service (Colyseus remains a candidate). Do not use ordinary Vercel serverless request handlers as persistent real-time sockets.
-6. **Private rooms and matchmaking:** room codes first, then automatic matchmaking, reconnect handling and player presence.
-7. **Authoritative validation:** server owns online race sessions/results; validate player inputs and track progress rather than trusting client-submitted positions or rewards.
-8. **Hybrid grids and competition:** allow real players to race alongside AI fillers, then add verified leaderboards, championships and seasonal standings.
+1. **Driving bot — first tactical pass implemented:** Kago now makes lateral steering and avoidance decisions, attacks reachable cars ahead, modulates pace into corners, uses NOS on attack runs, and visibly drifts. Further work: robust overtaking/path planning, controlled mistakes, and recovery.
+2. **Full opponent vehicle physics:** evolve the current bumper-contact response into shared vehicle dynamics for both cars: suspension/load transfer, tyre grip and slip, braking/acceleration, steering response, wall impacts, spin/recovery and damage consequences. Preserve the approved player driving feel while making Kago obey the same physical limits.
+3. **Full vehicle dynamics and collision QA:** add/validate suspension travel, tyre load transfer, grip/slip, braking and steering response for Kago; test head-on, side-swipe and rear-end hits at low/high speed, repeated contacts, barrier scrapes, frame spikes and recovery. Verify both chassis separate, transfer momentum, lose speed, yaw/spin, accumulate consequential damage, remain inside the physical rails and never tunnel through each other.
+4. **Race presentation:** improve grid placement, synchronized countdown, position changes and lap-result comparison inside Quick Break.
+5. **Local QA:** test Easy/Normal/Hard, bot/player pace gaps, repeated laps, pause/resume, restart, mobile controls, offline play and cached launch.
+6. **Online multiplayer foundation:** only after local races are reliable, add a separately hosted persistent multiplayer service (Colyseus remains a candidate). Do not use ordinary Vercel serverless request handlers as persistent real-time sockets.
+7. **Private rooms and matchmaking:** room codes first, then automatic matchmaking, reconnect handling and player presence.
+8. **Authoritative validation:** server owns online race sessions/results; validate player inputs and track progress rather than trusting client-submitted positions or rewards.
+9. **Hybrid grids and competition:** allow real players to race alongside AI fillers, then add verified leaderboards, championships and seasonal standings.
+
+### Ghost lap racing (separate future mode)
+- Preserve intangible replay vehicles as **ghosts**, not physical opponents. Ghosts replay timestamped/normalized lap telemetry and never collide with the player, affect speed, or alter the racing line.
+- Let players race their own previous best laps first, then selected friends/community laps once verified lap sharing exists.
+- Display ghost identity, lap delta and split comparisons; allow visibility toggles and clear distinction between a physical AI/player car and a non-physical ghost.
+- Store and validate shared lap recordings before publishing them. Offline personal ghosts remain device-local until a trusted sync path exists.
 
 ### Non-negotiable protections
 - Work only in `gatshaayanda/vulas-car-wash` for Vula Racing tasks unless the product owner explicitly names another repository.
