@@ -249,7 +249,7 @@ export class RapierRacePhysics {
     const playerAcross = playerDx * sideX + playerDz * sideZ;
     const playerInPassingWindow = Math.abs(playerAlong) < 24
       && Math.abs(playerAcross - this.targetLane) < 3.6;
-    if (playerInPassingWindow) this.targetLane = playerAcross < 0 ? 2.45 : -2.45;
+    if (playerInPassingWindow && this.targetLane < 0) this.targetLane = 2.45;
     else if (Math.abs(playerAlong) > 32) this.targetLane = -2.45;
     const lookSideX = -lookAheadTangent.z;
     const lookSideZ = lookAheadTangent.x;
