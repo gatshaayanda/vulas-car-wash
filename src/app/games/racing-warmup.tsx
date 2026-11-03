@@ -671,15 +671,17 @@ if (!rapierRef.current) {
             Math.cos(snapshot.botYaw - Math.atan2(-trackRef.current!.getTangentAt(snapshot.botProgress).x, -trackRef.current!.getTangentAt(snapshot.botProgress).z)),
           );
           race.botAngularVelocity = snapshot.botYawRate;
-          if (snapshot.impact > 0.1 && now - race.lastImpactAt > 180) {
+          if ((snapshot.impact > 0.1 || snapshot.rivalImpact > 0.1) && now - race.lastImpactAt > 180) {
             race.lastImpactAt = now;
-            const impactKmh = snapshot.impact * 100;
-            race.impactStrength = clamp(snapshot.impact, 0.1, 1);
-            race.impactX = race.worldX;
-            race.impactZ = race.worldZ;
-            race.damage = clamp(race.damage + Math.max(0, impactKmh - 8) * 0.24, 0, 99);
-            race.botDamage = clamp(race.botDamage + Math.max(0, impactKmh - 8) * 0.18, 0, 99);
-            notify(impactKmh > 65 ? "Heavy impact · vehicle damage" : "Vehicle contact · momentum transferred", impactKmh > 65 ? "error" : "info");
+            if (snapshot.impact > 0.1) {
+              const impactKmh = snapshot.impact * 100;
+              race.impactStrength = clamp(snapshot.impact, 0.1, 1);
+              race.impactX = race.worldX;
+              race.impactZ = race.worldZ;
+              race.damage = clamp(race.damage + Math.max(0, impactKmh - 8) * 0.24, 0, 99);
+              notify(impactKmh > 65 ? "Heavy impact · vehicle damage" : "Barrier contact · momentum transferred", impactKmh > 65 ? "error" : "info");
+            }
+            if (snapshot.rivalImpact > 0.1) race.botDamage = clamp(race.botDamage + Math.max(0, snapshot.rivalImpact * 100 - 8) * 0.18, 0, 99);
           }
         }
         race.elapsed += dt;
