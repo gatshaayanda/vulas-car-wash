@@ -143,7 +143,23 @@ export class RapierRacePhysics {
       this.rival.controller.updateVehicle(FIXED_STEP);
       previousPlayer = this.readVehicle(this.player);
       previousRival = this.readVehicle(this.rival);
+      const playerVelocityBefore = this.player.body.linvel();
+      const rivalVelocityBefore = this.rival.body.linvel();
       this.world.step();
+      const playerVelocityAfter = this.player.body.linvel();
+      const rivalVelocityAfter = this.rival.body.linvel();
+      const playerImpulseDelta = Math.hypot(
+        playerVelocityAfter.x - playerVelocityBefore.x,
+        playerVelocityAfter.y - playerVelocityBefore.y,
+        playerVelocityAfter.z - playerVelocityBefore.z,
+      );
+      const rivalImpulseDelta = Math.hypot(
+        rivalVelocityAfter.x - rivalVelocityBefore.x,
+        rivalVelocityAfter.y - rivalVelocityBefore.y,
+        rivalVelocityAfter.z - rivalVelocityBefore.z,
+      );
+      const impactDelta = Math.max(playerImpulseDelta, rivalImpulseDelta);
+      if (impactDelta > 2.8) this.impact = Math.max(this.impact, clamp(impactDelta / 12, 0, 1));
       this.accumulator -= FIXED_STEP;
       steps++;
     }
