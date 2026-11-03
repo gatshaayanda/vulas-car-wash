@@ -18,6 +18,7 @@ type Vehicle = { body: RapierTypes.RigidBody; controller: RapierTypes.DynamicRay
 
 const FIXED_STEP = 1 / 60;
 const MAX_STEPS_PER_FRAME = 4;
+let rapierInitPromise: Promise<void> | null = null;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const wrap = (value: number) => ((value % 1) + 1) % 1;
 // Rapier 0.12's vehicle controller drives along local +X. Rotate the chassis
@@ -49,7 +50,13 @@ export class RapierRacePhysics {
 
   static async create(track: Track, start: { x: number; z: number; yaw: number }): Promise<RapierRacePhysics> {
     const R = await import("@dimforge/rapier3d-compat");
-    await R.init();
+    try {
+      rapierInitPromise ??= R.init();
+      await rapierInitPromise;
+    } catch (error) {
+      rapierInitPromise = null;
+      throw error;
+    }
     const world = new R.World({ x: 0, y: -9.81, z: 0 });
     world.timestep = FIXED_STEP;
     world.numSolverIterations = 6;
