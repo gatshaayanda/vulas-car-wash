@@ -396,6 +396,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const chassisExtent = Math.abs(chassisRightX * outwardX + chassisRightZ * outwardZ) * 0.96
           + Math.abs(chassisForwardX * outwardX + chassisForwardZ * outwardZ) * 1.64;
         const safeOffset = 8.29 - chassisExtent;
+if (!rapierRef.current) {
         if (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset) {
           const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
           const correctionX = distanceFromCentre > safeOffset
@@ -433,6 +434,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             race.velocityZ *= 0.98;
           }
         }
+}
         const previousProgress = race.progress;
         race.trackT = nearestT;
         race.progress = nearestT < 0.08 && previousProgress % 1 > 0.82 && longitudinalVelocity > 0
@@ -491,6 +493,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const botYaw = Math.atan2(-botTangent.x, -botTangent.z) + race.botYawOffset;
         // The rails sit at +/-8.4. Keep the whole scaled chassis inside their
         // inner face, then bounce and damage Kago when its body reaches a rail.
+if (!rapierRef.current) {
         if (race.botLateral < botMinLateral || race.botLateral > botMaxLateral) {
           const wallSide = race.botLateral < botMinLateral ? 1 : -1;
           const wallImpact = Math.abs(race.botLateralVelocity);
@@ -501,12 +504,14 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           race.botAngularVelocity += wallSide * wallImpact * 0.035;
           race.botBoosting = false;
         }
+}
         const botX = botPoint.x + botSideX * (-2.45 + race.botLateral);
         const botZ = botPoint.z + botSideZ * (-2.45 + race.botLateral);
         // Continuous swept SAT: sample the player's complete frame path against
         // Kago's oriented chassis. The simulation caps dt at 35 ms; these short
         // intervals prevent a fast bumper from skipping across the rival between
         // rendered frames. On first contact, stop at the impact pose before solving.
+if (!rapierRef.current) {
         const playerEndX = race.worldX, playerEndZ = race.worldZ, playerEndYaw = race.worldYaw;
         let contact: ReturnType<typeof vehicleContact> = null;
         for (let sweep = 0; sweep <= 8; sweep++) {
@@ -583,6 +588,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             }
           }
         }
+}
         race.botProgress += race.botSpeed / botTrack.getLength() * dt;
         race.offTrack = distanceFromCentre > 7.2 ? race.offTrack + dt : Math.max(0, race.offTrack - dt * 1.5);
         if (distanceFromCentre > 7.2 || race.offTrack > 0.5) race.lapInvalid = true;
