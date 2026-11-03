@@ -4,13 +4,13 @@
 
 ## Exact rollback point
 
-- Commit: https://github.com/gatshaayanda/vulas-car-wash/commit/028367bde4c729d87e2bfe5c57e37b03e630af3b
-- Reference branch: `golden-baseline/quick-break-2026-11-03`
+- Commit: https://github.com/gatshaayanda/vulas-car-wash/commit/2cbf7c1b8280094cb62d0854a8e4d3d2458a6ec9
+- Reference branch: `golden-baseline/ai-race-2026-11-03`
 - Production: https://vulas-car-wash.vercel.app
 - Deployment state at approval: READY
 - Approved: 2026-11-03
 
-This is the known-good Vula homepage Quick Break racing experience. Keep this commit and reference branch as the rollback point. Never rewrite or force-push the reference branch. Future development happens on top of this baseline; if a change regresses the experience, restore this exact commit before proceeding.
+This is the approved Vula homepage AI Racing foundation. Keep this commit and reference branch as the sole rollback point. Do not reintroduce superseded checkpoints or branch references into current documentation. Never rewrite or force-push the reference branch. Future development happens on top of this baseline; if a change regresses the experience, restore this exact commit before proceeding.
 
 ## What is protected
 
@@ -32,9 +32,9 @@ Kago's visible vehicle scale now matches the player (0.82), and its oriented col
 
 Kago now has an independent world-space driving model. The track spline is a navigation/progress reference, not his movement rail:
 
-- It follows the racing circuit spline at a fixed pace target.
+- Kago has an independent world-space driving model; the spline is a navigation and progress reference, not a movement rail.
 - Easy / Normal / Hard target 16.65 / 17.9 / 18.8 world-units/second on the player's speed scale: Easy is about 7% slower, Normal approximately equal, and Hard about 5% faster before its short NOS burst.
-- Acceleration and braking magnitudes are calibrated closer to the player's existing world-space force scale.
+- The bot engine, braking and drag model must match the player's established force scale closely enough to reach the advertised target pace. An underpowered bot that cannot overcome drag is a gameplay defect.
 - Kago uses relative world position to select passing/defensive lines, with smooth lane transitions and difficulty-specific corner confidence.
 - The player and Kago use matching visible car scale (0.82) and matching collision half-extents (1.52 × 0.89).
 
@@ -73,11 +73,11 @@ Use one canonical physical track spline for circuit geometry, lap progress, navi
 
 ## Difficulty calibration — current baseline
 
-- Easy target: **11.5 simulation world-units/second**.
-- Normal target: **14.5 simulation world-units/second** (default).
-- Hard target: **17.5 simulation world-units/second**.
-- These are Kago's current spline pace targets, not km/h. The bend-speed adjustment is shared across all three. They do not yet represent distinct driving intelligence, braking decisions, mistakes, recovery or NOS strategies.
-- Player motion is integrated in world-space velocity while Kago currently advances spline progress. Do not compare the player's displayed km/h directly to these spline pace values. Calibrate perceived fairness using measured lap times, gaps, corner behavior and side-by-side tests after both cars use comparable world-space movement.
+- Easy target: **16.65 world-units/second** (about 7% below Normal).
+- Normal target: **17.9 world-units/second** (matched to the player's 230 km/h world-speed cap).
+- Hard target: **18.8 world-units/second** (about 5% above Normal before NOS).
+- These are independent bot speed caps, not km/h or guaranteed lap-time outcomes. Validate achieved speed, corner speed, lap times and race gaps in actual play.
+- Kago uses independent world-space velocity/yaw; player physics remains untouched. Difficulty must feel distinct through corner confidence, braking, racecraft, recovery and NOS use—not by changing the player's controls.
 
 ## Non-negotiable implementation rules
 

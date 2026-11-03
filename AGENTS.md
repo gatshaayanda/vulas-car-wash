@@ -43,14 +43,17 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 
 ## Protected Vula Racing golden baseline
 
-- **Current golden baseline (2026-11-03):** `028367bde4c729d87e2bfe5c57e37b03e630af3b` — approved playable Quick Break with existing player handling, drift/smoke/skid presentation, stable chase camera, track barriers and the first player-vs-Kago chassis collision response.
-- Permanent reference branch: `golden-baseline/quick-break-2026-11-03`. It points to the exact golden commit above. Never move, delete, rewrite or force-push this reference branch. The commit remains in Git history; use it as the rollback source if later work regresses the game.
-- Production deployment for this baseline was verified READY at `https://vulas-car-wash.vercel.app` from commit `028367bde4c729d87e2bfe5c57e37b03e630af3b`.
-- All future racing work must build forward from this baseline. Do not replace its vehicle physics, steering, drift model, camera, controls, car presentation, track geometry, barrier handling, player collision response, PWA behavior or online persistence unless the product owner explicitly authorizes that exact change.
-- Do not mix a new AI feature with a player-driving refactor. Keep changes isolated, additive, and independently QA-able. If a feature breaks the baseline, revert that feature to this commit before attempting another approach.
+- **Only current approved golden baseline:** commit `2cbf7c1b8280094cb62d0854a8e4d3d2458a6ec9`, reference branch `golden-baseline/ai-race-2026-11-03`.
+- This is the authoritative rollback and development foundation for Vula Racing. Do not substitute an earlier checkpoint, implementation, or superseded reference. Do not bring obsolete baseline identifiers, branch names, or deployment claims back into current instructions, code comments, docs, or handoffs.
+- Never move, delete, rewrite or force-push the approved golden reference branch. Develop forward from this exact approved baseline on a working branch. If a feature regresses, restore this exact approved commit.
+- The approved baseline includes the initial independent Kago AI implementation and its known limitations. Do not describe the bot as race-ready merely because independent state exists; it must accelerate to advertised pace, take corners convincingly, contest position and recover reliably in actual play.
+- Preserve the approved player vehicle physics, steering, acceleration, braking, reverse, drift, NOS, camera, controls, car presentation, track geometry, barriers, collision response, PWA behavior, Race Control save menus and online persistence.
+- Never reduce or rewrite player physics to compensate for bot tuning. Tune the bot's own acceleration, braking, steering, grip, speed control, racecraft and effects independently.
+- Do not mix unrelated player-driving refactors with AI work. Keep changes isolated, additive and independently QA-able.
 - Track-only work must remain isolated to track geometry, barrier visuals and collision/track-boundary handling. Do not regress the golden driving feel while changing track behaviour.
 - Barrier contacts during practice must remain recoverable. Never force a game-over, disable controls or respawn the player because of a normal track-edge collision.
 - Use one authoritative track-boundary solver. Do not add competing render-loop collision corrections that can disagree with the driving simulation at curved segment joins.
+
 ## Racing opponents roadmap (approved direction)
 
 ### Homepage Quick Break — current opponent
