@@ -321,10 +321,17 @@ export class RapierRacePhysics {
   }
 
   private readYaw(rotation: { x: number; y: number; z: number; w: number }): number {
-    return Math.atan2(
+    // The Rapier vehicle controller drives along local +X, so yawQuaternion
+    // rotates the physical chassis +90° to align that axis with game-forward
+    // (-Z). Return the original game heading, not the controller-space yaw;
+    // otherwise the rendered nose and AI heading are rotated away from the
+    // actual collision hull and front-to-front contact appears to phase.
+    const bodyYaw = Math.atan2(
       2 * (rotation.w * rotation.y + rotation.x * rotation.z),
       1 - 2 * (rotation.y * rotation.y + rotation.z * rotation.z),
     );
+    const gameYaw = bodyYaw - Math.PI / 2;
+    return Math.atan2(Math.sin(gameYaw), Math.cos(gameYaw));
   }
 
   dispose(): void {
