@@ -62,6 +62,18 @@ function makeCar(bodyColor = "#f04478") {
   const light = new THREE.MeshStandardMaterial({ color: "#ff4039", emissive: "#a51412", emissiveIntensity: .6 });
   // Lower, longer rounded shell gives the practice car a smoother touring-racer profile.
   roundedCarBox(car, bodyMat, [2.16, .46, 3.72], [0, .61, 0], .28);
+  // Separate bonnet, nose and bumper assemblies give the touring chassis
+  // readable front/rear structure while preserving the existing silhouette.
+  roundedCarBox(car, bodyMat, [1.88, .16, 1.18], [0, .79, -1.13], .09);
+  roundedCarBox(car, dark, [1.72, .17, .22], [0, .59, -1.79], .055);
+  roundedCarBox(car, bodyMat, [2.34, .18, .24], [0, .48, -1.86], .07);
+  roundedCarBox(car, dark, [1.16, .13, .12], [0, .64, -1.91], .035);
+  const headlamp = new THREE.MeshStandardMaterial({ color: "#eaf7ff", emissive: "#b8e7ff", emissiveIntensity: .85, roughness: .22 });
+  for (const x of [-.78, .78]) {
+    roundedCarBox(car, headlamp, [.38, .12, .12], [x, .76, -1.72], .045);
+  }
+  roundedCarBox(car, dark, [2.3, .16, .22], [0, .49, 1.88], .06);
+  roundedCarBox(car, bodyMat, [2.42, .14, .2], [0, .56, 1.82], .06);
   roundedCarBox(car, bodyMat, [1.66, .23, 1.52], [0, .88, -.53], .17);
   roundedCarBox(car, glass, [1.22, .43, 1.12], [0, 1.15, -.69], .2);
   roundedCarBox(car, dark, [2.72, .12, .22], [0, .48, 1.67], .045);
