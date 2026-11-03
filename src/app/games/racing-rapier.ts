@@ -234,10 +234,18 @@ export class RapierRacePhysics {
     const frontSteer = -clamp(input.steer, -1, 1) * 0.42;
     const engine = input.throttle * (input.boost ? 1450 : 1120);
     const brake = input.brake * 1450;
+    const speed = Math.abs(this.player.controller.currentVehicleSpeed());
+    const driftDemand = clamp(
+      (Math.abs(input.steer) - 0.16) * 0.95 + input.brake * 0.75 + clamp((speed - 12) / 12, 0, 0.18),
+      0,
+      1,
+    );
+    const rearSideGrip = 2.4 - driftDemand * 1.05;
     for (let i = 0; i < 4; i++) {
       this.player.controller.setWheelSteering(i, i < 2 ? frontSteer : 0);
       this.player.controller.setWheelEngineForce(i, engine);
       this.player.controller.setWheelBrake(i, brake);
+      this.player.controller.setWheelSideFrictionStiffness(i, i < 2 ? 2.4 : rearSideGrip);
     }
   }
 
@@ -273,10 +281,12 @@ export class RapierRacePhysics {
     const speed = this.rival.controller.currentVehicleSpeed();
     const throttle = speed < targetSpeed - turn * 10 ? 1 : 0.35;
     const brake = speed > targetSpeed + turn * 13 ? 1600 : 0;
+    const rearSideGrip = 2.4 - clamp(Math.abs(steer) * 0.55 + brake / 2600, 0, 1) * 0.72;
     for (let i = 0; i < 4; i++) {
       this.rival.controller.setWheelSteering(i, i < 2 ? steer * 0.42 : 0);
       this.rival.controller.setWheelEngineForce(i, throttle * 1120);
       this.rival.controller.setWheelBrake(i, brake);
+      this.rival.controller.setWheelSideFrictionStiffness(i, i < 2 ? 2.4 : rearSideGrip);
     }
     // AI progress follows the chassis' real displacement, not a kinematic spline speed.
     const forwardX = -Math.sin(currentYaw);
