@@ -74,6 +74,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       x: raceRef.current.worldX, z: raceRef.current.worldZ, yaw: raceRef.current.worldYaw,
     }).then(created => {
       if (cancelled) { created.dispose(); return; }
+      created.reset({ x: raceRef.current.worldX, z: raceRef.current.worldZ, yaw: raceRef.current.worldYaw });
       instance = created;
       rapierRef.current = created;
     }).catch(() => {
@@ -145,6 +146,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.throttle += (throttleTarget - race.throttle) * (1 - Math.exp(-dt * (throttleTarget ? 3.8 : 6.5)));
         race.brakePressure += (brakeTarget - race.brakePressure) * (1 - Math.exp(-dt * (brakeTarget ? 32 : 12)));
         const boost = controls.boost && race.nos > 0 && !controls.brake;
+        race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
+        if (race.nos <= 0 && controls.boost) { controls.boost = false; setBoostActive(false); }
+        if (!rapierRef.current) {
         const exitBonus = now < cornerSkillRef.current.exitBoostUntil ? 5 : 0;
 
         // Simplified vehicle dynamics: speed is represented in km/h, forces in
@@ -175,8 +179,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const aerodynamicDrag = race.speed * (0.055 + speedRatio * 0.025);
         const boostAcceleration = boost ? 52 : 0;
         race.speed = clamp(race.speed + (engineAcceleration + boostAcceleration - aerodynamicDrag - brakeDeceleration) * dt, 0, boost ? 290 : 230);
-        race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
-        if (race.nos <= 0 && controls.boost) { controls.boost = false; setBoostActive(false); }
 
         // A friction-circle model limits cornering when the tyres are already
         // spending grip on braking. Low-speed steering remains stable; excess
@@ -598,7 +600,8 @@ if (!rapierRef.current) {
 
         // Rapier is the authoritative chassis simulation. The legacy calculations above
         // remain as a temporary telemetry/racing-line compatibility layer while all
-        // rendered vehicle poses and velocities are sourced from rigid bodies.
+        // rendered vehicle poses and velocit        }
+ies are sourced from rigid bodies.
         const physics = rapierRef.current;
         if (physics) {
           const snapshot = physics.step(dt, {
