@@ -62,6 +62,18 @@ function makeCar(bodyColor = "#f04478") {
   const light = new THREE.MeshStandardMaterial({ color: "#ff4039", emissive: "#a51412", emissiveIntensity: .6 });
   // Lower, longer rounded shell gives the practice car a smoother touring-racer profile.
   roundedCarBox(car, bodyMat, [2.16, .46, 3.72], [0, .61, 0], .28);
+  // Separate bonnet, nose and bumper assemblies give the touring chassis
+  // readable front/rear structure while preserving the existing silhouette.
+  roundedCarBox(car, bodyMat, [1.88, .16, 1.18], [0, .79, -1.13], .09);
+  roundedCarBox(car, dark, [1.72, .17, .22], [0, .59, -1.79], .055);
+  roundedCarBox(car, bodyMat, [2.34, .18, .24], [0, .48, -1.86], .07);
+  roundedCarBox(car, dark, [1.16, .13, .12], [0, .64, -1.91], .035);
+  const headlamp = new THREE.MeshStandardMaterial({ color: "#eaf7ff", emissive: "#b8e7ff", emissiveIntensity: .85, roughness: .22 });
+  for (const x of [-.78, .78]) {
+    roundedCarBox(car, headlamp, [.38, .12, .12], [x, .76, -1.72], .045);
+  }
+  roundedCarBox(car, dark, [2.3, .16, .22], [0, .49, 1.88], .06);
+  roundedCarBox(car, bodyMat, [2.42, .14, .2], [0, .56, 1.82], .06);
   roundedCarBox(car, bodyMat, [1.66, .23, 1.52], [0, .88, -.53], .17);
   roundedCarBox(car, glass, [1.22, .43, 1.12], [0, 1.15, -.69], .2);
   roundedCarBox(car, dark, [2.72, .12, .22], [0, .48, 1.67], .045);
@@ -107,14 +119,15 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
+    const mobileViewport = window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
     let renderer: THREE.WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+      renderer = new THREE.WebGLRenderer({ antialias: !mobileViewport, alpha: false, powerPreference: "high-performance" });
     } catch {
       host.dataset.webgl = "unavailable";
       return;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobileViewport ? 1.2 : 1.6));
     renderer.setSize(host.clientWidth || 800, host.clientHeight || 480, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -133,7 +146,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     const sun = new THREE.DirectionalLight("#fff0d3", 3.1);
     sun.position.set(-45, 80, -25);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.mapSize.set(mobileViewport ? 512 : 1024, mobileViewport ? 512 : 1024);
     sun.shadow.camera.left = -65; sun.shadow.camera.right = 65; sun.shadow.camera.top = 85; sun.shadow.camera.bottom = -85;
     scene.add(sun);
 
@@ -294,6 +307,14 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     let smokeCursor = 0;
     let lastEffectAt = 0;
     let effectClock = 0;
+    let lastBotEffectAt = 0;
+    const sparkPool = Array.from({ length: 34 }, () => {
+      const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(.055, 0), new THREE.MeshBasicMaterial({ color: "#ffb52e", transparent: true, opacity: 1 }));
+      mesh.visible = false; scene.add(mesh);
+      return { mesh, velocity: new THREE.Vector3(), life: 0, maxLife: .42 };
+    });
+    let sparkCursor = 0;
+    let seenImpactAt = 0;
     const groundShadow = new THREE.Mesh(
       new THREE.CircleGeometry(1, 32),
       new THREE.MeshBasicMaterial({ color: 0x101914, transparent: true, opacity: 0.28, depthWrite: false }),
@@ -320,7 +341,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const controls = controlsRef.current;
       const currentPhase = phaseRef.current;
       // Render the independent world-space vehicle state; track geometry is not a movement rail.
-      const carWorld = new THREE.Vector3(race.worldX, .015, race.worldZ);
+      const carWorld = new THREE.Vector3(race.worldX, race.worldY, race.worldZ);
       // Keep the chase camera aligned to the car's nose. The sideways travel
       // remains visible around the chassis instead of rotating the whole view.
       const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
@@ -330,9 +351,13 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const botPoint = track.getPointAt(botT);
       const botTangent = track.getTangentAt(botT).normalize();
       const botSide = new THREE.Vector3(-botTangent.z, 0, botTangent.x).normalize();
-      const botWorld = botPoint.clone().addScaledVector(botSide, -2.45);
-      botCar.position.set(botWorld.x, .015, botWorld.z);
-      botCar.rotation.y = Math.atan2(-botTangent.x, -botTangent.z);
+      const botWorld = race.botWorldX !== null && race.botWorldZ !== null
+        ? new THREE.Vector3(race.botWorldX, race.botWorldY ?? .015, race.botWorldZ)
+        : botPoint.clone().addScaledVector(botSide, -2.45 + race.botLateral);
+      botCar.position.copy(botWorld);
+      botCar.rotation.y = race.botWorldYaw ?? (Math.atan2(-botTangent.x, -botTangent.z) + race.botYawOffset);
+      botCar.rotation.z = clamp(-race.botDrift * Math.sign(race.botYawOffset || 1) * .12, -.14, .14);
+      botCar.rotation.x = clamp((race.botBoosting ? -.035 : 0) + race.botDamage * .00012, -.05, .035);
       nameTag.position.set(botWorld.x, 3.0, botWorld.z);
       nameTag.visible = currentPhase !== "ready" || race.botProgress > .025;
       // Subtle suspension response: braking transfers load forward and cornering
@@ -387,6 +412,39 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       } else if (driftIntensity < 0.04) {
         skidBuffers.forEach(buffer => { buffer.previous = null; });
       }
+      const botDriftIntensity = clamp((race.botDrift - .07) / .28, 0, 1) * clamp((race.botSpeed - 9) / 10, 0, 1);
+      if (currentPhase === "running" && botDriftIntensity > .08 && effectClock - lastBotEffectAt > .055) {
+        lastBotEffectAt = effectClock;
+        const botRear = [-1, 1].map(side => new THREE.Vector3(side * .82, .04, .68 * .72).applyAxisAngle(new THREE.Vector3(0, 1, 0), botCar.rotation.y).add(botWorld));
+        botRear.forEach(point => {
+          const puff = smokePool[smokeCursor++ % smokePool.length];
+          puff.mesh.position.set(point.x, .16, point.z); puff.mesh.scale.setScalar(.42 + botDriftIntensity * .58);
+          puff.mesh.visible = true; puff.life = .42 + botDriftIntensity * .35; puff.maxLife = puff.life;
+          puff.velocity.set((Math.random() - .5) * .45, .42 + botDriftIntensity * .4, (Math.random() - .5) * .45);
+          (puff.mesh.material as THREE.MeshBasicMaterial).opacity = .1 + botDriftIntensity * .18;
+        });
+      }
+      if (race.lastImpactAt > seenImpactAt && race.impactStrength > .05) {
+        seenImpactAt = race.lastImpactAt;
+        const impactPoint = new THREE.Vector3(race.impactX, .45, race.impactZ);
+        for (let i = 0; i < 18; i++) {
+          const spark = sparkPool[sparkCursor++ % sparkPool.length];
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 2.2 + Math.random() * 7.5 * race.impactStrength;
+          spark.mesh.position.copy(impactPoint).add(new THREE.Vector3((Math.random() - .5) * .8, .35 + Math.random() * .7, (Math.random() - .5) * .8));
+          spark.velocity.set(Math.cos(angle) * speed, .8 + Math.random() * 3.2, Math.sin(angle) * speed);
+          spark.life = .22 + Math.random() * .24; spark.maxLife = spark.life; spark.mesh.visible = true;
+          (spark.mesh.material as THREE.MeshBasicMaterial).opacity = .9;
+        }
+      }
+      sparkPool.forEach(spark => {
+        if (!spark.mesh.visible) return;
+        spark.life -= frameDelta;
+        if (spark.life <= 0) { spark.mesh.visible = false; return; }
+        spark.mesh.position.addScaledVector(spark.velocity, frameDelta);
+        spark.velocity.y -= 8.5 * frameDelta;
+        (spark.mesh.material as THREE.MeshBasicMaterial).opacity = spark.life / spark.maxLife;
+      });
       smokePool.forEach(puff => {
         if (!puff.mesh.visible) return;
         puff.life -= frameDelta;
@@ -396,6 +454,11 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
         (puff.mesh.material as THREE.MeshBasicMaterial).opacity = (0.12 + driftIntensity * 0.2) * (puff.life / puff.maxLife);
       });
       const flame = car.userData.flame as THREE.Object3D | undefined;
+      const botFlame = botCar.userData.flame as THREE.Object3D | undefined;
+      if (botFlame) {
+        botFlame.visible = race.botBoosting && race.botNOS > 0 && currentPhase === "running";
+        botFlame.scale.setScalar(.78 + Math.sin(clock.elapsedTime * 38) * .22);
+      }
       if (flame) {
         flame.visible = controls.boost && race.nos > 0 && !controls.brake && currentPhase === "running";
         const pulse = .82 + Math.sin(clock.elapsedTime * 42) * .18;
