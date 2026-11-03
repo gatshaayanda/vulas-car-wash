@@ -133,18 +133,45 @@ export class RapierRacePhysics {
     if (this.disposed) throw new Error("Rapier race physics has been disposed");
     this.accumulator = Math.min(this.accumulator + Math.min(frameDelta, 0.05), FIXED_STEP * MAX_STEPS_PER_FRAME);
     let steps = 0;
+    let previousPlayer = this.readVehicle(this.player);
+    let previousRival = this.readVehicle(this.rival);
     this.impact = 0;
     while (this.accumulator >= FIXED_STEP && steps < MAX_STEPS_PER_FRAME) {
       this.applyPlayerInput(input);
       this.applyRivalAI(difficulty);
       this.player.controller.updateVehicle(FIXED_STEP);
       this.rival.controller.updateVehicle(FIXED_STEP);
+      previousPlayer = this.readVehicle(this.player);
+      previousRival = this.readVehicle(this.rival);
       this.world.step();
       this.accumulator -= FIXED_STEP;
       steps++;
     }
-    const player = this.readVehicle(this.player);
-    const rival = this.readVehicle(this.rival);
+    const playerCurrent = this.readVehicle(this.player);
+    const rivalCurrent = this.readVehicle(this.rival);
+    const alpha = clamp(this.accumulator / FIXED_STEP, 0, 1);
+    const interpolate = (a: number, b: number) => a + (b - a) * alpha;
+    const interpolateAngle = (a: number, b: number) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * alpha;
+    const player = {
+      x: interpolate(previousPlayer.x, playerCurrent.x),
+      y: interpolate(previousPlayer.y, playerCurrent.y),
+      z: interpolate(previousPlayer.z, playerCurrent.z),
+      yaw: interpolateAngle(previousPlayer.yaw, playerCurrent.yaw),
+      vx: interpolate(previousPlayer.vx, playerCurrent.vx),
+      vy: interpolate(previousPlayer.vy, playerCurrent.vy),
+      vz: interpolate(previousPlayer.vz, playerCurrent.vz),
+      speed: interpolate(previousPlayer.speed, playerCurrent.speed),
+    };
+    const rival = {
+      x: interpolate(previousRival.x, rivalCurrent.x),
+      y: interpolate(previousRival.y, rivalCurrent.y),
+      z: interpolate(previousRival.z, rivalCurrent.z),
+      yaw: interpolateAngle(previousRival.yaw, rivalCurrent.yaw),
+      vx: interpolate(previousRival.vx, rivalCurrent.vx),
+      vy: interpolate(previousRival.vy, rivalCurrent.vy),
+      vz: interpolate(previousRival.vz, rivalCurrent.vz),
+      speed: interpolate(previousRival.speed, rivalCurrent.speed),
+    };
     const botPoint = this.track.getPointAt(this.botProgress);
     const botTangent = this.track.getTangentAt(this.botProgress);
     const botSideX = -botTangent.z;
