@@ -35,6 +35,7 @@ export class RapierRacePhysics {
   private track: Track;
   private botProgress = 0.025;
   private botLateral = 0;
+  private targetLane = -2.45;
   private impact = 0;
   private rivalImpact = 0;
   private disposed = false;
@@ -122,6 +123,7 @@ export class RapierRacePhysics {
     this.accumulator = 0;
     this.botProgress = 0.025;
     this.botLateral = 0;
+    this.targetLane = -2.45;
     const resetVehicle = (vehicle: Vehicle, x: number, z: number, yaw: number) => {
       vehicle.body.setTranslation({ x, y: 0.72, z }, true);
       vehicle.body.setRotation(yawQuaternion(yaw), true);
@@ -235,10 +237,27 @@ export class RapierRacePhysics {
   private applyRivalAI(difficulty: "Easy" | "Normal" | "Hard"): void {
     const point = this.track.getPointAt(this.botProgress);
     const tangent = this.track.getTangentAt(this.botProgress);
-    const lookAhead = this.track.getPointAt(wrap(this.botProgress + 0.012));
+    const lookAheadT = wrap(this.botProgress + 0.012);
+    const lookAhead = this.track.getPointAt(lookAheadT);
+    const lookAheadTangent = this.track.getTangentAt(lookAheadT);
+    const sideX = -tangent.z;
+    const sideZ = tangent.x;
+    const playerPosition = this.player.body.translation();
+    const playerDx = playerPosition.x - point.x;
+    const playerDz = playerPosition.z - point.z;
+    const playerAlong = playerDx * tangent.x + playerDz * tangent.z;
+    const playerAcross = playerDx * sideX + playerDz * sideZ;
+    const playerInPassingWindow = Math.abs(playerAlong) < 24
+      && Math.abs(playerAcross - this.targetLane) < 3.6;
+    if (playerInPassingWindow) this.targetLane = playerAcross < 0 ? 2.45 : -2.45;
+    else if (Math.abs(playerAlong) > 32) this.targetLane = -2.45;
+    const lookSideX = -lookAheadTangent.z;
+    const lookSideZ = lookAheadTangent.x;
+    const targetX = lookAhead.x + lookSideX * this.targetLane;
+    const targetZ = lookAhead.z + lookSideZ * this.targetLane;
     const current = this.rival.body.translation();
     const currentYaw = this.readYaw(this.rival.body.rotation());
-    const targetYaw = Math.atan2(-(lookAhead.x - point.x), -(lookAhead.z - point.z));
+    const targetYaw = Math.atan2(-(targetX - current.x), -(targetZ - current.z));
     const steeringError = Math.atan2(Math.sin(targetYaw - currentYaw), Math.cos(targetYaw - currentYaw));
     const steer = clamp(steeringError * 1.8, -1, 1);
     const pathYaw = Math.atan2(-tangent.x, -tangent.z);
