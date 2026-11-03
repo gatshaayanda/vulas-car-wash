@@ -7,6 +7,7 @@ import Racing3DScene from "./racing-3d-scene";
 import { subscribeSettings } from "@/lib/firebase/vula-data";
 import { createRacingTrack, getTrackTurn } from "./racing-track";
 import { vehicleContact } from "./racing-collision";
+import { RapierRacePhysics } from "./racing-rapier";
 
 export type Phase = "ready" | "countdown" | "running" | "paused" | "finished" | "crashed";
 export type Controls = { steer: number; accelerate: boolean; brake: boolean; boost: boolean };
@@ -15,11 +16,11 @@ export type Race = {
   bestLap: number | null; lateral: number; lateralVelocity: number; heading: number; drift: number;
   nos: number; last: number; lapInvalid: boolean; offTrack: number;
   longitudinalLoad: number; lateralG: number; wheelLock: number;
-  worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; angularVelocity: number; damage: number; lastImpactAt: number; impactStrength: number; impactX: number; impactZ: number; trackT: number; botProgress: number; botSpeed: number; botLateral: number; botLateralVelocity: number; botYawOffset: number; botAngularVelocity: number; botDamage: number; botNOS: number; botBoosting: boolean; botDrift: number;
+  worldX: number; worldY: number; worldZ: number; worldYaw: number; botWorldX: number | null; botWorldY: number | null; botWorldZ: number | null; botWorldYaw: number | null; velocityX: number; velocityZ: number; angularVelocity: number; damage: number; lastImpactAt: number; impactStrength: number; impactX: number; impactZ: number; trackT: number; botProgress: number; botSpeed: number; botLateral: number; botLateralVelocity: number; botYawOffset: number; botAngularVelocity: number; botDamage: number; botNOS: number; botBoosting: boolean; botDrift: number;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, angularVelocity: 0, damage: 0, lastImpactAt: 0, impactStrength: 0, impactX: 0, impactZ: 0, trackT: 0, botProgress: .025, botSpeed: 14.5, botLateral: 0, botLateralVelocity: 0, botYawOffset: 0, botAngularVelocity: 0, botDamage: 0, botNOS: 100, botBoosting: false, botDrift: 0 });
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldY: 0.015, worldZ: 72, worldYaw: -1.34, botWorldX: null, botWorldY: null, botWorldZ: null, botWorldYaw: null, velocityX: 0, velocityZ: 0, angularVelocity: 0, damage: 0, lastImpactAt: 0, impactStrength: 0, impactX: 0, impactZ: 0, trackT: 0, botProgress: .025, botSpeed: 14.5, botLateral: 0, botLateralVelocity: 0, botYawOffset: 0, botAngularVelocity: 0, botDamage: 0, botNOS: 100, botBoosting: false, botDrift: 0 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -28,6 +29,8 @@ function fmt(seconds: number | null): string {
 export default function RacingWarmup({ embedded = false }: { embedded?: boolean }) {
   const [expanded, setExpanded] = useState(!embedded);
   const raceRef = useRef<Race>(newRace());
+  const rapierRef = useRef<RapierRacePhysics | null>(null);
+  const physicsTrackTRef = useRef(0);
   const trackRef = useRef<ReturnType<typeof createRacingTrack> | null>(null);
   if (!trackRef.current) trackRef.current = createRacingTrack();
   const controlsRef = useRef<Controls>({ steer: 0, accelerate: false, brake: false, boost: false });
@@ -64,10 +67,30 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     }, () => {});
     return stop;
   }, []);
+  useEffect(() => {
+    let cancelled = false;
+    let instance: RapierRacePhysics | null = null;
+    void RapierRacePhysics.create(trackRef.current!, {
+      x: raceRef.current.worldX, z: raceRef.current.worldZ, yaw: raceRef.current.worldYaw,
+    }).then(created => {
+      if (cancelled) { created.dispose(); return; }
+      instance = created;
+      rapierRef.current = created;
+    }).catch(() => {
+      if (!cancelled) setToast({ text: "Physics engine unavailable · retry the game", kind: "error" });
+    });
+    return () => {
+      cancelled = true;
+      if (instance) instance.dispose();
+      if (rapierRef.current === instance) rapierRef.current = null;
+    };
+  }, []);
   useEffect(() => { if (!embedded) document.title = businessName + " · Racing warm-up"; }, [businessName, embedded]);
 
   const reset = useCallback((start: boolean) => {
     raceRef.current = newRace();
+    physicsTrackTRef.current = 0;
+    rapierRef.current?.reset({ x: 0, z: 72, yaw: -1.34 });
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
     setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setBoostActive(false); setRivalGap(0);
@@ -567,6 +590,79 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // Practice has no crash/recovery interruption. Going wide can invalidate a
         // lap, but never takes the car away from the player or resets their inputs.
 
+        // Rapier is the authoritative chassis simulation. The legacy calculations above
+        // remain as a temporary telemetry/racing-line compatibility layer while all
+        // rendered vehicle poses and velocities are sourced from rigid bodies.
+        const physics = rapierRef.current;
+        if (physics) {
+          const snapshot = physics.step(dt, {
+            steer: steering,
+            throttle: race.throttle,
+            brake: race.brakePressure,
+            boost,
+          }, botDifficultyRef.current);
+          race.worldX = snapshot.x;
+          race.worldY = snapshot.y - 0.72;
+          race.worldZ = snapshot.z;
+          race.worldYaw = snapshot.yaw;
+          race.velocityX = snapshot.vx;
+          race.velocityZ = snapshot.vz;
+          race.speed = snapshot.speed;
+          race.angularVelocity = snapshot.yawRate;
+          race.lateralG += (snapshot.yawRate - race.lateralG) * (1 - Math.exp(-dt * 5));
+          const forwardX = -Math.sin(race.worldYaw);
+          const forwardZ = -Math.cos(race.worldYaw);
+          const lateralX = Math.cos(race.worldYaw);
+          const lateralZ = -Math.sin(race.worldYaw);
+          const longitudinalVelocity = race.velocityX * forwardX + race.velocityZ * forwardZ;
+          const lateralVelocity = race.velocityX * lateralX + race.velocityZ * lateralZ;
+          race.lateralVelocity = lateralVelocity;
+          race.heading = Math.atan2(-race.velocityX, -race.velocityZ) - race.worldYaw;
+          race.heading = Math.atan2(Math.sin(race.heading), Math.cos(race.heading));
+          if (longitudinalVelocity < -0.2) race.heading = Math.atan2(Math.sin(race.heading - Math.PI), Math.cos(race.heading - Math.PI));
+          race.drift = clamp(race.heading * clamp(Math.abs(lateralVelocity) / 1.8, 0, 1) * 1.15, -0.95, 0.95);
+
+          let projectedT = physicsTrackTRef.current;
+          let projectedDistanceSq = Number.POSITIVE_INFINITY;
+          const projectionCentre = Math.round(projectedT * 1920);
+          for (let offset = -90; offset <= 90; offset++) {
+            const sampleT = wrap(projectionCentre + offset, 1920) / 1920;
+            const point = trackRef.current!.getPointAt(sampleT);
+            const dx = race.worldX - point.x;
+            const dz = race.worldZ - point.z;
+            const distanceSq = dx * dx + dz * dz;
+            if (distanceSq < projectedDistanceSq) {
+              projectedDistanceSq = distanceSq;
+              projectedT = sampleT;
+            }
+          }
+          const projectedPoint = trackRef.current!.getPointAt(projectedT);
+          const projectedTangent = trackRef.current!.getTangentAt(projectedT);
+          const signedTrackOffset = (race.worldX - projectedPoint.x) * -projectedTangent.z
+            + (race.worldZ - projectedPoint.z) * projectedTangent.x;
+          const lapBase = Math.floor(race.progress);
+          race.progress = projectedT < 0.08 && physicsTrackTRef.current > 0.82 && longitudinalVelocity > 0
+            ? lapBase + 1 + projectedT : lapBase + projectedT;
+          race.trackT = projectedT;
+          physicsTrackTRef.current = projectedT;
+          race.lateral = signedTrackOffset;
+          race.offTrack = Math.abs(signedTrackOffset) > 7.2 ? race.offTrack + dt : Math.max(0, race.offTrack - dt * 1.5);
+          if (Math.abs(signedTrackOffset) > 7.2 || race.offTrack > 0.5) race.lapInvalid = true;
+
+          race.botWorldX = snapshot.botX;
+          race.botWorldY = snapshot.botY - 0.72;
+          race.botWorldZ = snapshot.botZ;
+          race.botWorldYaw = snapshot.botYaw;
+          race.botProgress = snapshot.botProgress;
+          race.botSpeed = snapshot.botSpeed * 0.28 / 3.6;
+          race.botLateral = snapshot.botLateral;
+          race.botDrift = snapshot.botDrift;
+          race.botYawOffset = Math.atan2(
+            Math.sin(snapshot.botYaw - Math.atan2(-trackRef.current!.getTangentAt(snapshot.botProgress).x, -trackRef.current!.getTangentAt(snapshot.botProgress).z)),
+            Math.cos(snapshot.botYaw - Math.atan2(-trackRef.current!.getTangentAt(snapshot.botProgress).x, -trackRef.current!.getTangentAt(snapshot.botProgress).z)),
+          );
+          race.botAngularVelocity = snapshot.botYawRate;
+        }
         race.elapsed += dt;
         race.lapTime += dt;
         const lapNow = Math.floor(race.progress) + 1;
