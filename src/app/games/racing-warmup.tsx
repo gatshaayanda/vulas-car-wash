@@ -598,10 +598,9 @@ if (!rapierRef.current) {
         // Practice has no crash/recovery interruption. Going wide can invalidate a
         // lap, but never takes the car away from the player or resets their inputs.
 
-        // Rapier is the authoritative chassis simulation. The legacy calculations above
-        // remain as a temporary telemetry/racing-line compatibility layer while all
-        // rendered vehicle poses and velocit        }
-ies are sourced from rigid bodies.
+        }
+        // Rapier is the authoritative chassis simulation. The legacy solver is skipped
+        // once WASM is ready; these body transforms now drive both cars and collision state.
         const physics = rapierRef.current;
         if (physics) {
           const snapshot = physics.step(dt, {
@@ -618,6 +617,7 @@ ies are sourced from rigid bodies.
           race.velocityZ = snapshot.vz;
           race.speed = snapshot.speed;
           race.angularVelocity = snapshot.yawRate;
+          race.longitudinalLoad += (race.brakePressure * 0.18 - race.longitudinalLoad) * (1 - Math.exp(-dt * 7));
           race.lateralG += (snapshot.yawRate - race.lateralG) * (1 - Math.exp(-dt * 5));
           const forwardX = -Math.sin(race.worldYaw);
           const forwardZ = -Math.cos(race.worldYaw);
