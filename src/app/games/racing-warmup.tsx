@@ -15,10 +15,12 @@ export type Race = {
   nos: number; last: number; lapInvalid: boolean; offTrack: number;
   longitudinalLoad: number; lateralG: number; wheelLock: number;
   worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; damage: number; lastImpactAt: number; trackT: number; botProgress: number; botSpeed: number;
+  botWorldX: number; botWorldZ: number; botWorldYaw: number; botVelocityX: number; botVelocityZ: number; botSteering: number; botThrottle: number; botBrake: number; botDrift: number; botNos: number; botBoostActive: boolean; botInitialized: boolean;
+  botImpactX: number; botImpactZ: number; botImpactAt: number; botImpactStrength: number;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 14.5 });
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 14.5, botWorldX: 0, botWorldZ: 0, botWorldYaw: 0, botVelocityX: 0, botVelocityZ: 0, botSteering: 0, botThrottle: 0, botBrake: 0, botDrift: 0, botNos: 100, botBoostActive: false, botInitialized: false, botImpactX: 0, botImpactZ: 0, botImpactAt: 0, botImpactStrength: 0 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -394,25 +396,104 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.progress = nearestT < 0.08 && previousProgress % 1 > 0.82 && longitudinalVelocity > 0
           ? Math.floor(previousProgress) + 1 + nearestT
           : Math.floor(previousProgress) + nearestT;
-        const botTargetSpeed = botDifficultyRef.current === "Easy" ? 11.5 : botDifficultyRef.current === "Hard" ? 17.5 : 14.5;
-        const botTurn = Math.abs(getTrackTurn(trackRef.current!, race.botProgress, .006));
-        race.botSpeed += (botTargetSpeed * (1 - clamp(botTurn * 28, 0, .65) * .16) - race.botSpeed) * (1 - Math.exp(-dt * 1.8));
-        race.botProgress += race.botSpeed / trackRef.current!.getLength() * dt;
+        // Kago has his own world-space vehicle state. The spline is navigation
+        // and progress reference only; it no longer moves his car.
+        const botTrack = trackRef.current!;
+        if (!race.botInitialized) {
+          const p = botTrack.getPointAt(race.botProgress), tangent = botTrack.getTangentAt(race.botProgress).normalize();
+          const sideX = -tangent.z, sideZ = tangent.x;
+          race.botWorldX = p.x - sideX * 2.45; race.botWorldZ = p.z - sideZ * 2.45;
+          race.botWorldYaw = Math.atan2(-tangent.x, -tangent.z);
+          race.botVelocityX = -Math.sin(race.botWorldYaw) * 5.2; race.botVelocityZ = -Math.cos(race.botWorldYaw) * 5.2;
+          race.botInitialized = true;
+        }
+        const botLevel = botDifficultyRef.current;
+        const botTargetSpeed = botLevel === "Easy" ? 11.5 : botLevel === "Hard" ? 17.5 : 14.5;
+        const botAggression = botLevel === "Easy" ? .18 : botLevel === "Hard" ? .82 : .48;
+        const botCurrentT = wrap(race.botProgress, 1);
+        const botTurn = getTrackTurn(botTrack, botCurrentT, .006);
+        const playerGap = wrap(race.progress - race.botProgress, 1);
+        const playerNear = playerGap < .16 || playerGap > .84;
+        const playerAhead = playerGap < .5;
+        // Virtual normal/defensive/attacking lines are offsets from one centreline.
+        let desiredOffset = -2.45;
+        if (playerNear && botLevel !== "Easy") desiredOffset = playerAhead
+          ? (botAggression > .6 ? 1.75 : -1.35)
+          : (botAggression > .6 ? -3.0 : -2.0);
+        const lookAhead = clamp(.012 + Math.hypot(race.botVelocityX, race.botVelocityZ) * .0011, .018, .038);
+        const targetPoint = botTrack.getPointAt(wrap(botCurrentT + lookAhead, 1));
+        const targetTangent = botTrack.getTangentAt(wrap(botCurrentT + lookAhead, 1)).normalize();
+        const targetSideX = -targetTangent.z, targetSideZ = targetTangent.x;
+        desiredOffset = clamp(desiredOffset + clamp(botTurn * 16, -1.25, 1.25), -3.45, 3.45);
+        const aimX = targetPoint.x + targetSideX * desiredOffset, aimZ = targetPoint.z + targetSideZ * desiredOffset;
+        const aimYaw = Math.atan2(-(aimX - race.botWorldX), -(aimZ - race.botWorldZ));
+        const yawError = Math.atan2(Math.sin(aimYaw - race.botWorldYaw), Math.cos(aimYaw - race.botWorldYaw));
+        const desiredSteer = clamp(-yawError * (botLevel === "Hard" ? 1.9 : 1.55), -1, 1);
+        race.botSteering += (desiredSteer - race.botSteering) * (1 - Math.exp(-dt * 3.8));
+        const cornerDemand = clamp(Math.abs(botTurn) * 30, 0, 1);
+        const cornerPace = botTargetSpeed * (1 - cornerDemand * (botLevel === "Easy" ? .34 : botLevel === "Hard" ? .17 : .24));
+        const botBrakeTarget = race.botSpeed > cornerPace + (botLevel === "Easy" ? .35 : .9)
+          ? clamp((race.botSpeed - cornerPace) * .65 + .22, 0, 1) : 0;
+        const botThrottleTarget = botBrakeTarget > .05 ? 0 : 1;
+        race.botThrottle += (botThrottleTarget - race.botThrottle) * (1 - Math.exp(-dt * (botThrottleTarget ? 2.8 : 5)));
+        race.botBrake += (botBrakeTarget - race.botBrake) * (1 - Math.exp(-dt * (botBrakeTarget ? 7.5 : 4.5)));
+        const botOnStraight = cornerDemand < .16;
+        const botUseNos = race.botNos > 8 && botOnStraight && (botLevel === "Hard"
+          ? playerNear || race.botSpeed < botTargetSpeed * .82
+          : botLevel === "Normal" && playerNear && race.botSpeed < botTargetSpeed * .72);
+        race.botBoostActive = botUseNos;
+        race.botNos = botUseNos ? Math.max(0, race.botNos - 22 * dt) : Math.min(100, race.botNos + 7 * dt);
+        const botForwardX = -Math.sin(race.botWorldYaw), botForwardZ = -Math.cos(race.botWorldYaw);
+        const botSideX = Math.cos(race.botWorldYaw), botSideZ = -Math.sin(race.botWorldYaw);
+        const botLongitudinal = race.botVelocityX * botForwardX + race.botVelocityZ * botForwardZ;
+        const botLateral = race.botVelocityX * botSideX + race.botVelocityZ * botSideZ;
+        const botYawRate = Math.tan(-race.botSteering * .42) * botLongitudinal / 2.8;
+        race.botWorldYaw = Math.atan2(Math.sin(race.botWorldYaw + botYawRate * dt), Math.cos(race.botWorldYaw + botYawRate * dt));
+        const botDrive = race.botThrottle * 8.5 + (botUseNos ? 7.5 : 0);
+        const botDrag = botLongitudinal * (.16 + Math.abs(botLongitudinal) * .012);
+        const nextBotLongitudinal = clamp(botLongitudinal + (botDrive - race.botBrake * 13.5 - botDrag) * dt, 0, botTargetSpeed * (botUseNos ? 1.18 : 1.02));
+        const botLongAccel = dt > 0 ? (nextBotLongitudinal - botLongitudinal) / dt : 0;
+        const botLateralAccel = clamp(-botYawRate * botLongitudinal - botLateral * (cornerDemand > .7 ? .58 : 1.35), -7.2, 7.2);
+        race.botVelocityX += (botForwardX * botLongAccel + botSideX * botLateralAccel) * dt;
+        race.botVelocityZ += (botForwardZ * botLongAccel + botSideZ * botLateralAccel) * dt;
+        race.botWorldX += race.botVelocityX * dt; race.botWorldZ += race.botVelocityZ * dt;
+        // Local projection is for lap progress and gradual off-line recovery only.
+        const previousBotProgress = race.botProgress;
+        let botNearestT = botCurrentT, botNearestDistance = Number.POSITIVE_INFINITY;
+        let botNearestPoint = botTrack.getPointAt(botCurrentT), botNearestTangent = botTrack.getTangentAt(botCurrentT).normalize();
+        for (let i = -56; i <= 56; i++) {
+          const sampleT = wrap(botCurrentT + i / 1920, 1), p = botTrack.getPointAt(sampleT);
+          const dx = race.botWorldX - p.x, dz = race.botWorldZ - p.z, d = dx * dx + dz * dz;
+          if (d < botNearestDistance) { botNearestDistance = d; botNearestT = sampleT; botNearestPoint = p; botNearestTangent = botTrack.getTangentAt(sampleT).normalize(); }
+        }
+        const trackSideX = -botNearestTangent.z, trackSideZ = botNearestTangent.x;
+        const botOffset = (race.botWorldX - botNearestPoint.x) * trackSideX + (race.botWorldZ - botNearestPoint.z) * trackSideZ;
+        if (Math.abs(botOffset) > 5.15) {
+          const correction = Math.sign(botOffset) * (Math.abs(botOffset) - 5.15);
+          race.botWorldX -= trackSideX * correction * .72; race.botWorldZ -= trackSideZ * correction * .72;
+          const outward = (race.botVelocityX * trackSideX + race.botVelocityZ * trackSideZ) * Math.sign(botOffset);
+          if (outward > 0) { race.botVelocityX -= trackSideX * Math.sign(botOffset) * outward * 1.15; race.botVelocityZ -= trackSideZ * Math.sign(botOffset) * outward * 1.15; }
+          if (Math.hypot(race.botVelocityX, race.botVelocityZ) < 3.2) {
+            const recoveryYaw = Math.atan2(-botNearestTangent.x, -botNearestTangent.z);
+            const error = Math.atan2(Math.sin(recoveryYaw - race.botWorldYaw), Math.cos(recoveryYaw - race.botWorldYaw));
+            race.botWorldYaw += clamp(error, -dt * 1.4, dt * 1.4); race.botThrottle = Math.max(race.botThrottle, .55);
+          }
+        }
+        const botHeading = Math.atan2(-race.botVelocityX, -race.botVelocityZ);
+        race.botDrift = clamp(Math.atan2(Math.sin(botHeading - race.botWorldYaw), Math.cos(botHeading - race.botWorldYaw)), -.95, .95);
+        race.botSpeed = Math.hypot(race.botVelocityX, race.botVelocityZ);
+        race.botProgress = wrap(previousBotProgress, 1) > .82 && botNearestT < .08
+          ? Math.floor(previousBotProgress) + 1 + botNearestT
+          : Math.floor(previousBotProgress) + botNearestT;
 
         // Player-vs-Kago collision: oriented vehicle footprints are tested in
         // world space using the separating-axis theorem. Resolve the player
-        // against the stationary bot chassis for this frame, preserving the
+        // against Kago's independently moving chassis for this frame, preserving the
         // existing player movement, steering and track-boundary solver.
         {
-          const botT = wrap(race.botProgress, 1);
-          const botPoint = trackRef.current!.getPointAt(botT);
-          const botTangent = trackRef.current!.getTangentAt(botT).normalize();
-          const botSideX = -botTangent.z;
-          const botSideZ = botTangent.x;
-          const botX = botPoint.x - botSideX * 2.45;
-          const botZ = botPoint.z - botSideZ * 2.45;
-          const botForwardX = botTangent.x;
-          const botForwardZ = botTangent.z;
+          const botX = race.botWorldX, botZ = race.botWorldZ;
+          const botForwardX = -Math.sin(race.botWorldYaw), botForwardZ = -Math.cos(race.botWorldYaw);
+          const botSideX = Math.cos(race.botWorldYaw), botSideZ = -Math.sin(race.botWorldYaw);
           const playerForwardX = -Math.sin(race.worldYaw);
           const playerForwardZ = -Math.cos(race.worldYaw);
           const playerSideX = Math.cos(race.worldYaw);
@@ -454,8 +535,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             race.worldX += collisionNormalX * (minimumOverlap + 0.035);
             race.worldZ += collisionNormalZ * (minimumOverlap + 0.035);
 
-            const botVelocityX = botForwardX * race.botSpeed;
-            const botVelocityZ = botForwardZ * race.botSpeed;
+            const botVelocityX = race.botVelocityX;
+            const botVelocityZ = race.botVelocityZ;
             const relativeX = race.velocityX - botVelocityX;
             const relativeZ = race.velocityZ - botVelocityZ;
             const closingSpeed = relativeX * collisionNormalX + relativeZ * collisionNormalZ;
@@ -465,6 +546,16 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
               const impulse = closingSpeed * 1.12;
               race.velocityX -= collisionNormalX * impulse;
               race.velocityZ -= collisionNormalZ * impulse;
+              // Reciprocal, mass-biased contact response keeps the player's feel intact.
+              race.botVelocityX += collisionNormalX * impulse * .62;
+              race.botVelocityZ += collisionNormalZ * impulse * .62;
+              race.botWorldYaw += clamp((race.botVelocityX * botSideX + race.botVelocityZ * botSideZ) * .018, -.08, .08);
+              race.botImpactX = (race.worldX + race.botWorldX) * .5;
+              race.botImpactZ = (race.worldZ + race.botWorldZ) * .5;
+              if (now - race.botImpactAt > 180 && Math.abs(closingSpeed) > 1.2) {
+                race.botImpactAt = now;
+                race.botImpactStrength = clamp(Math.abs(closingSpeed) / 8, .2, 1);
+              }
               const tangentX = -collisionNormalZ;
               const tangentZ = collisionNormalX;
               const tangentialSpeed = race.velocityX * tangentX + race.velocityZ * tangentZ;

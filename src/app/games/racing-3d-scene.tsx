@@ -284,6 +284,22 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       scene.add(line);
       return { geometry, positions, count: 0, previous: null as THREE.Vector3 | null };
     });
+    const botSkidMaterial = new THREE.LineBasicMaterial({ color: "#202020", transparent: true, opacity: .56, depthWrite: false });
+    const botSkidBuffers = [-1, 1].map(() => {
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(skidCapacity * 6);
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+      geometry.setDrawRange(0, 0);
+      const line = new THREE.LineSegments(geometry, botSkidMaterial);
+      line.frustumCulled = false; scene.add(line);
+      return { geometry, positions, count: 0, previous: null as THREE.Vector3 | null };
+    });
+    const botSmokePool = Array.from({ length: 14 }, () => {
+      const puff = new THREE.Mesh(new THREE.SphereGeometry(.16, 7, 6), new THREE.MeshBasicMaterial({ color: "#e2e5e2", transparent: true, opacity: .2, depthWrite: false }));
+      puff.visible = false; scene.add(puff);
+      return { mesh: puff, velocity: new THREE.Vector3(), life: 0, maxLife: 1 };
+    });
+    let botSmokeCursor = 0, botLastEffectAt = 0;
     const smokeMaterial = new THREE.MeshBasicMaterial({ color: "#d9dedb", transparent: true, opacity: 0.24, depthWrite: false });
     const smokePool = Array.from({ length: 26 }, () => {
       const puff = new THREE.Mesh(new THREE.SphereGeometry(0.18, 7, 6), smokeMaterial.clone());
@@ -292,6 +308,13 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       return { mesh: puff, velocity: new THREE.Vector3(), life: 0, maxLife: 1 };
     });
     let smokeCursor = 0;
+    const sparkMaterial = new THREE.MeshBasicMaterial({ color: "#ffd36a" });
+    const sparkPool = Array.from({ length: 18 }, (_, index) => {
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(index % 3 === 0 ? .075 : .045, 5, 4), sparkMaterial);
+      mesh.visible = false; scene.add(mesh);
+      return { mesh, velocity: new THREE.Vector3(), life: 0, maxLife: .28 };
+    });
+    let sparkCursor = 0, seenImpactAt = 0;
     let lastEffectAt = 0;
     let effectClock = 0;
     const groundShadow = new THREE.Mesh(
@@ -326,13 +349,16 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
       car.position.copy(carWorld);
       car.rotation.y = race.worldYaw;
-      const botT = ((race.botProgress % 1) + 1) % 1;
-      const botPoint = track.getPointAt(botT);
-      const botTangent = track.getTangentAt(botT).normalize();
-      const botSide = new THREE.Vector3(-botTangent.z, 0, botTangent.x).normalize();
-      const botWorld = botPoint.clone().addScaledVector(botSide, -2.45);
-      botCar.position.set(botWorld.x, .015, botWorld.z);
-      botCar.rotation.y = Math.atan2(-botTangent.x, -botTangent.z);
+      const botWorld = new THREE.Vector3(race.botWorldX, .015, race.botWorldZ);
+      botCar.position.copy(botWorld);
+      botCar.rotation.y = race.botWorldYaw;
+      botCar.rotation.z = clamp(-race.botDrift * .18, -.14, .14);
+      botCar.rotation.x = clamp(race.botBrake * .08, 0, .08);
+      const botFlame = botCar.userData.flame as THREE.Object3D | undefined;
+      if (botFlame) {
+        botFlame.visible = race.botBoostActive && race.botThrottle > .8 && race.botBrake < .08 && currentPhase === "running" && race.botSpeed > 8 && race.botNos > 5;
+        botFlame.scale.setScalar(.78 + Math.sin(clock.elapsedTime * 37) * .22);
+      }
       nameTag.position.set(botWorld.x, 3.0, botWorld.z);
       nameTag.visible = currentPhase !== "ready" || race.botProgress > .025;
       // Subtle suspension response: braking transfers load forward and cornering
@@ -387,6 +413,54 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       } else if (driftIntensity < 0.04) {
         skidBuffers.forEach(buffer => { buffer.previous = null; });
       }
+      const botSlipIntensity = clamp((Math.abs(race.botDrift) - .12) / .5, 0, 1) * clamp((race.botSpeed - 5) / 8, 0, 1);
+      const botRearTyres = [-1, 1].map(side => new THREE.Vector3(side * .94, .035, .8 * .72)
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), race.botWorldYaw).add(botWorld));
+      if (currentPhase === "running" && botSlipIntensity > .05 && effectClock - botLastEffectAt > .045) {
+        botLastEffectAt = effectClock;
+        botRearTyres.forEach((point, index) => {
+          const buffer = botSkidBuffers[index];
+          if (buffer.previous) {
+            if (buffer.count >= skidCapacity) { buffer.positions.copyWithin(0, 6); buffer.count = skidCapacity - 1; }
+            const offset = buffer.count * 6;
+            buffer.positions[offset] = buffer.previous.x; buffer.positions[offset + 1] = .054; buffer.positions[offset + 2] = buffer.previous.z;
+            buffer.positions[offset + 3] = point.x; buffer.positions[offset + 4] = .054; buffer.positions[offset + 5] = point.z;
+            buffer.count += 1; buffer.geometry.attributes.position.needsUpdate = true; buffer.geometry.setDrawRange(0, buffer.count * 2);
+          }
+          buffer.previous = point.clone();
+          const puff = botSmokePool[botSmokeCursor++ % botSmokePool.length];
+          puff.mesh.position.set(point.x, .17, point.z); puff.mesh.scale.setScalar(.48 + botSlipIntensity * .65);
+          puff.mesh.visible = true; puff.life = .48 + botSlipIntensity * .35; puff.maxLife = puff.life;
+          puff.velocity.set((Math.random() - .5) * .5 - race.botVelocityX * .025, .48 + botSlipIntensity * .45, (Math.random() - .5) * .5 - race.botVelocityZ * .025);
+        });
+      } else if (botSlipIntensity < .05) botSkidBuffers.forEach(buffer => { buffer.previous = null; });
+      botSmokePool.forEach(puff => {
+        if (!puff.mesh.visible) return;
+        puff.life -= frameDelta;
+        if (puff.life <= 0) { puff.mesh.visible = false; return; }
+        puff.mesh.position.addScaledVector(puff.velocity, frameDelta);
+        puff.mesh.scale.multiplyScalar(1 + frameDelta * 1.25);
+        (puff.mesh.material as THREE.MeshBasicMaterial).opacity = .18 * (puff.life / puff.maxLife);
+      });
+      if (race.botImpactAt > seenImpactAt) {
+        seenImpactAt = race.botImpactAt;
+        const count = 8 + Math.round(race.botImpactStrength * 8);
+        for (let i = 0; i < count; i++) {
+          const spark = sparkPool[sparkCursor++ % sparkPool.length];
+          spark.mesh.position.set(race.botImpactX, .48, race.botImpactZ);
+          spark.mesh.visible = true; spark.life = .18 + Math.random() * .16; spark.maxLife = spark.life;
+          spark.velocity.set((Math.random() - .5) * 7, .8 + Math.random() * 4.5, (Math.random() - .5) * 7);
+          spark.mesh.scale.setScalar(.7 + race.botImpactStrength * .8);
+        }
+      }
+      sparkPool.forEach(spark => {
+        if (!spark.mesh.visible) return;
+        spark.life -= frameDelta;
+        if (spark.life <= 0) { spark.mesh.visible = false; return; }
+        spark.mesh.position.addScaledVector(spark.velocity, frameDelta);
+        spark.velocity.y -= 8.5 * frameDelta;
+        spark.mesh.scale.multiplyScalar(.97);
+      });
       smokePool.forEach(puff => {
         if (!puff.mesh.visible) return;
         puff.life -= frameDelta;

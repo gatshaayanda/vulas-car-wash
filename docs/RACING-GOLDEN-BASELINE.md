@@ -38,6 +38,23 @@ Kago is currently a **track-spline pace rival**, not a fully simulated driver:
 - Player collision feedback currently includes speed loss/damage state and a notification, but **there are no visible impact sparks yet**.
 - The smoke/skid effect system is currently driven by the player's drift state only; Kago has no independent drift trail.
 
+## Implementation status — independent Kago AI (2026-11-03)
+
+Implemented in the first additive gameplay pass (commit pending QA):
+- Kago now has independent world-space position, velocity, yaw, steering, throttle, braking, slip, and finite NOS state. The original track spline is used for look-ahead navigation, local projection/lap progress and gradual road-envelope recovery; it no longer directly places the rendered car.
+- Initial AI corner planning uses a speed-dependent look-ahead point, shared track-turn curvature, throttle/brake decisions and a bounded road envelope.
+- Initial virtual racing-line variation chooses a normal offset and context-dependent defensive/attacking offsets when the player is close. This is an initial tactical lane choice, not yet a full F1-style passing planner with side-by-side overlap prediction and multi-corner strategy.
+- Kago receives a reciprocal, mass-biased impulse during player contact. A bounded spark pool emits short bursts for sufficiently strong impacts with a cooldown.
+- Kago has separate slip telemetry, bounded skid/smoke resources, and an independent NOS reserve/boost state with a visible exhaust flame.
+- The player's physics/control path was not refactored. The existing player car remains the reference implementation; bot movement uses adapted world-space velocity/yaw integration and its own AI decisions.
+
+Still requires live QA and likely tuning:
+- Validate bot cornering, line transitions, recovery, contact, sparks, independent skid/smoke and NOS on desktop and mobile.
+- Tune AI steering/braking gains and the Easy/Normal/Hard pace targets against actual lap times and race gaps. Current targets remain 11.5 / 14.5 / 17.5 simulation world-units per second; the player has a different displayed km/h conversion.
+- Add true side-by-side overlap sensing, closing-speed-based pass commitment/yielding, controlled mistakes and more sophisticated multi-corner racecraft.
+- Confirm no performance regression from bot projection/effects; then continue difficulty personalities and presentation.
+- Online multiplayer remains out of scope for this local AI pass.
+
 ## Approved additive development roadmap
 
 1. Collision feedback and reciprocal contact: pooled sparks at real impact points; restrained reciprocal impulse to Kago.
