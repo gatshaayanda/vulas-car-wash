@@ -11,7 +11,7 @@ export type VehicleSnapshot = {
   vx: number; vy: number; vz: number; speed: number;
   botX: number; botY: number; botZ: number; botYaw: number; botSpeed: number;
   botProgress: number; botLateral: number; botDrift: number;
-  impact: number; yawRate: number; botYawRate: number;
+  impact: number; rivalImpact: number; yawRate: number; botYawRate: number;
 };
 type RapierModule = typeof RapierTypes;
 type Vehicle = { body: RapierTypes.RigidBody; controller: RapierTypes.DynamicRayCastVehicleController };
@@ -36,6 +36,7 @@ export class RapierRacePhysics {
   private botProgress = 0.025;
   private botLateral = 0;
   private impact = 0;
+  private rivalImpact = 0;
   private disposed = false;
 
   private constructor(world: RapierTypes.World, track: Track, player: Vehicle, rival: Vehicle) {
@@ -140,9 +141,12 @@ export class RapierRacePhysics {
     let previousPlayer = this.readVehicle(this.player);
     let previousRival = this.readVehicle(this.rival);
     this.impact = 0;
+    this.rivalImpact = 0;
     while (this.accumulator >= FIXED_STEP && steps < MAX_STEPS_PER_FRAME) {
       this.applyPlayerInput(input);
       this.applyRivalAI(difficulty);
+      this.applyAerodynamicDrag(this.player.body);
+      this.applyAerodynamicDrag(this.rival.body);
       this.player.controller.updateVehicle(FIXED_STEP);
       this.rival.controller.updateVehicle(FIXED_STEP);
       previousPlayer = this.readVehicle(this.player);
@@ -162,8 +166,8 @@ export class RapierRacePhysics {
         rivalVelocityAfter.y - rivalVelocityBefore.y,
         rivalVelocityAfter.z - rivalVelocityBefore.z,
       );
-      const impactDelta = Math.max(playerImpulseDelta, rivalImpulseDelta);
-      if (impactDelta > 2.8) this.impact = Math.max(this.impact, clamp(impactDelta / 12, 0, 1));
+      if (playerImpulseDelta > 2.8) this.impact = Math.max(this.impact, clamp(playerImpulseDelta / 12, 0, 1));
+      if (rivalImpulseDelta > 2.8) this.rivalImpact = Math.max(this.rivalImpact, clamp(rivalImpulseDelta / 12, 0, 1));
       this.accumulator -= FIXED_STEP;
       steps++;
     }
@@ -204,8 +208,17 @@ export class RapierRacePhysics {
     return {
       ...player, botX: rival.x, botY: rival.y, botZ: rival.z, botYaw: rival.yaw, botSpeed: rival.speed,
       botProgress: this.botProgress, botLateral: this.botLateral, botDrift,
-      impact: this.impact, yawRate: this.player.body.angvel().y, botYawRate: this.rival.body.angvel().y,
+      impact: this.impact, rivalImpact: this.rivalImpact, yawRate: this.player.body.angvel().y, botYawRate: this.rival.body.angvel().y,
     };
+  }
+
+  private applyAerodynamicDrag(body: RapierTypes.RigidBody): void {
+    const velocity = body.linvel();
+    const speed = Math.hypot(velocity.x, velocity.z);
+    if (speed < 0.1) return;
+    const dragAcceleration = 0.18 + speed * speed * 0.024;
+    const impulse = dragAcceleration * FIXED_STEP * body.mass();
+    body.applyImpulse({ x: -velocity.x / speed * impulse, y: 0, z: -velocity.z / speed * impulse }, true);
   }
 
   private applyPlayerInput(input: VehicleInput): void {
