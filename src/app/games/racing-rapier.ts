@@ -9,7 +9,7 @@ export type VehicleInput = { steer: number; throttle: number; brake: number; boo
 export type VehicleSnapshot = {
   x: number; y: number; z: number; yaw: number;
   vx: number; vy: number; vz: number; speed: number;
-  botX: number; botZ: number; botYaw: number; botSpeed: number;
+  botX: number; botY: number; botZ: number; botYaw: number; botSpeed: number;
   botProgress: number; botLateral: number; botDrift: number;
   impact: number; yawRate: number; botYawRate: number;
 };
@@ -155,7 +155,7 @@ export class RapierRacePhysics {
     const botYaw = Math.atan2(-botTangent.x, -botTangent.z);
     const botDrift = clamp(Math.atan2(Math.sin(botYaw - rival.yaw), Math.cos(botYaw - rival.yaw)) * 1.2, -1, 1);
     return {
-      ...player, botX: rival.x, botZ: rival.z, botYaw: rival.yaw, botSpeed: rival.speed,
+      ...player, botX: rival.x, botY: rival.y, botZ: rival.z, botYaw: rival.yaw, botSpeed: rival.speed,
       botProgress: this.botProgress, botLateral: this.botLateral, botDrift,
       impact: this.impact, yawRate: this.player.body.angvel().y, botYawRate: this.rival.body.angvel().y,
     };
