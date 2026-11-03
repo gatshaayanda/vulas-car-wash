@@ -38,15 +38,29 @@ Kago is currently a **track-spline pace rival**, not a fully simulated driver:
 - Player collision feedback currently includes speed loss/damage state and a notification, but **there are no visible impact sparks yet**.
 - The smoke/skid effect system is currently driven by the player's drift state only; Kago has no independent drift trail.
 
-## Approved additive development order
+## Approved additive development roadmap
 
-1. **Collision sparks and reciprocal contact:** add a short, pooled, low-cost spark burst at the actual contact point; add a restrained impulse to Kago so it visibly reacts. Preserve the current contact solver and player feel.
-2. **Bot visual telemetry:** give Kago its own drift/slip state and separate bounded skid/smoke pools. Effects must be driven by bot motion, not copied from player state.
-3. **Bot NOS:** add an independent finite NOS reserve, strategic activation on straights/when behind, visible exhaust flame and speed response. It must not drain or read the player's NOS.
-4. **Driving AI:** progressively replace pure spline pace-following with steering, throttle and braking decisions, corner-speed planning, track awareness, controlled mistakes and recovery. Keep the spline as a navigation reference, not as the bot's movement rail.
-5. **Difficulty tuning:** make Easy / Normal / Hard distinct in pace, braking confidence, corner speed, NOS frequency, mistake probability and recovery skill. Keep Normal as default and tune against measured lap-time/gap distributions, not arbitrary top-speed numbers alone.
-6. **Race presentation:** improve grid placement, synchronized starts, position changes, lap comparisons and clear race feedback.
-7. **Local QA:** validate repeated laps, all difficulty levels, collisions, drift, NOS, pause/resume, restart, mobile controls and offline launch before any online multiplayer work.
+1. Collision feedback and reciprocal contact: pooled sparks at real impact points; restrained reciprocal impulse to Kago.
+2. Independent bot driving model: separate world-space position/velocity/yaw and steering, throttle, braking, slip, progress and recovery state. Spline becomes navigation reference, not movement rail.
+3. Multiple virtual racing lines: baseline, defensive and attacking/overtaking lines derived from the one canonical track centreline, with smooth transitions and road-edge clearance.
+4. Tactical racecraft: sense player position, relative speed, overlap, closing rate and road width; choose to defend, challenge, pass, yield or back out. Aggressive but not reckless.
+5. Independent bot drift/skid/smoke effects driven by Kago's actual slip.
+6. Independent finite bot NOS with tactical use and visible exhaust; never share player NOS state.
+7. Difficulty personalities: pace, braking, corner commitment, line choice, aggression, mistakes, recovery and NOS strategy.
+8. Grid/start/position/lap presentation and full local QA across difficulty, contact, racecraft, recovery, effects, pause/resume, restart, mobile and offline.
+9. Online multiplayer only after local racing is reliable; separate architecture/cost approval, room codes, matchmaking/reconnect, authoritative validation.
+
+## Multiple racing lines — design decision
+
+Use one canonical physical track spline for circuit geometry, lap progress, navigation and boundary references. Derive multiple *virtual racing lines* from it using corner-specific lateral offsets and alternative entry/apex/exit profiles. Kago can choose a normal, defensive or attacking line according to the player's position, relative speed and available road width, then blend smoothly between them. This gives varied, tactical driving without creating conflicting physical tracks or boundary solvers. Separate canonical splines are appropriate only when building genuinely different track layouts.
+
+## Difficulty calibration — current baseline
+
+- Easy target: **11.5 simulation world-units/second**.
+- Normal target: **14.5 simulation world-units/second** (default).
+- Hard target: **17.5 simulation world-units/second**.
+- These are Kago's current spline pace targets, not km/h. The bend-speed adjustment is shared across all three. They do not yet represent distinct driving intelligence, braking decisions, mistakes, recovery or NOS strategies.
+- Player motion is integrated in world-space velocity while Kago currently advances spline progress. Do not compare the player's displayed km/h directly to these spline pace values. Calibrate perceived fairness using measured lap times, gaps, corner behavior and side-by-side tests after both cars use comparable world-space movement.
 
 ## Non-negotiable implementation rules
 

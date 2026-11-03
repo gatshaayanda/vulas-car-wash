@@ -53,26 +53,41 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Use one authoritative track-boundary solver. Do not add competing render-loop collision corrections that can disagree with the driving simulation at curved segment joins.
 ## Racing opponents roadmap (approved direction)
 
-### Homepage Quick Break — current offline AI opponent
-- The requested customer-facing experience is the **VULA RACING · QUICK BREAK** card on the homepage, with “Take a quick lap” and “Play now”. It is rendered by `src/app/games/racing-warmup.tsx` inside `src/app/page.tsx`; its 3D scene is `src/app/games/racing-3d-scene.tsx` and styles are `src/app/games/racing-warmup.css`.
-- All Quick Break bot work must be implemented in those files. Do not substitute `/games` Racing Garage or `/games/career`.
-- The Quick Break circuit includes one offline AI rival, Kago, visible as a second car on the same 3D circuit. The in-game opponent selector offers Easy / Normal / Hard; Normal is default. Kago follows the actual track spline at a difficulty-dependent pace and the HUD reports the distance gap.
-- This is a track-following pace AI, not yet a physics-driven rival: it does not yet make independent steering corrections, overtake, avoid collisions, or use NOS. It is not an online player.
-- The separate `/games` garage/warm-up and `/games/career` experiences are not the Quick Break card. Do not change them when implementing homepage Quick Break requests.
+### Homepage Quick Break — current opponent
+- The customer-facing experience is the **VULA RACING · QUICK BREAK** card on the homepage, with “Take a quick lap” and “Play now”. It is rendered by `src/app/games/racing-warmup.tsx` inside `src/app/page.tsx`; its 3D scene is `src/app/games/racing-3d-scene.tsx`, track construction is `src/app/games/racing-track.ts`, and styles are `src/app/games/racing-warmup.css`.
+- All Quick Break bot work belongs in this flow. Do not substitute Racing Garage or `/games/career`.
+- Kago currently follows the circuit spline at a pace target. His rendered position and heading are derived from that spline. He is not yet an independently controlled driver.
+- Easy / Normal / Hard currently set Kago's target pace to 11.5 / 14.5 / 17.5 simulation world-units per second; Normal is default. The corner-speed adjustment is shared. These settings do not yet change driving intelligence, braking decisions, mistakes, recovery or NOS strategy.
+- The player and Kago currently use different movement representations: the player integrates world-space velocity and chassis yaw, while Kago advances a scalar spline progress value. Do not compare the displayed player km/h directly with Kago's spline pace as if they were the same telemetry unit.
 
-### Next implementation stages
-1. **Driving bot:** upgrade Kago from spline pace-following to steering/throttle/braking decisions, corner-speed profiles, marker awareness, controlled mistakes and recovery.
-2. **Shared driving rules:** reuse player movement and collision rules where architecture permits without changing the approved player controls or driving feel.
-3. **Race presentation:** improve grid placement, synchronized countdown, position changes and lap-result comparison inside Quick Break.
-4. **Local QA:** test Easy/Normal/Hard, bot/player pace gaps, repeated laps, pause/resume, restart, mobile controls, offline play and cached launch.
-5. **Online multiplayer foundation:** only after local races are reliable, add a separately hosted persistent multiplayer service (Colyseus remains a candidate). Do not use ordinary Vercel serverless request handlers as persistent real-time sockets.
-6. **Private rooms and matchmaking:** room codes first, then automatic matchmaking, reconnect handling and player presence.
-7. **Authoritative validation:** server owns online race sessions/results; validate player inputs and track progress rather than trusting client-submitted positions or rewards.
-8. **Hybrid grids and competition:** allow real players to race alongside AI fillers, then add verified leaderboards, championships and seasonal standings.
+### Protected development sequence
+1. **Collision feedback and reciprocal contact:** add a short, pooled spark burst at the real chassis contact point and a restrained, mass-aware impulse to Kago. Preserve the current collision solver and player feel. Sparks must occur only on actual contact, with intensity based on relative impact speed; avoid continuous sparks from resting overlap.
+2. **Independent Kago driving model:** introduce a dedicated bot state (world position, world velocity, yaw, steering, throttle, brake pressure, slip, damage/recovery state and lap progress). Give Kago independent steering, acceleration, braking, corner planning and recovery. Keep the current spline as his navigation reference and progress/track-awareness source—not as his movement rail. Do not refactor the player's golden physics to share code; extract only safe, small shared math/helpers if proven behavior-neutral.
+3. **Racing-line and tactical variation:** build multiple *virtual racing lines* from the existing track centreline. These are alternative paths/offset profiles, not multiple physical tracks and not a replacement track mesh:
+   - baseline/normal line;
+   - defensive line that moves toward the inside to protect position;
+   - attacking/overtaking line that moves toward the outside or chooses a passing side;
+   - alternative entry/apex/exit profiles for selected corners.
+   Blend between lines smoothly and only when there is room. Keep a safe road-envelope constraint and collision-aware line selection. The centre spline remains the shared track coordinate/navigation reference.
+4. **Racecraft and opponent awareness:** add look-ahead sensing for player position, relative speed, side-by-side overlap, closing rate, braking zone and available road width. Kago should choose when to defend, challenge, yield, attempt a pass or back out. Aggression must be contextual and bounded—not random ramming. Do not claim F1-grade intelligence; target readable, believable racecraft with deliberate decisions.
+5. **Bot effects and telemetry:** calculate Kago's own chassis-versus-velocity slip and drive independent bounded skid/smoke effects from it. Player and bot effect state/pools remain separate. This stage follows real bot motion; never copy the player's drift values.
+6. **Independent bot NOS:** give Kago a separate finite reserve, cooldown/recharge rules, tactical use on straights, to attack or defend, and visible exhaust response. It must never read or drain player NOS.
+7. **Difficulty personalities:** retain the current pace values as initial calibration targets, then make each level meaningfully different through pace, braking confidence, corner commitment, line choice, racecraft aggression, mistake frequency, recovery skill and NOS strategy. Easy is safer and more forgiving; Normal is balanced; Hard is sharper and more assertive but still obeys grip, track limits and collision rules. Tune from lap-time, error and race-gap distributions rather than speed alone.
+8. **Race presentation and local QA:** improve grid placement, synchronized starts, position changes and lap comparisons. Test all difficulties, repeated laps, side-by-side contact, defensive/attacking line changes, off-track recovery, collisions, drift, NOS, pause/resume, restart, mobile controls and offline launch.
+9. **Online multiplayer:** only after local races are reliable, plan a persistent multiplayer service separately (Colyseus remains a candidate). Room codes first, then matchmaking/reconnect/presence; authoritative server validation before shared results/leaderboards. No multiplayer service, credentials, deployment or recurring cost without a separate plan and explicit approval.
+
+### Multiple splines: implementation principle
+- Do not create several competing copies of the physical circuit merely to make Kago less predictable. That would complicate track boundaries, barriers, collision checks, lap progress and camera/navigation consistency.
+- Instead, derive a small set of racing-line curves or corner-specific lateral-offset profiles from the one canonical centreline. A line is selected per corner and tactical situation, with smooth transitions and road-edge clearance.
+- For a later multi-layout feature, separate named track layouts can each own a canonical centreline and matching boundaries. That is a different feature from AI racing-line variation.
+- Deterministic, state-driven choices with controlled variation are preferred over random spline switching. Kago should react to the player and current race situation, not repeat a fixed lap script.
 
 ### Non-negotiable protections
 - Work only in `gatshaayanda/vulas-car-wash` for Vula Racing tasks unless the product owner explicitly names another repository.
-- Preserve the approved golden vehicle, steering, drift, camera, controls, collisions, effects, PWA install/offline behavior and existing Race Control save menus. Do not change the career experience while implementing a landing-page request.
-- Never claim a bot is physics-driven, online, server-authoritative or capable of overtaking until those exact capabilities are implemented and tested.
+- Preserve the approved golden player vehicle, steering, acceleration, braking, reverse, drift, NOS, camera, controls, collisions, track/barriers, effects, PWA install/offline behavior, Race Control save menus and `/api/racing` persistence.
+- Never change player physics or controls to make the bot easier to implement. Keep bot simulation and resources independent.
+- Never add a second competing track-boundary or collision solver. Reuse the canonical track coordinate system and authoritative collision path.
+- Keep render-loop allocations bounded; use pooled particles and bounded geometry buffers.
+- Never claim a bot capability exists until it is implemented and tested in the live game.
 - Keep offline results device-only. Only server-verified results may enter shared leaderboards or award verified online credits.
-- Do not add a multiplayer service, credentials, deployment or recurring cost without a separate implementation plan and explicit approval.
+- If QA finds a regression, revert the feature to the exact golden commit above and re-implement it more narrowly.
