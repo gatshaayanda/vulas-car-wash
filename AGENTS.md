@@ -42,12 +42,15 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - At handoff, include exact commit, remaining configuration, known limitations and device QA steps. The product owner handles Vercel deployment unless explicitly delegated.
 
 ## Protected Vula Racing golden baseline
-- The approved golden racing baseline is commit `83a46fbb907ab0ee61c272b99c4ed4fcf823ba8d` (drift physics presentation, stable chassis-aligned chase camera, rear-tyre smoke and skid marks). Preserve this commit in history as the permanent rollback/reference point; never rewrite or force-push it.
-- Future racing work must build forward from this baseline. Do not replace its vehicle physics, steering, drift model, camera, controls, car presentation or drift effects unless the product owner explicitly authorizes that exact change.
+
+- **Current golden baseline (2026-11-03):** `028367bde4c729d87e2bfe5c57e37b03e630af3b` — approved playable Quick Break with existing player handling, drift/smoke/skid presentation, stable chase camera, track barriers and the first player-vs-Kago chassis collision response.
+- Permanent reference branch: `golden-baseline/quick-break-2026-11-03`. It points to the exact golden commit above. Never move, delete, rewrite or force-push this reference branch. The commit remains in Git history; use it as the rollback source if later work regresses the game.
+- Production deployment for this baseline was verified READY at `https://vulas-car-wash.vercel.app` from commit `028367bde4c729d87e2bfe5c57e37b03e630af3b`.
+- All future racing work must build forward from this baseline. Do not replace its vehicle physics, steering, drift model, camera, controls, car presentation, track geometry, barrier handling, player collision response, PWA behavior or online persistence unless the product owner explicitly authorizes that exact change.
+- Do not mix a new AI feature with a player-driving refactor. Keep changes isolated, additive, and independently QA-able. If a feature breaks the baseline, revert that feature to this commit before attempting another approach.
 - Track-only work must remain isolated to track geometry, barrier visuals and collision/track-boundary handling. Do not regress the golden driving feel while changing track behaviour.
 - Barrier contacts during practice must remain recoverable. Never force a game-over, disable controls or respawn the player because of a normal track-edge collision.
 - Use one authoritative track-boundary solver. Do not add competing render-loop collision corrections that can disagree with the driving simulation at curved segment joins.
-
 ## Racing opponents roadmap (approved direction)
 
 ### Homepage Quick Break — current offline AI opponent
