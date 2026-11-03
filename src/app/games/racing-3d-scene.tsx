@@ -349,9 +349,15 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
       car.position.copy(carWorld);
       car.rotation.y = race.worldYaw;
-      const botWorld = new THREE.Vector3(race.botWorldX, .015, race.botWorldZ);
+      const botT = ((race.botProgress % 1) + 1) % 1;
+      const botPoint = track.getPointAt(botT), botTangent = track.getTangentAt(botT).normalize();
+      const botSide = new THREE.Vector3(-botTangent.z, 0, botTangent.x).normalize();
+      const botWorld = race.botInitialized
+        ? new THREE.Vector3(race.botWorldX, .015, race.botWorldZ)
+        : botPoint.clone().addScaledVector(botSide, -2.45);
+      const botYaw = race.botInitialized ? race.botWorldYaw : Math.atan2(-botTangent.x, -botTangent.z);
       botCar.position.copy(botWorld);
-      botCar.rotation.y = race.botWorldYaw;
+      botCar.rotation.y = botYaw;
       botCar.rotation.z = clamp(-race.botDrift * .18, -.14, .14);
       botCar.rotation.x = clamp(race.botBrake * .08, 0, .08);
       const botFlame = botCar.userData.flame as THREE.Object3D | undefined;
@@ -415,7 +421,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       }
       const botSlipIntensity = clamp((Math.abs(race.botDrift) - .12) / .5, 0, 1) * clamp((race.botSpeed - 5) / 8, 0, 1);
       const botRearTyres = [-1, 1].map(side => new THREE.Vector3(side * .94, .035, .8 * .72)
-        .applyAxisAngle(new THREE.Vector3(0, 1, 0), race.botWorldYaw).add(botWorld));
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), botYaw).add(botWorld));
       if (currentPhase === "running" && botSlipIntensity > .05 && effectClock - botLastEffectAt > .045) {
         botLastEffectAt = effectClock;
         botRearTyres.forEach((point, index) => {
