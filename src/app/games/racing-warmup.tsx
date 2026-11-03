@@ -16,11 +16,11 @@ export type Race = {
   longitudinalLoad: number; lateralG: number; wheelLock: number;
   worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; damage: number; lastImpactAt: number; trackT: number; botProgress: number; botSpeed: number;
   botWorldX: number; botWorldZ: number; botWorldYaw: number; botVelocityX: number; botVelocityZ: number; botSteering: number; botThrottle: number; botBrake: number; botDrift: number; botNos: number; botBoostActive: boolean; botInitialized: boolean;
-  botImpactX: number; botImpactZ: number; botImpactAt: number; botImpactStrength: number;
+  botImpactX: number; botImpactZ: number; botImpactAt: number; botImpactStrength: number; botLineOffset: number;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 14.5, botWorldX: 0, botWorldZ: 0, botWorldYaw: 0, botVelocityX: 0, botVelocityZ: 0, botSteering: 0, botThrottle: 0, botBrake: 0, botDrift: 0, botNos: 100, botBoostActive: false, botInitialized: false, botImpactX: 0, botImpactZ: 0, botImpactAt: 0, botImpactStrength: 0 });
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 17.9, botWorldX: 0, botWorldZ: 0, botWorldYaw: 0, botVelocityX: 0, botVelocityZ: 0, botSteering: 0, botThrottle: 0, botBrake: 0, botDrift: 0, botNos: 100, botBoostActive: false, botInitialized: false, botImpactX: 0, botImpactZ: 0, botImpactAt: 0, botImpactStrength: 0, botLineOffset: -2.45 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -408,50 +408,69 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           race.botInitialized = true;
         }
         const botLevel = botDifficultyRef.current;
-        const botTargetSpeed = botLevel === "Easy" ? 11.5 : botLevel === "Hard" ? 17.5 : 14.5;
-        const botAggression = botLevel === "Easy" ? .18 : botLevel === "Hard" ? .82 : .48;
+        // Player speed is capped at 230 km/h, which maps to 17.89 world-units/sec
+        // through the player's established 0.28-units-per-metre conversion.
+        // Easy is ~7% slower, Normal matches, and Hard is ~5% faster.
+        const botTargetSpeed = botLevel === "Easy" ? 16.65 : botLevel === "Hard" ? 18.8 : 17.9;
+        const botAggression = botLevel === "Easy" ? .18 : botLevel === "Hard" ? .86 : .52;
         const botCurrentT = wrap(race.botProgress, 1);
         const botTurn = getTrackTurn(botTrack, botCurrentT, .006);
-        const playerGap = wrap(race.progress - race.botProgress, 1);
-        const playerNear = playerGap < .16 || playerGap > .84;
-        const playerAhead = playerGap < .5;
-        // Virtual normal/defensive/attacking lines are offsets from one centreline.
+        // Use actual world-space proximity for tactical decisions rather than wrapped
+        // progress fractions, which can be ambiguous around the start/finish line.
+        const botHeadingX = -Math.sin(race.botWorldYaw), botHeadingZ = -Math.cos(race.botWorldYaw);
+        const botLateralX = Math.cos(race.botWorldYaw), botLateralZ = -Math.sin(race.botWorldYaw);
+        const playerRelativeX = race.worldX - race.botWorldX;
+        const playerRelativeZ = race.worldZ - race.botWorldZ;
+        const playerLongitudinal = playerRelativeX * botHeadingX + playerRelativeZ * botHeadingZ;
+        const playerLateral = playerRelativeX * botLateralX + playerRelativeZ * botLateralZ;
+        const playerNear = Math.abs(playerLongitudinal) < 18 && Math.abs(playerLateral) < 8.5;
+        const playerAhead = playerLongitudinal > 0;
+        // Choose a passing lane opposite the car ahead, or defend the side occupied
+        // by a close challenger. Blend lane changes to avoid snapping the chassis.
         let desiredOffset = -2.45;
-        if (playerNear && botLevel !== "Easy") desiredOffset = playerAhead
-          ? (botAggression > .6 ? 1.75 : -1.35)
-          : (botAggression > .6 ? -3.0 : -2.0);
+        if (playerNear && botLevel !== "Easy") {
+          if (playerAhead) desiredOffset = playerLateral >= 0
+            ? (botAggression > .7 ? -3.05 : -2.75)
+            : (botAggression > .7 ? 3.05 : 2.75);
+          else desiredOffset = playerLateral >= 0 ? 2.7 : -2.7;
+        }
+        const lineBlend = 1 - Math.exp(-dt * (botLevel === "Hard" ? 3.2 : botLevel === "Normal" ? 2.35 : 1.7));
+        race.botLineOffset += (clamp(desiredOffset, -3.35, 3.35) - race.botLineOffset) * lineBlend;
         const lookAhead = clamp(.012 + Math.hypot(race.botVelocityX, race.botVelocityZ) * .0011, .018, .038);
         const targetPoint = botTrack.getPointAt(wrap(botCurrentT + lookAhead, 1));
         const targetTangent = botTrack.getTangentAt(wrap(botCurrentT + lookAhead, 1)).normalize();
         const targetSideX = -targetTangent.z, targetSideZ = targetTangent.x;
-        desiredOffset = clamp(desiredOffset + clamp(botTurn * 16, -1.25, 1.25), -3.45, 3.45);
-        const aimX = targetPoint.x + targetSideX * desiredOffset, aimZ = targetPoint.z + targetSideZ * desiredOffset;
+        const racingLineOffset = clamp(race.botLineOffset + clamp(botTurn * 16, -1.25, 1.25), -3.45, 3.45);
+        const aimX = targetPoint.x + targetSideX * racingLineOffset, aimZ = targetPoint.z + targetSideZ * racingLineOffset;
         const aimYaw = Math.atan2(-(aimX - race.botWorldX), -(aimZ - race.botWorldZ));
         const yawError = Math.atan2(Math.sin(aimYaw - race.botWorldYaw), Math.cos(aimYaw - race.botWorldYaw));
-        const desiredSteer = clamp(-yawError * (botLevel === "Hard" ? 1.9 : 1.55), -1, 1);
-        race.botSteering += (desiredSteer - race.botSteering) * (1 - Math.exp(-dt * 3.8));
+        const desiredSteer = clamp(-yawError * (botLevel === "Hard" ? 1.9 : botLevel === "Normal" ? 1.65 : 1.45), -1, 1);
+        race.botSteering += (desiredSteer - race.botSteering) * (1 - Math.exp(-dt * (botLevel === "Hard" ? 4.4 : 3.8)));
         const cornerDemand = clamp(Math.abs(botTurn) * 30, 0, 1);
-        const cornerPace = botTargetSpeed * (1 - cornerDemand * (botLevel === "Easy" ? .34 : botLevel === "Hard" ? .17 : .24));
-        const botBrakeTarget = race.botSpeed > cornerPace + (botLevel === "Easy" ? .35 : .9)
-          ? clamp((race.botSpeed - cornerPace) * .65 + .22, 0, 1) : 0;
+        const cornerConfidence = botLevel === "Easy" ? .31 : botLevel === "Hard" ? .20 : .25;
+        const cornerPace = botTargetSpeed * (1 - cornerDemand * cornerConfidence);
+        const brakingMargin = botLevel === "Easy" ? .25 : botLevel === "Hard" ? .55 : .4;
+        const botBrakeTarget = race.botSpeed > cornerPace + brakingMargin
+          ? clamp((race.botSpeed - cornerPace) * (botLevel === "Easy" ? .72 : .82) + .12, 0, 1) : 0;
         const botThrottleTarget = botBrakeTarget > .05 ? 0 : 1;
         race.botThrottle += (botThrottleTarget - race.botThrottle) * (1 - Math.exp(-dt * (botThrottleTarget ? 2.8 : 5)));
         race.botBrake += (botBrakeTarget - race.botBrake) * (1 - Math.exp(-dt * (botBrakeTarget ? 7.5 : 4.5)));
         const botOnStraight = cornerDemand < .16;
         const botUseNos = race.botNos > 8 && botOnStraight && (botLevel === "Hard"
-          ? playerNear || race.botSpeed < botTargetSpeed * .82
-          : botLevel === "Normal" && playerNear && race.botSpeed < botTargetSpeed * .72);
+          ? playerNear || race.botSpeed < botTargetSpeed * .9
+          : botLevel === "Normal" && playerNear && race.botSpeed < botTargetSpeed * .86);
         race.botBoostActive = botUseNos;
-        race.botNos = botUseNos ? Math.max(0, race.botNos - 22 * dt) : Math.min(100, race.botNos + 7 * dt);
+        race.botNos = botUseNos ? Math.max(0, race.botNos - (botLevel === "Hard" ? 24 : 22) * dt) : Math.min(100, race.botNos + 7 * dt);
         const botForwardX = -Math.sin(race.botWorldYaw), botForwardZ = -Math.cos(race.botWorldYaw);
         const botSideX = Math.cos(race.botWorldYaw), botSideZ = -Math.sin(race.botWorldYaw);
         const botLongitudinal = race.botVelocityX * botForwardX + race.botVelocityZ * botForwardZ;
         const botLateral = race.botVelocityX * botSideX + race.botVelocityZ * botSideZ;
         const botYawRate = Math.tan(-race.botSteering * .42) * botLongitudinal / 2.8;
         race.botWorldYaw = Math.atan2(Math.sin(race.botWorldYaw + botYawRate * dt), Math.cos(race.botWorldYaw + botYawRate * dt));
-        const botDrive = race.botThrottle * 8.5 + (botUseNos ? 7.5 : 0);
+        // Keep acceleration and braking close to the player's world-space force scale.
+        const botDrive = race.botThrottle * 3.45 + (botUseNos ? 4.05 : 0);
         const botDrag = botLongitudinal * (.16 + Math.abs(botLongitudinal) * .012);
-        const nextBotLongitudinal = clamp(botLongitudinal + (botDrive - race.botBrake * 13.5 - botDrag) * dt, 0, botTargetSpeed * (botUseNos ? 1.18 : 1.02));
+        const nextBotLongitudinal = clamp(botLongitudinal + (botDrive - race.botBrake * 3.05 - botDrag) * dt, 0, botTargetSpeed * (botUseNos ? 1.08 : 1.0));
         const botLongAccel = dt > 0 ? (nextBotLongitudinal - botLongitudinal) / dt : 0;
         const botLateralAccel = clamp(-botYawRate * botLongitudinal - botLateral * (cornerDemand > .7 ? .58 : 1.35), -7.2, 7.2);
         race.botVelocityX += (botForwardX * botLongAccel + botSideX * botLateralAccel) * dt;
@@ -513,8 +532,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           for (const [axisX, axisZ] of axes) {
             const playerRadius = 1.52 * Math.abs(axisX * playerForwardX + axisZ * playerForwardZ)
               + 0.89 * Math.abs(axisX * playerSideX + axisZ * playerSideZ);
-            const botRadius = 1.34 * Math.abs(axisX * botForwardX + axisZ * botForwardZ)
-              + 0.78 * Math.abs(axisX * botSideX + axisZ * botSideZ);
+            const botRadius = 1.52 * Math.abs(axisX * botForwardX + axisZ * botForwardZ)
+              + 0.89 * Math.abs(axisX * botSideX + axisZ * botSideZ);
             const separation = deltaX * axisX + deltaZ * axisZ;
             const overlap = playerRadius + botRadius - Math.abs(separation);
             if (overlap <= 0) {

@@ -24,19 +24,19 @@ This is the known-good Vula homepage Quick Break racing experience. Keep this co
 
 No physics-engine migration, control redesign, camera rewrite, visual restyle or unrelated racing-garage/career change is allowed as part of an AI feature.
 
+## Vehicle parity
+
+Kago's visible vehicle scale now matches the player (0.82), and its oriented collision footprint uses the same half-extents (1.52 × 0.89). Neither car is intentionally smaller.
+
 ## Current AI implementation — honest inventory
 
-Kago is currently a **track-spline pace rival**, not a fully simulated driver:
+Kago now has an independent world-space driving model. The track spline is a navigation/progress reference, not his movement rail:
 
 - It follows the racing circuit spline at a fixed pace target.
-- Easy / Normal / Hard currently change only the target pace: 11.5 / 14.5 / 17.5 world units per second; Normal is the default.
-- Its speed target is reduced modestly by bend strength, with a smoothed speed response.
-- Its position and heading are derived from the track tangent.
-- The new car-to-car collision solver detects oriented chassis overlap, separates the player and applies a recoverable player velocity/speed response.
-- The solver does not yet apply a reciprocal impulse to Kago, so the bot does not visibly get knocked aside.
-- Kago does not yet make independent steering/throttle/brake decisions, recover from mistakes, overtake, drift, use NOS, or generate its own tyre effects.
-- Player collision feedback currently includes speed loss/damage state and a notification, but **there are no visible impact sparks yet**.
-- The smoke/skid effect system is currently driven by the player's drift state only; Kago has no independent drift trail.
+- Easy / Normal / Hard target 16.65 / 17.9 / 18.8 world-units/second on the player's speed scale: Easy is about 7% slower, Normal approximately equal, and Hard about 5% faster before its short NOS burst.
+- Acceleration and braking magnitudes are calibrated closer to the player's existing world-space force scale.
+- Kago uses relative world position to select passing/defensive lines, with smooth lane transitions and difficulty-specific corner confidence.
+- The player and Kago use matching visible car scale (0.82) and matching collision half-extents (1.52 × 0.89).
 
 ## Implementation status — independent Kago AI (2026-11-03)
 
@@ -50,8 +50,8 @@ Implemented in the first additive gameplay pass (commit pending QA):
 
 Still requires live QA and likely tuning:
 - Validate bot cornering, line transitions, recovery, contact, sparks, independent skid/smoke and NOS on desktop and mobile.
-- Tune AI steering/braking gains and the Easy/Normal/Hard pace targets against actual lap times and race gaps. Current targets remain 11.5 / 14.5 / 17.5 simulation world-units per second; the player has a different displayed km/h conversion.
-- Add true side-by-side overlap sensing, closing-speed-based pass commitment/yielding, controlled mistakes and more sophisticated multi-corner racecraft.
+- Tune AI steering/braking gains and the Easy/Normal/Hard pace targets against actual lap times and race gaps; these are initial simulation targets, not verified lap-time parity.
+- Add a fuller side-by-side overlap and closing-speed pass commitment model, controlled mistakes and multi-corner racecraft.
 - Confirm no performance regression from bot projection/effects; then continue difficulty personalities and presentation.
 - Online multiplayer remains out of scope for this local AI pass.
 

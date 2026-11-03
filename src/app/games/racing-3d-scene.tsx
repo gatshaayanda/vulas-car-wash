@@ -252,7 +252,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     car.scale.setScalar(0.82);
     scene.add(car);
     const botCar = makeCar("#f2bd45");
-    botCar.scale.setScalar(0.72);
+    botCar.scale.setScalar(0.82);
     scene.add(botCar);
     const nameCanvas = document.createElement("canvas");
     nameCanvas.width = 512; nameCanvas.height = 128;
