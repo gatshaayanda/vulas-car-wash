@@ -82,7 +82,6 @@ export class RapierRacePhysics {
       );
       const controller = world.createVehicleController(body);
       controller.indexUpAxis = 1;
-      controller.setIndexForwardAxis(2);
       const wheelPoints = [
         [-0.78, -0.12, -1.08], [0.78, -0.12, -1.08],
         [-0.78, -0.12, 1.08], [0.78, -0.12, 1.08],
