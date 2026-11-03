@@ -398,6 +398,95 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const botTurn = Math.abs(getTrackTurn(trackRef.current!, race.botProgress, .006));
         race.botSpeed += (botTargetSpeed * (1 - clamp(botTurn * 28, 0, .65) * .16) - race.botSpeed) * (1 - Math.exp(-dt * 1.8));
         race.botProgress += race.botSpeed / trackRef.current!.getLength() * dt;
+
+        // Player-vs-Kago collision: oriented vehicle footprints are tested in
+        // world space using the separating-axis theorem. Resolve the player
+        // against the stationary bot chassis for this frame, preserving the
+        // existing player movement, steering and track-boundary solver.
+        {
+          const botT = wrap(race.botProgress, 1);
+          const botPoint = trackRef.current!.getPointAt(botT);
+          const botTangent = trackRef.current!.getTangentAt(botT).normalize();
+          const botSideX = -botTangent.z;
+          const botSideZ = botTangent.x;
+          const botX = botPoint.x - botSideX * 2.45;
+          const botZ = botPoint.z - botSideZ * 2.45;
+          const botForwardX = botTangent.x;
+          const botForwardZ = botTangent.z;
+          const playerForwardX = -Math.sin(race.worldYaw);
+          const playerForwardZ = -Math.cos(race.worldYaw);
+          const playerSideX = Math.cos(race.worldYaw);
+          const playerSideZ = -Math.sin(race.worldYaw);
+          const deltaX = race.worldX - botX;
+          const deltaZ = race.worldZ - botZ;
+          const axes = [
+            [playerForwardX, playerForwardZ],
+            [playerSideX, playerSideZ],
+            [botForwardX, botForwardZ],
+            [botSideX, botSideZ],
+          ];
+          let minimumOverlap = Number.POSITIVE_INFINITY;
+          let collisionNormalX = 0;
+          let collisionNormalZ = 0;
+          let colliding = true;
+          for (const [axisX, axisZ] of axes) {
+            const playerRadius = 1.52 * Math.abs(axisX * playerForwardX + axisZ * playerForwardZ)
+              + 0.89 * Math.abs(axisX * playerSideX + axisZ * playerSideZ);
+            const botRadius = 1.34 * Math.abs(axisX * botForwardX + axisZ * botForwardZ)
+              + 0.78 * Math.abs(axisX * botSideX + axisZ * botSideZ);
+            const separation = deltaX * axisX + deltaZ * axisZ;
+            const overlap = playerRadius + botRadius - Math.abs(separation);
+            if (overlap <= 0) {
+              colliding = false;
+              break;
+            }
+            if (overlap < minimumOverlap) {
+              minimumOverlap = overlap;
+              const direction = separation < 0 ? -1 : 1;
+              collisionNormalX = axisX * direction;
+              collisionNormalZ = axisZ * direction;
+            }
+          }
+          if (colliding) {
+            // Separate the complete car footprints instead of allowing their
+            // noses/doors to occupy the same space. The small margin prevents
+            // the same contact from being re-detected due to floating-point noise.
+            race.worldX += collisionNormalX * (minimumOverlap + 0.035);
+            race.worldZ += collisionNormalZ * (minimumOverlap + 0.035);
+
+            const botVelocityX = botForwardX * race.botSpeed;
+            const botVelocityZ = botForwardZ * race.botSpeed;
+            const relativeX = race.velocityX - botVelocityX;
+            const relativeZ = race.velocityZ - botVelocityZ;
+            const closingSpeed = relativeX * collisionNormalX + relativeZ * collisionNormalZ;
+            if (closingSpeed < 0) {
+              // Low restitution gives a believable thud, while retaining enough
+              // tangential momentum for a recoverable sideswipe or glancing hit.
+              const impulse = closingSpeed * 1.12;
+              race.velocityX -= collisionNormalX * impulse;
+              race.velocityZ -= collisionNormalZ * impulse;
+              const tangentX = -collisionNormalZ;
+              const tangentZ = collisionNormalX;
+              const tangentialSpeed = race.velocityX * tangentX + race.velocityZ * tangentZ;
+              race.velocityX -= tangentX * tangentialSpeed * 0.045;
+              race.velocityZ -= tangentZ * tangentialSpeed * 0.045;
+              race.speed *= 0.84;
+            } else {
+              // A car pressed against Kago can still reverse or steer away.
+              race.velocityX *= 0.985;
+              race.velocityZ *= 0.985;
+            }
+
+            const impactKmh = Math.max(0, -closingSpeed) * 3.6 / 0.28;
+            if (impactKmh > 18 && now - race.lastImpactAt > 220) {
+              race.lastImpactAt = now;
+              race.damage = Math.min(99, clamp(race.damage + (impactKmh - 18) * (impactKmh > 75 ? 0.34 : 0.14), 0, 100));
+              notify(impactKmh > 75 ? "Heavy contact with Kago · speed lost" : "Kago contact · cars separated", impactKmh > 75 ? "error" : "info");
+            }
+            race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, 290);
+          }
+        }
+
         race.offTrack = distanceFromCentre > 7.2 ? race.offTrack + dt : Math.max(0, race.offTrack - dt * 1.5);
         if (distanceFromCentre > 7.2 || race.offTrack > 0.5) race.lapInvalid = true;
         race.lateral = signedOffset;
