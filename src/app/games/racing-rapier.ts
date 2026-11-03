@@ -318,10 +318,16 @@ export class RapierRacePhysics {
   }
 
   private readYaw(rotation: { x: number; y: number; z: number; w: number }): number {
-    return Math.atan2(
+    // The rigid body is deliberately rotated +90° because Rapier's vehicle
+    // controller drives along local +X while the game car faces local -Z.
+    // Convert the physical body heading back to the game's visual/world heading
+    // before using it for rendering, AI steering, speed and collision feedback.
+    const bodyYaw = Math.atan2(
       2 * (rotation.w * rotation.y + rotation.x * rotation.z),
       1 - 2 * (rotation.y * rotation.y + rotation.z * rotation.z),
     );
+    const gameYaw = bodyYaw - Math.PI / 2;
+    return Math.atan2(Math.sin(gameYaw), Math.cos(gameYaw));
   }
 
   dispose(): void {
