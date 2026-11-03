@@ -119,14 +119,15 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
+    const mobileViewport = window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
     let renderer: THREE.WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+      renderer = new THREE.WebGLRenderer({ antialias: !mobileViewport, alpha: false, powerPreference: "high-performance" });
     } catch {
       host.dataset.webgl = "unavailable";
       return;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobileViewport ? 1.2 : 1.6));
     renderer.setSize(host.clientWidth || 800, host.clientHeight || 480, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -145,7 +146,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     const sun = new THREE.DirectionalLight("#fff0d3", 3.1);
     sun.position.set(-45, 80, -25);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.mapSize.set(mobileViewport ? 512 : 1024, mobileViewport ? 512 : 1024);
     sun.shadow.camera.left = -65; sun.shadow.camera.right = 65; sun.shadow.camera.top = 85; sun.shadow.camera.bottom = -85;
     scene.add(sun);
 
