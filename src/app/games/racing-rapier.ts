@@ -317,6 +317,8 @@ export class RapierRacePhysics {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.world.removeVehicleController(this.player.controller);
+    this.world.removeVehicleController(this.rival.controller);
     this.world.free();
   }
 }
