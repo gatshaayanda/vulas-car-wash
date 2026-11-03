@@ -340,7 +340,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const controls = controlsRef.current;
       const currentPhase = phaseRef.current;
       // Render the independent world-space vehicle state; track geometry is not a movement rail.
-      const carWorld = new THREE.Vector3(race.worldX, .015, race.worldZ);
+      const carWorld = new THREE.Vector3(race.worldX, race.worldY, race.worldZ);
       // Keep the chase camera aligned to the car's nose. The sideways travel
       // remains visible around the chassis instead of rotating the whole view.
       const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
@@ -350,9 +350,11 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const botPoint = track.getPointAt(botT);
       const botTangent = track.getTangentAt(botT).normalize();
       const botSide = new THREE.Vector3(-botTangent.z, 0, botTangent.x).normalize();
-      const botWorld = botPoint.clone().addScaledVector(botSide, -2.45 + race.botLateral);
-      botCar.position.set(botWorld.x, .015, botWorld.z);
-      botCar.rotation.y = Math.atan2(-botTangent.x, -botTangent.z) + race.botYawOffset;
+      const botWorld = race.botWorldX !== null && race.botWorldZ !== null
+        ? new THREE.Vector3(race.botWorldX, race.botWorldY ?? .015, race.botWorldZ)
+        : botPoint.clone().addScaledVector(botSide, -2.45 + race.botLateral);
+      botCar.position.copy(botWorld);
+      botCar.rotation.y = race.botWorldYaw ?? (Math.atan2(-botTangent.x, -botTangent.z) + race.botYawOffset);
       botCar.rotation.z = clamp(-race.botDrift * Math.sign(race.botYawOffset || 1) * .12, -.14, .14);
       botCar.rotation.x = clamp((race.botBoosting ? -.035 : 0) + race.botDamage * .00012, -.05, .035);
       nameTag.position.set(botWorld.x, 3.0, botWorld.z);
