@@ -207,8 +207,9 @@ export class RapierRacePhysics {
     const currentYaw = this.readYaw(this.rival.body.rotation());
     const targetYaw = Math.atan2(-(lookAhead.x - point.x), -(lookAhead.z - point.z));
     const steeringError = Math.atan2(Math.sin(targetYaw - currentYaw), Math.cos(targetYaw - currentYaw));
-    const steer = clamp(-steeringError * 1.8, -1, 1);
-    const turn = Math.abs(Math.atan2(tangent.x, tangent.z) - Math.atan2(lookAhead.x - point.x, lookAhead.z - point.z));
+    const steer = clamp(steeringError * 1.8, -1, 1);
+    const pathYaw = Math.atan2(-tangent.x, -tangent.z);
+    const turn = Math.abs(Math.atan2(Math.sin(targetYaw - pathYaw), Math.cos(targetYaw - pathYaw)));
     const targetSpeed = difficulty === "Easy" ? 12.5 : difficulty === "Hard" ? 19.2 : 16.1;
     const speed = this.rival.controller.currentVehicleSpeed();
     const throttle = speed < targetSpeed - turn * 10 ? 1 : 0.35;
