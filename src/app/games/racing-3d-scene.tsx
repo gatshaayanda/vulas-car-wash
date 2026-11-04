@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { createRacingTrack, getTrackTurn } from "./racing-track";
 import type { Controls, Phase, Race } from "./racing-warmup";
+import RacingTrackMap from "./racing-track-map";
 
 type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase> };
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -189,7 +190,6 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     const redKerb = new THREE.MeshStandardMaterial({ color: "#d7473d", roughness: .75, side: THREE.DoubleSide });
     const barrierMat = new THREE.MeshStandardMaterial({ color: "#dce2df", roughness: .65 });
     const darkBarrier = new THREE.MeshStandardMaterial({ color: "#283b43", roughness: .75 });
-    const dashMat = new THREE.MeshStandardMaterial({ color: "#f5f1dd", roughness: .6, emissive: "#3e433c", emissiveIntensity: .18 });
     scene.add(new THREE.Mesh(ribbon(track, 15, 600, -.005), kerb));
     // Alternating red/ivory kerb blocks add visual rhythm at both road edges.
     for (let i = 0; i < 150; i++) {
@@ -203,14 +203,6 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
         block.receiveShadow = true; scene.add(block);
       }
     }
-    // Broken centre guide dashes and distant corner markers.
-    for (let i = 0; i < 100; i++) {
-      const p = track.getPointAt(i / 100);
-      const dash = new THREE.Mesh(new THREE.BoxGeometry(.12, .025, 1.15), dashMat);
-      dash.position.set(p.x, .045, p.z); dash.rotation.y = Math.atan2(track.getTangentAt(i / 100).x, track.getTangentAt(i / 100).z);
-      scene.add(dash);
-    }
-
     // A layered low-poly horizon makes the track feel like a place, not a flat canvas.
     const hillMat = new THREE.MeshStandardMaterial({ color: "#7e9a82", roughness: 1, flatShading: true });
     for (let i = 0; i < 24; i++) {
@@ -504,5 +496,9 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     };
   }, [raceRef, controlsRef, phaseRef]);
 
-  return <div ref={mountRef} className="racing-3d-root" data-phase={phaseRef.current} data-braking={controlsRef.current.brake ? "true" : "false"} />;
+  return (
+    <div ref={mountRef} className="racing-3d-root" data-phase={phaseRef.current} data-braking={controlsRef.current.brake ? "true" : "false"}>
+      <RacingTrackMap raceRef={raceRef} />
+    </div>
+  );
 }
