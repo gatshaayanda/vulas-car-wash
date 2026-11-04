@@ -26,7 +26,8 @@ const readData = (): LocalData => {
 const writeData = (data: LocalData) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); return true; } catch { return false; } };
 const time = (value: number | null) => value === null || !Number.isFinite(value) ? "—" : `${Math.floor(value / 60)}:${(value % 60).toFixed(2).padStart(5, "0")}`;
 
-export default function RacingMainMenu() {
+export default function RacingMainMenu({ embedded = false }: { embedded?: boolean }) {
+  const Root = embedded ? "section" : "main";
   const [data, setData] = useState<LocalData>(emptyData);
   const [view, setView] = useState<"home" | "slots" | "scores">("home");
   const [session, setSession] = useState(false);
@@ -54,8 +55,8 @@ export default function RacingMainMenu() {
     commit(next);
   };
   const completeRace = (result: RaceResult) => { commit({ ...data, scores: [result, ...data.scores.filter(item => item.id !== result.id)].slice(0, 100) }); };
-  if (session) return <main className="racing-menu-game"><div className="racing-menu-gamebar"><button type="button" onClick={() => setSession(false)}>← Racing menu</button><span>QUICK RACE · KAGO OFFLINE AI</span></div><RacingWarmup initialSave={activeSlot?.state ?? null} onSave={saveGame} onComplete={completeRace} onExit={() => setSession(false)} /></main>;
-  return <main className="racing-main-menu">
+  if (session) return <Root className={`racing-menu-game${embedded ? " racing-menu-game-embedded" : ""}`}><div className="racing-menu-gamebar"><button type="button" onClick={() => setSession(false)}>← Racing menu</button><span>QUICK RACE · KAGO OFFLINE AI</span></div><RacingWarmup initialSave={activeSlot?.state ?? null} onSave={saveGame} onComplete={completeRace} onExit={() => setSession(false)} /></Root>;
+  return <Root className={`racing-main-menu${embedded ? " racing-main-menu-embedded" : ""}`}>
     <div className="racing-menu-topline"><Link href="/" className="racing-menu-brand"><span className="racing-menu-mark">V</span><span>VULA RACING<small>CAR WASH · MOTORSPORT</small></span></Link><span className="racing-menu-status"><i /> DEVICE-LOCAL PLAY</span></div>
     <section className="racing-menu-hero"><div className="racing-menu-copy"><p className="racing-menu-kicker">THE CIRCUIT IS YOURS</p><h1>Race your<br/><em>own line.</em></h1><p className="racing-menu-lede">Start a quick race against Kago, save your session and chase your best result.</p><div className="racing-menu-meta"><span>3D <b>CIRCUIT</b></span><span>OFFLINE <b>READY</b></span><span>KAGO <b>AI RIVAL</b></span></div></div><div className="racing-menu-art" aria-label="Racing circuit illustration"><div className="racing-menu-art-glow"/><div className="racing-menu-track"><span/><span/><span/></div><div className="racing-menu-car"><i/><i/><b/></div><div className="racing-menu-art-label"><strong>V / R</strong><small>GABORONE<br/>RACING SERIES</small></div></div></section>
     <section className="racing-menu-sessions"><div className="racing-menu-sectionhead"><div><p className="racing-menu-kicker">YOUR RACING DESK</p><h2>Ready when you are.</h2></div><span>QUICK RACE</span></div>
@@ -66,5 +67,5 @@ export default function RacingMainMenu() {
     </section>
     <section className="racing-menu-next"><div><p className="racing-menu-kicker">LOCAL RACING</p><h2>Your races. Your records.</h2><p>Saved sessions and completed results stay on this device and remain available offline. They are not shared or server-verified.</p></div><div className="racing-menu-roadmap"><span><b>{data.slots.length}</b> Save slots <small>ON THIS DEVICE</small></span><span><b>{data.scores.length}</b> Completed races <small>LOCAL RECORDS</small></span></div></section>
     <footer className="racing-menu-footer"><span>VULA RACING</span><span>BUILT TO DRIVE · DESIGNED TO COMPETE</span><Link href="/">Back to Vula&apos;s Car Wash ↗</Link></footer>
-  </main>;
+  </Root>;
 }
