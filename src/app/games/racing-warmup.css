@@ -403,3 +403,31 @@
 .warmup-circuit-hud>div:last-child strong{font-size:17px}
 .warmup-circuit-hud>div:last-child strong small{display:block;font-size:9px}
 @media(max-width:640px){.warmup-opponent-menu{gap:8px;padding:10px}.warmup-opponent-menu strong{font-size:14px}.warmup-opponent-menu small{font-size:9px}.warmup-opponent-menu label{min-width:94px}.warmup-circuit-hud{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* Compact live circuit map: secondary to the road view, sized for phone and desktop. */
+.racing-track-map{
+  position:absolute;z-index:5;top:12px;right:12px;width:132px;aspect-ratio:1/1.13;
+  display:flex;flex-direction:column;align-items:stretch;gap:3px;padding:7px;
+  border:1px solid #ffffff55;border-radius:12px;background:#10251fdc;
+  box-shadow:0 5px 18px #07140e35;backdrop-filter:blur(8px);
+  pointer-events:none;color:#f5f8ef;
+}
+.racing-track-map-heading{font-size:8px;line-height:1.2;font-weight:900;letter-spacing:.14em;text-align:center;color:#dbe9d6}
+.racing-track-map svg{display:block;width:100%;min-height:0;flex:1;overflow:visible}
+.racing-track-map-road-edge{fill:none;stroke:#0b1513;stroke-width:22;stroke-linecap:round;stroke-linejoin:round}
+.racing-track-map-road{fill:none;stroke:#8d9991;stroke-width:15;stroke-linecap:round;stroke-linejoin:round}
+.racing-track-map-road-centre{fill:none;stroke:#d7ddd4;stroke-width:1.2;stroke-dasharray:3 5;opacity:.55}
+.racing-track-map-start{fill:#fff7dc;stroke:#172820;stroke-width:1.5}
+.racing-track-map-player{fill:#58dcff;stroke:#062a37;stroke-width:2.5;filter:drop-shadow(0 0 3px #58dcff)}
+.racing-track-map-rival{fill:#ffd45c;stroke:#3c2a04;stroke-width:2.5;filter:drop-shadow(0 0 3px #ffd45c)}
+.racing-track-map-legend{display:flex;justify-content:center;gap:10px;font-size:7px;font-weight:900;letter-spacing:.08em}
+.racing-track-map-legend span{display:inline-flex;align-items:center;gap:4px}
+.racing-track-map-legend i{display:block;width:6px;height:6px;border-radius:50%}
+.racing-track-map-legend .player-dot{background:#58dcff}
+.racing-track-map-legend .rival-dot{background:#ffd45c}
+@media(max-width:640px){
+  .racing-track-map{top:8px;right:8px;width:104px;padding:6px;border-radius:10px;gap:2px}
+  .racing-track-map-heading{font-size:7px}
+  .racing-track-map-legend{font-size:6px;gap:7px}
+}
