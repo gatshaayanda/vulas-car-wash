@@ -461,9 +461,11 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.botBrake += (botBrakeTarget - race.botBrake) * (1 - Math.exp(-dt * (botBrakeTarget ? 7.5 : 4.5)));
         const botOnStraight = cornerDemand < .16;
         const botNeedsPace = race.botSpeed < botTargetSpeed * .97;
-        const botUseNos = race.botNos > 8 && botOnStraight && (botLevel === "Hard"
-          ? playerNear || botNeedsPace || playerAhead
-          : (playerNear || playerAhead) && botNeedsPace);
+        const botUseNos = race.botNos > 8 && botOnStraight && (botLevel === "Easy"
+          ? playerNear || botNeedsPace
+          : botLevel === "Normal"
+            ? (playerNear || playerAhead) && botNeedsPace
+            : playerNear || botNeedsPace || playerAhead);
         race.botBoostActive = botUseNos;
         race.botNos = botUseNos ? Math.max(0, race.botNos - (botLevel === "Hard" ? 28 : botLevel === "Normal" ? 25 : 24) * dt) : Math.min(100, race.botNos + (botLevel === "Hard" ? 5 : 7) * dt);
         const botForwardX = -Math.sin(race.botWorldYaw), botForwardZ = -Math.cos(race.botWorldYaw);
@@ -478,7 +480,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // Keep the bot's own throttle, brake, NOS reserve and speed cap independent.
         const botDrive = race.botThrottle * 20 + (botUseNos ? 20 : 0);
         const botDrag = botLongitudinal * (.24 + Math.abs(botLongitudinal) * .009);
-        const nextBotLongitudinal = clamp(botLongitudinal + (botDrive - race.botBrake * 13.5 - botDrag) * dt, 0, botTargetSpeed * (botUseNos ? (botLevel === "Hard" ? 1.12 : 1.10) : 1.0));
+        const nosSpeedMultiplier = botLevel === "Easy" ? 1.08 : botLevel === "Normal" ? 1.10 : 1.12;
+        const nextBotLongitudinal = clamp(botLongitudinal + (botDrive - race.botBrake * 13.5 - botDrag) * dt, 0, botTargetSpeed * (botUseNos ? nosSpeedMultiplier : 1.0));
         const botLongAccel = dt > 0 ? (nextBotLongitudinal - botLongitudinal) / dt : 0;
         const botLateralAccel = clamp(-botYawRate * botLongitudinal - botLateral * (cornerDemand > .7 ? .58 : 1.35), -7.2, 7.2);
         race.botVelocityX += (botForwardX * botLongAccel + botSideX * botLateralAccel) * dt;
