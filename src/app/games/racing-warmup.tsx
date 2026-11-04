@@ -412,7 +412,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // through the player's established 0.28-units-per-metre conversion.
         // Easy preserves the current enjoyable competitive setup; Normal and Hard
         // step up pace and racecraft without changing any player-car physics.
-        const botTargetSpeed = botLevel === "Easy" ? 19.0 : botLevel === "Normal" ? 19.8 : 20.6;
+        const botTargetSpeed = botLevel === "Easy" ? 21.5 : botLevel === "Normal" ? 23.5 : 25.5;
         const botAggression = botLevel === "Easy" ? .86 : botLevel === "Normal" ? .94 : 1.0;
         const botCurrentT = wrap(race.botProgress, 1);
         const botTurn = getTrackTurn(botTrack, botCurrentT, .006);
