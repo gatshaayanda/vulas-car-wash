@@ -410,7 +410,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const botLevel = botDifficultyRef.current;
         // Player speed is capped at 230 km/h, which maps to 17.89 world-units/sec
         // through the player's established 0.28-units-per-metre conversion.
-        // Easy is ~7% slower, Normal matches, and Hard is ~5% faster.
+        // Competitive calibration: Easy is slightly slower, Normal matches the player's cap, and Hard is slightly faster.
         const botTargetSpeed = botLevel === "Easy" ? 17.15 : botLevel === "Hard" ? 19.0 : 18.0;
         const botAggression = botLevel === "Easy" ? .18 : botLevel === "Hard" ? .86 : .52;
         const botCurrentT = wrap(race.botProgress, 1);
