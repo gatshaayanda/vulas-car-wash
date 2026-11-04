@@ -43,10 +43,10 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 
 ## Protected Vula Racing golden baseline
 
-- **Only current approved golden baseline:** commit `2cbf7c1b8280094cb62d0854a8e4d3d2458a6ec9`, reference branch `golden-baseline/ai-race-2026-11-03`.
-- This is the authoritative rollback and development foundation for Vula Racing. Do not substitute an earlier checkpoint, implementation, or superseded reference. Do not bring obsolete baseline identifiers, branch names, or deployment claims back into current instructions, code comments, docs, or handoffs.
+- **Only current approved golden baseline:** commit `951e3af260f14e0fe647a8715bbe4328c210c349`, protected reference branch `golden-baseline/kago-racing-2026-11-04`. This is the version the product owner approved on 4 November 2026. All improvements must move forward from it.
+- This is the sole authoritative rollback and development foundation for Vula Racing. Never substitute an older checkpoint or superseded implementation. If the product owner asks to go back, restore this exact baseline. Do not bring up obsolete versions, baseline identifiers, branch names, or historical deployment claims in discussion, code comments, docs, or handoffs.
 - Never move, delete, rewrite or force-push the approved golden reference branch. Develop forward from this exact approved baseline on a working branch. If a feature regresses, restore this exact approved commit.
-- The approved baseline includes the initial independent Kago AI implementation and its known limitations. Do not describe the bot as race-ready merely because independent state exists; it must accelerate to advertised pace, take corners convincingly, contest position and recover reliably in actual play.
+- The approved baseline includes Kago's independent world-space vehicle state, steering, throttle, braking, line selection, NOS and collision response. Its known outstanding defect is competitive pace: adequate engine force alone does not prove that Kago holds speed through corners or contests the player. Do not describe him as race-ready until full-lap gameplay QA proves it.
 - Preserve the approved player vehicle physics, steering, acceleration, braking, reverse, drift, NOS, camera, controls, car presentation, track geometry, barriers, collision response, PWA behavior, Race Control save menus and online persistence.
 - Never reduce or rewrite player physics to compensate for bot tuning. Tune the bot's own acceleration, braking, steering, grip, speed control, racecraft and effects independently.
 - Do not mix unrelated player-driving refactors with AI work. Keep changes isolated, additive and independently QA-able.
@@ -59,9 +59,9 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 ### Homepage Quick Break — current opponent
 - The customer-facing experience is the **VULA RACING · QUICK BREAK** card on the homepage, with “Take a quick lap” and “Play now”. It is rendered by `src/app/games/racing-warmup.tsx` inside `src/app/page.tsx`; its 3D scene is `src/app/games/racing-3d-scene.tsx`, track construction is `src/app/games/racing-track.ts`, and styles are `src/app/games/racing-warmup.css`.
 - All Quick Break bot work belongs in this flow. Do not substitute Racing Garage or `/games/career`.
-- Kago currently follows the circuit spline at a pace target. His rendered position and heading are derived from that spline. He is not yet an independently controlled driver.
+- Kago moves using his own world-space velocity and chassis yaw. The circuit spline is a navigation, look-ahead, track-awareness and lap-progress reference only; it must never directly move his car.
 - Kago's visible car scale and oriented collision footprint match the player (0.82 render scale and 1.52 × 0.89 half-extents). Easy / Normal / Hard target 16.65 / 17.9 / 18.8 world-units/second on the player's speed scale (Easy ~7% slower, Normal approximately equal, Hard ~5% faster before NOS). Acceleration/braking are calibrated closer to the player's force scale. Relative world-position sensing now drives smoothly blended passing/defensive lines, and corner confidence varies by difficulty.
-- The player and Kago currently use different movement representations: the player integrates world-space velocity and chassis yaw, while Kago advances a scalar spline progress value. Do not compare the displayed player km/h directly with Kago's spline pace as if they were the same telemetry unit.
+- The player and Kago both integrate world-space vehicle motion independently. Keep their physics separate. Compare measured lap pace and world-space speed, not a fabricated spline-speed equivalence.
 
 ### Protected development sequence
 1. **Collision feedback and reciprocal contact:** add a short, pooled spark burst at the real chassis contact point and a restrained, mass-aware impulse to Kago. Preserve the current collision solver and player feel. Sparks must occur only on actual contact, with intensity based on relative impact speed; avoid continuous sparks from resting overlap.
