@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { RACING_TRACK_POINTS } from "./racing-track";
+import { useEffect, useRef, type RefObject } from "react";
+import { createRacingTrack, RACING_TRACK_POINTS } from "./racing-track";
 import type { Race } from "./racing-warmup";
 
-type Props = { raceRef: React.RefObject<Race> };
+type Props = { raceRef: RefObject<Race> };
 
 const mapX = (x: number) => 100 + x * 1.65;
 const mapY = (z: number) => 100 + z * 1.08;
-const trackPath = RACING_TRACK_POINTS
-  .map(([x, , z]) => `${mapX(x).toFixed(1)},${mapY(z).toFixed(1)}`)
-  .join(" ");
+const mapTrack = createRacingTrack();
+const sampledTrack = Array.from({ length: 120 }, (_, index) => {
+  const point = mapTrack.getPointAt(index / 120);
+  return `${mapX(point.x).toFixed(1)},${mapY(point.z).toFixed(1)}`;
+});
+const trackPath = [...sampledTrack, sampledTrack[0]].join(" ");
 
 export default function RacingTrackMap({ raceRef }: Props) {
   const playerMarker = useRef<SVGCircleElement>(null);
