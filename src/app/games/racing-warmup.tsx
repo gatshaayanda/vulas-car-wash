@@ -410,8 +410,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const botLevel = botDifficultyRef.current;
         // Player speed is capped at 230 km/h, which maps to 17.89 world-units/sec
         // through the player's established 0.28-units-per-metre conversion.
-        // Competitive calibration: Easy is slightly slower, Normal matches the player's cap, and Hard is slightly faster.
-        // Easy inherits the current enjoyable competitive setup; Normal and Hard
+        // Easy preserves the current enjoyable competitive setup; Normal and Hard
         // step up pace and racecraft without changing any player-car physics.
         const botTargetSpeed = botLevel === "Easy" ? 19.0 : botLevel === "Normal" ? 19.8 : 20.6;
         const botAggression = botLevel === "Easy" ? .86 : botLevel === "Normal" ? .94 : 1.0;
@@ -430,7 +429,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // Choose a passing lane opposite the car ahead, or defend the side occupied
         // by a close challenger. Blend lane changes to avoid snapping the chassis.
         let desiredOffset = -2.45;
-        if (playerNear && botLevel !== "Easy") {
+        if (playerNear) {
           if (playerAhead) desiredOffset = playerLateral >= 0
             ? (botAggression > .7 ? -3.05 : -2.75)
             : (botAggression > .7 ? 3.05 : 2.75);
