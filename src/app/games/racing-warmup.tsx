@@ -153,7 +153,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         const engineAcceleration = 42 * race.throttle + exitBonus;
         const aerodynamicDrag = race.speed * (0.055 + speedRatio * 0.025);
         const boostAcceleration = boost ? 52 : 0;
-        race.speed = clamp(race.speed + (engineAcceleration + boostAcceleration - aerodynamicDrag - brakeDeceleration) * dt, 0, boost ? 290 : 230);
+        race.speed = clamp(race.speed + (engineAcceleration + boostAcceleration - aerodynamicDrag - brakeDeceleration) * dt, 0, boost ? 290 : 245);
         race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
         if (race.nos <= 0 && controls.boost) { controls.boost = false; setBoostActive(false); }
 
@@ -228,7 +228,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // velocity from a freshly rotated chassis basis (which suppresses drifting).
         race.velocityX += (forwardX * longitudinalAccel + lateralX * lateralAccel) * dt;
         race.velocityZ += (forwardZ * longitudinalAccel + lateralZ * lateralAccel) * dt;
-        const maxWorldSpeed = (boost ? 290 : 230) * 0.28 / 3.6;
+        const maxWorldSpeed = (boost ? 290 : 245) * 0.28 / 3.6;
         const worldSpeed = Math.hypot(race.velocityX, race.velocityZ);
         if (worldSpeed > maxWorldSpeed) {
           const speedScale = maxWorldSpeed / worldSpeed;
@@ -292,7 +292,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             break;
           }
         }
-        race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 290 : 230);
+        race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 290 : 245);
         const finalForwardX = -Math.sin(race.worldYaw);
         const finalForwardZ = -Math.cos(race.worldYaw);
         const finalLateralX = Math.cos(race.worldYaw);
@@ -412,11 +412,11 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           race.botInitialized = true;
         }
         const botLevel = botDifficultyRef.current;
-        // Player speed is capped at 230 km/h, which maps to 17.89 world-units/sec
+        // Player speed is capped at 245 km/h, which maps to 19.06 world-units/sec
         // through the player's established 0.28-units-per-metre conversion.
         // Easy preserves the current enjoyable competitive setup; Normal and Hard
         // step up pace and racecraft without changing any player-car physics.
-        const botTargetSpeed = botLevel === "Easy" ? 21.5 : botLevel === "Normal" ? 23.5 : 25.5;
+        const botTargetSpeed = 24.67; // Easy, Normal and Hard share the 317 km/h baseline.
         const botAggression = botLevel === "Easy" ? .86 : botLevel === "Normal" ? .94 : 1.0;
         const botCurrentT = wrap(race.botProgress, 1);
         const botTurn = getTrackTurn(botTrack, botCurrentT, .006);
