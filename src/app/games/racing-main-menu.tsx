@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import RacingWarmup, { type Race } from "./racing-warmup";
+import RacingWarmup, { newRace, type Controls, type Phase, type Race } from "./racing-warmup";
+import Racing3DScene from "./racing-3d-scene";
 import "./racing-main-menu.css";
 
 type Difficulty = "Easy" | "Normal" | "Hard";
@@ -25,6 +26,13 @@ const readData = (): LocalData => {
 };
 const writeData = (data: LocalData) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); return true; } catch { return false; } };
 const time = (value: number | null) => value === null || !Number.isFinite(value) ? "—" : `${Math.floor(value / 60)}:${(value % 60).toFixed(2).padStart(5, "0")}`;
+
+function RacingMenuPreview() {
+  const raceRef = useRef<Race>(newRace());
+  const controlsRef = useRef<Controls>({ steer: 0, accelerate: false, brake: false, boost: false });
+  const phaseRef = useRef<Phase>("running");
+  return <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} preview />;
+}
 
 export default function RacingMainMenu({ embedded = false }: { embedded?: boolean }) {
   const Root = embedded ? "section" : "main";
@@ -62,7 +70,7 @@ export default function RacingMainMenu({ embedded = false }: { embedded?: boolea
       <div className="racing-menu-copy"><p className="racing-menu-kicker">01 / QUICK RACE</p><h1>TAKE<br/><em>THE LINE.</em></h1><p className="racing-menu-lede">One circuit. One rival. Your best lap.</p>
         <div className="racing-menu-rival"><span className="racing-menu-rival-mark">K</span><span><small>YOUR RIVAL</small><strong>KAGO</strong></span><span className="racing-menu-rival-level">OFFLINE AI</span></div>
       </div>
-      <div className="racing-menu-art" aria-label="Vula Racing circuit preview"><div className="racing-menu-art-grid"/><div className="racing-menu-art-track"><span className="racing-menu-apex"/> <span className="racing-menu-startline"/></div><div className="racing-menu-art-caption"><b>V / R</b><span>RACING<br/>SERIES</span></div><div className="racing-menu-art-index">CIRCUIT 01 <i/> BOTSWANA</div></div>
+      <div className="racing-menu-art" aria-label="Live view of the actual Vula Racing 3D circuit"><RacingMenuPreview/><div className="racing-menu-art-caption"><b>LIVE</b><span>IN-GAME<br/>RACE VIEW</span></div><div className="racing-menu-art-index">VULA CIRCUIT <i/> KAGO ON TRACK</div></div>
     </section>
     <section className="racing-menu-sessions"><div className="racing-menu-sectionhead"><div><p className="racing-menu-kicker">RACE CONTROL</p><h2>Get on track.</h2></div><span>LOCAL SAVE</span></div>
       <div className="racing-menu-actions"><button type="button" onClick={newGame}>New Game <span>↗</span></button><button type="button" onClick={continueGame}>Continue <span>→</span></button><button type="button" onClick={() => setView("slots")}>Load Game <span>⌄</span></button><button type="button" onClick={() => setView("scores")}>High Scores <span>↗</span></button></div>
