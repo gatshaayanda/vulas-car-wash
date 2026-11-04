@@ -48,6 +48,6 @@ export default function RacingMainMenu() {
       <div><p className="racing-menu-kicker">COMING THROUGH THE GARAGE</p><h2>More ways to compete.</h2><p>The next build separates solo racing from VS Bot, then adds saved game slots and completed race records. Online racing will follow only after local sessions and persistence are proven.</p></div>
       <div className="racing-menu-roadmap"><span><b>02</b> Solo / VS Bot setup <small>UP NEXT</small></span><span><b>03</b> Save & continue <small>UP NEXT</small></span><span><b>04</b> Race records <small>UP NEXT</small></span><span><b>05</b> Online race <small>FUTURE</small></span></div>
     </section>
-    <footer className="racing-menu-footer"><span>VULA RACING</span><span>BUILT TO DRIVE · DESIGNED TO COMPETE</span><Link href="/">Back to Vula's Car Wash ↗</Link></footer>
+    <footer className="racing-menu-footer"><span>VULA RACING</span><span>BUILT TO DRIVE · DESIGNED TO COMPETE</span><Link href="/">Back to Vula&apos;s Car Wash ↗</Link></footer>
   </main>;
 }
