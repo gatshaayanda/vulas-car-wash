@@ -5,11 +5,10 @@ import Link from "next/link";
 import RacingWarmup from "./racing-warmup";
 import "./racing-main-menu.css";
 
-type Session = "warmup" | "bot" | null;
+type Session = "bot" | null;
 
 const options = [
-  { eyebrow: "PRACTICE", title: "Quick warm-up", description: "Get straight onto the circuit. Build confidence, learn the corners and sharpen your lap.", action: "Start warm-up", kind: "warmup" as const, tag: "READY TO PLAY" },
-  { eyebrow: "RACE DAY", title: "VS Kago", description: "Take on Kago's current offline AI in the 3D circuit. Choose Easy, Normal or Hard before the lights go out.", action: "Race Kago", kind: "bot" as const, tag: "OFFLINE BOT" },
+  { eyebrow: "PRACTICE / RACE", title: "Quick warm-up with Kago", description: "Launch the current 3D circuit session. Kago is on track as the offline rival; choose Easy, Normal or Hard in the session controls.", action: "Get on track", kind: "bot" as const, tag: "READY TO PLAY" },
 ];
 
 export default function RacingMainMenu() {
@@ -17,7 +16,7 @@ export default function RacingMainMenu() {
   if (session) return <main className="racing-menu-game">
     <div className="racing-menu-gamebar">
       <button type="button" onClick={() => setSession(null)}>← Racing menu</button>
-      <span>{session === "bot" ? "VS KAGO · OFFLINE" : "QUICK WARM-UP"}</span>
+      <span>QUICK WARM-UP · KAGO OFFLINE AI</span>
     </div>
     <RacingWarmup />
   </main>;
@@ -38,7 +37,7 @@ export default function RacingMainMenu() {
       </div>
     </section>
     <section className="racing-menu-sessions">
-      <div className="racing-menu-sectionhead"><div><p className="racing-menu-kicker">CHOOSE YOUR SESSION</p><h2>Get on the grid.</h2></div><span>01 — 02 / AVAILABLE</span></div>
+      <div className="racing-menu-sectionhead"><div><p className="racing-menu-kicker">CHOOSE YOUR SESSION</p><h2>Get on the grid.</h2></div><span>01 / AVAILABLE</span></div>
       <div className="racing-menu-cards">{options.map((item,index)=><article className="racing-menu-card" key={item.kind}>
         <div className="racing-menu-cardtop"><span>0{index+1} / {item.eyebrow}</span><b>{item.tag}</b></div>
         <h3>{item.title}</h3><p>{item.description}</p>
@@ -46,8 +45,8 @@ export default function RacingMainMenu() {
       </article>)}</div>
     </section>
     <section className="racing-menu-next">
-      <div><p className="racing-menu-kicker">COMING THROUGH THE GARAGE</p><h2>More ways to compete.</h2><p>Solo race sessions, saved game slots and race records are the next build stages. Online racing will follow only after local sessions and persistence are proven.</p></div>
-      <div className="racing-menu-roadmap"><span><b>03</b> Solo race <small>UP NEXT</small></span><span><b>04</b> Save & continue <small>UP NEXT</small></span><span><b>05</b> Online race <small>FUTURE</small></span></div>
+      <div><p className="racing-menu-kicker">COMING THROUGH THE GARAGE</p><h2>More ways to compete.</h2><p>The next build separates solo racing from VS Bot, then adds saved game slots and completed race records. Online racing will follow only after local sessions and persistence are proven.</p></div>
+      <div className="racing-menu-roadmap"><span><b>02</b> Solo / VS Bot setup <small>UP NEXT</small></span><span><b>03</b> Save & continue <small>UP NEXT</small></span><span><b>04</b> Race records <small>UP NEXT</small></span><span><b>05</b> Online race <small>FUTURE</small></span></div>
     </section>
     <footer className="racing-menu-footer"><span>VULA RACING</span><span>BUILT TO DRIVE · DESIGNED TO COMPETE</span><Link href="/">Back to Vula's Car Wash ↗</Link></footer>
   </main>;
