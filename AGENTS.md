@@ -124,3 +124,8 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Do not add pit stops, tyre/fuel strategy, qualifying, divisions, career mode, online multiplayer or unrelated features in this delivery.
 - QA must prove New Game, Continue, Load, Save/restore after refresh, completed race result recording, High Scores persistence and offline behavior on a phone. Report only checks actually run. Product owner handles Vercel deployment unless explicitly delegated.
 
+
+
+## Racing entry point and QA contract
+- The racing menu is the primary game entry point both when embedded in the homepage section `#vula-racing` and on the standalone `/games` route. The homepage must render `RacingMainMenu` (not `RacingWarmup` directly), so New Game, Continue, Load Game and High Scores are visible before Quick Race.
+- Preserve the standalone `/games` entry while keeping the embedded homepage version mobile-first and contained within the Vula landing-page layout. Verify the actual homepage URL after deployment, not only `/games`.
