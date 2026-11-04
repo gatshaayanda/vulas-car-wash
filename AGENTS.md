@@ -113,16 +113,14 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - For this visual task, do not alter vehicle physics, AI tuning, track geometry, barriers, collision handling, camera, driving controls, warm-up flow, save/persistence, PWA/offline behavior or race rules.
 
 
-## Racing main menu and local-session roadmap (approved 4 November 2026)
+## Racing menu, save/load, Quick Race and high scores — immediate approved scope
 
-- The public racing entry point is `/games`. Its main menu is a separate presentation layer; do not embed menu logic into the 3D render loop or rewrite vehicle simulation to support navigation.
-- The first menu delivery exposes the existing 3D Quick Warm-up with Kago's offline AI present as the current rival. Difficulty remains selectable in the existing session UI. Do not present Quick Warm-up and VS Bot as distinct modes until they actually have distinct session behavior, and do not silently substitute the older 2D test prototype for the 3D game.
-- Menu entries for Solo Race, Continue/Load, saved race records and Online Race must be labelled as planned/unavailable until their underlying session, persistence or networking behavior is implemented and tested. Never imply that a disabled/future entry is playable or that a result has been saved when it has not.
-- Follow this implementation sequence: (1) main menu and navigation; (2) distinct solo and VS Bot session configuration using the same 3D race engine; (3) reliable session completion and results (lap times, best lap, elapsed time, position and only telemetry-backed incidents); (4) versioned, validated offline-first save slots and restore; (5) regression QA across refresh, offline launch, pause/resume and mobile controls. Online multiplayer follows only after local sessions and persistence are proven and separately approved.
-- Keep quick warm-up fast to launch. VS Bot uses the current Kago AI with Easy/Normal/Hard selectable and remembers the last chosen setting where appropriate. Do not change the player's physics or the approved Kago tuning as part of menu work.
-- Keep preferences, saved game/progress and completed race records as separate data concerns. Do not repurpose or overwrite existing career saves, server-verified career credits, racer profiles or race sessions. Device-only offline records must never be presented as server-verified rewards or shared leaderboard entries.
-- New Game must create a separate save or request explicit confirmation before replacing an existing slot. Continue must restore only a validated save. Preserve the last known good save if a new write is interrupted or invalid.
-- The initial open-play defaults may be preselected (Normal difficulty and sensible race settings), but show players where settings can be changed. Future career divisions may lock controls, difficulty and rules by division; that is a later feature and must explain each restriction clearly.
-- The in-race menu must genuinely pause simulation and release all held controls before exposing Resume, Restart, session stats, Save/Load or Return to Menu. Do not let a hidden/background tab continue racing.
-- Online Race must remain visibly marked as coming later until a real authoritative multiplayer service, room lifecycle, reconnect behavior and result validation exist. Never add fake matchmaking or simulated online opponents under an online label.
-- For QA handoffs, distinguish what is implemented from roadmap placeholders, report exact commit/PR, and do not claim persistence, solo mode, deployment or test success without direct verification.
+- The current delivery order is fixed: **mobile-first main menu → New Game / Continue / Load Game / Save Game → existing 3D Quick Race with Kago → genuine completed-race results → High Scores**. Deliver this connected flow before adding any other racing feature.
+- Quick Race must have an actual race completion condition and a result event. Capture elapsed race time, valid best lap, difficulty and player finish position from the simulation; do not invent or imply server verification.
+- New Game creates a separate device-local save slot and starts the existing 3D Quick Race. Continue restores the active validated save. Load Game lists saved slots. Save Game is available from a paused state and persists a validated snapshot. Never overwrite a slot silently; preserve the last valid stored value if a write fails.
+- Local save data uses a versioned, validated schema and device storage. High Scores contains only completed results. Clearly label records as device-local/offline, not shared leaderboard entries or rewards.
+- Keep Kago speed targets (Easy 21.5, Normal 23.5, Hard 25.5 world-units/second) and approved 3D player handling untouched. Do not refactor simulation or alter controls to implement menu navigation.
+- Design portrait/mobile first: compact screens, thumb-reachable actions and readable touch targets.
+- Do not add pit stops, tyre/fuel strategy, qualifying, divisions, career mode, online multiplayer or unrelated features in this delivery.
+- QA must prove New Game, Continue, Load, Save/restore after refresh, completed race result recording, High Scores persistence and offline behavior on a phone. Report only checks actually run. Product owner handles Vercel deployment unless explicitly delegated.
+
