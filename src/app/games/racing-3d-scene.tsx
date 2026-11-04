@@ -181,10 +181,6 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       board.rotation.y = Math.atan2(-side.x * outside, -side.z * outside);
       board.traverse((node) => { const mesh = node as THREE.Mesh; mesh.castShadow = true; });
       scene.add(board);
-      // A small amber beacon marks the corner's turn-in reference at track edge.
-      const beacon = new THREE.Mesh(new THREE.SphereGeometry(.22, 10, 8), new THREE.MeshBasicMaterial({ color: "#ffc84a" }));
-      beacon.position.set(cornerPoint.x - side.x * outside * 5.4, .42, cornerPoint.z - side.z * outside * 5.4);
-      scene.add(beacon);
     }
     const kerb = new THREE.MeshStandardMaterial({ color: "#f4eee0", roughness: .8, side: THREE.DoubleSide });
     const redKerb = new THREE.MeshStandardMaterial({ color: "#d7473d", roughness: .75, side: THREE.DoubleSide });
