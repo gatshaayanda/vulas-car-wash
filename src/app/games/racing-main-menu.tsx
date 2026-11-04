@@ -1,53 +1,69 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import RacingWarmup from "./racing-warmup";
+import RacingWarmup, { type Race } from "./racing-warmup";
 import "./racing-main-menu.css";
 
-type Session = "bot" | null;
-
-const options = [
-  { eyebrow: "PRACTICE / RACE", title: "Quick warm-up with Kago", description: "Launch the current 3D circuit session. Kago is on track as the offline rival; choose Easy, Normal or Hard in the session controls.", action: "Get on track", kind: "bot" as const, tag: "READY TO PLAY" },
-];
+type Difficulty = "Easy" | "Normal" | "Hard";
+type LocalRaceSave = { race: Race; difficulty: Difficulty; savedAt: string };
+type RaceResult = { id: string; completedAt: string; difficulty: Difficulty; elapsed: number; bestLap: number | null; position: 1 | 2; laps: number };
+type SaveSlot = { id: string; name: string; createdAt: string; updatedAt: string; state: LocalRaceSave | null };
+type LocalData = { version: 1; activeSlotId: string | null; slots: SaveSlot[]; scores: RaceResult[] };
+const STORAGE_KEY = "vula-racing-local-v1";
+const emptyData: LocalData = { version: 1, activeSlotId: null, slots: [], scores: [] };
+const readData = (): LocalData => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return emptyData;
+    const parsed = JSON.parse(raw) as LocalData;
+    if (parsed?.version !== 1 || !Array.isArray(parsed.slots) || !Array.isArray(parsed.scores)) return emptyData;
+    const slots = parsed.slots.filter(slot => slot && typeof slot.id === "string" && typeof slot.name === "string" && typeof slot.createdAt === "string" && typeof slot.updatedAt === "string" && (slot.state === null || (slot.state && slot.state.race && Number.isFinite(slot.state.race.elapsed) && Number.isFinite(slot.state.race.progress) && ["Easy", "Normal", "Hard"].includes(slot.state.difficulty))));
+    const scores = parsed.scores.filter(score => score && typeof score.id === "string" && Number.isFinite(score.elapsed) && (score.position === 1 || score.position === 2) && (score.bestLap === null || Number.isFinite(score.bestLap))).slice(0, 100);
+    return { version: 1, activeSlotId: typeof parsed.activeSlotId === "string" ? parsed.activeSlotId : null, slots, scores };
+  } catch { return emptyData; }
+};
+const writeData = (data: LocalData) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); return true; } catch { return false; } };
+const time = (value: number | null) => value === null || !Number.isFinite(value) ? "—" : `${Math.floor(value / 60)}:${(value % 60).toFixed(2).padStart(5, "0")}`;
 
 export default function RacingMainMenu() {
-  const [session, setSession] = useState<Session>(null);
-  if (session) return <main className="racing-menu-game">
-    <div className="racing-menu-gamebar">
-      <button type="button" onClick={() => setSession(null)}>← Racing menu</button>
-      <span>QUICK WARM-UP · KAGO OFFLINE AI</span>
-    </div>
-    <RacingWarmup />
-  </main>;
-
+  const [data, setData] = useState<LocalData>(emptyData);
+  const [view, setView] = useState<"home" | "slots" | "scores">("home");
+  const [session, setSession] = useState(false);
+  const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
+  const activeSlot = useMemo(() => data.slots.find(slot => slot.id === activeSlotId) ?? null, [data.slots, activeSlotId]);
+  useEffect(() => { setData(readData()); }, []);
+  const commit = (next: LocalData) => { if (writeData(next)) { setData(next); setNotice("Saved on this device."); } else setNotice("Storage is unavailable. Your game was not saved."); };
+  const newGame = () => {
+    const slot: SaveSlot = { id: `slot-${Date.now()}`, name: `Race save ${data.slots.length + 1}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), state: null };
+    const next = { ...data, activeSlotId: slot.id, slots: [...data.slots, slot].slice(-5) };
+    if (!writeData(next)) { setNotice("Could not create a save on this device."); return; }
+    setData(next); setActiveSlotId(slot.id); setSession(true); setNotice("");
+  };
+  const continueGame = () => {
+    const slot = data.slots.find(item => item.id === data.activeSlotId) ?? data.slots[data.slots.length - 1];
+    if (!slot) { setNotice("No saved game yet. Start a New Game first."); return; }
+    setActiveSlotId(slot.id); setSession(true); setNotice("");
+  };
+  const loadGame = (slot: SaveSlot) => { setActiveSlotId(slot.id); setSession(true); setView("home"); setNotice(""); };
+  const saveGame = (state: LocalRaceSave) => {
+    if (!activeSlotId) return;
+    const next = { ...data, activeSlotId, slots: data.slots.map(slot => slot.id === activeSlotId ? { ...slot, state, updatedAt: new Date().toISOString() } : slot) };
+    commit(next);
+  };
+  const completeRace = (result: RaceResult) => { commit({ ...data, scores: [result, ...data.scores.filter(item => item.id !== result.id)].slice(0, 100) }); };
+  if (session) return <main className="racing-menu-game"><div className="racing-menu-gamebar"><button type="button" onClick={() => setSession(false)}>← Racing menu</button><span>QUICK RACE · KAGO OFFLINE AI</span></div><RacingWarmup initialSave={activeSlot?.state ?? null} onSave={saveGame} onComplete={completeRace} onExit={() => setSession(false)} /></main>;
   return <main className="racing-main-menu">
-    <div className="racing-menu-topline"><Link href="/" className="racing-menu-brand"><span className="racing-menu-mark">V</span><span>VULA RACING<small>CAR WASH · MOTORSPORT</small></span></Link><span className="racing-menu-status"><i /> OFFLINE PLAY AVAILABLE</span></div>
-    <section className="racing-menu-hero">
-      <div className="racing-menu-copy">
-        <p className="racing-menu-kicker">THE CIRCUIT IS YOURS</p>
-        <h1>Find your<br/><em>racing line.</em></h1>
-        <p className="racing-menu-lede">A proper place to race, practise and build your reputation. Pick a session and get on track.</p>
-        <div className="racing-menu-meta"><span>01 <b>3D CIRCUIT</b></span><span>02 <b>OFFLINE RACING</b></span><span>03 <b>KAGO AI</b></span></div>
-      </div>
-      <div className="racing-menu-art" aria-label="Racing circuit illustration">
-        <div className="racing-menu-art-glow"/><div className="racing-menu-track"><span/><span/><span/></div>
-        <div className="racing-menu-car"><i/><i/><b/></div>
-        <div className="racing-menu-art-label"><strong>V / R</strong><small>GABORONE<br/>RACING SERIES</small></div>
-      </div>
+    <div className="racing-menu-topline"><Link href="/" className="racing-menu-brand"><span className="racing-menu-mark">V</span><span>VULA RACING<small>CAR WASH · MOTORSPORT</small></span></Link><span className="racing-menu-status"><i /> DEVICE-LOCAL PLAY</span></div>
+    <section className="racing-menu-hero"><div className="racing-menu-copy"><p className="racing-menu-kicker">THE CIRCUIT IS YOURS</p><h1>Race your<br/><em>own line.</em></h1><p className="racing-menu-lede">Start a quick race against Kago, save your session and chase your best result.</p><div className="racing-menu-meta"><span>3D <b>CIRCUIT</b></span><span>OFFLINE <b>READY</b></span><span>KAGO <b>AI RIVAL</b></span></div></div><div className="racing-menu-art" aria-label="Racing circuit illustration"><div className="racing-menu-art-glow"/><div className="racing-menu-track"><span/><span/><span/></div><div className="racing-menu-car"><i/><i/><b/></div><div className="racing-menu-art-label"><strong>V / R</strong><small>GABORONE<br/>RACING SERIES</small></div></div></section>
+    <section className="racing-menu-sessions"><div className="racing-menu-sectionhead"><div><p className="racing-menu-kicker">YOUR RACING DESK</p><h2>Ready when you are.</h2></div><span>QUICK RACE</span></div>
+      <div className="racing-menu-actions"><button type="button" onClick={newGame}>New Game <span>↗</span></button><button type="button" onClick={continueGame}>Continue <span>→</span></button><button type="button" onClick={() => setView("slots")}>Load Game <span>⌄</span></button><button type="button" onClick={() => setView("scores")}>High Scores <span>↗</span></button></div>
+      {notice && <p className="racing-menu-notice" role="status">{notice}</p>}
+      {view === "slots" && <div className="racing-menu-panel"><div className="racing-menu-panelhead"><h3>Saved games</h3><button type="button" onClick={() => setView("home")}>Close ×</button></div>{data.slots.length ? data.slots.map(slot => <article className="racing-menu-slot" key={slot.id}><div><strong>{slot.name}</strong><small>{slot.state ? `Saved ${new Date(slot.updatedAt).toLocaleString()}` : "New race · not yet saved"}</small></div><button type="button" onClick={() => loadGame(slot)}>Load</button></article>) : <p>No saved games on this device yet.</p>}</div>}
+      {view === "scores" && <div className="racing-menu-panel"><div className="racing-menu-panelhead"><h3>High scores</h3><button type="button" onClick={() => setView("home")}>Close ×</button></div>{data.scores.length ? <div className="racing-menu-scorelist">{data.scores.map((score,index)=><article key={score.id}><b>#{index+1}</b><div><strong>{score.position === 1 ? "1st · Beat Kago" : "2nd · Kago won"}</strong><small>{new Date(score.completedAt).toLocaleString()} · {score.difficulty} · {score.laps} lap</small></div><span>{time(score.bestLap)}</span></article>)}</div> : <p>No completed races yet. Finish a Quick Race to create your first score.</p>}</div>}
     </section>
-    <section className="racing-menu-sessions">
-      <div className="racing-menu-sectionhead"><div><p className="racing-menu-kicker">CHOOSE YOUR SESSION</p><h2>Get on the grid.</h2></div><span>01 / AVAILABLE</span></div>
-      <div className="racing-menu-cards">{options.map((item,index)=><article className="racing-menu-card" key={item.kind}>
-        <div className="racing-menu-cardtop"><span>0{index+1} / {item.eyebrow}</span><b>{item.tag}</b></div>
-        <h3>{item.title}</h3><p>{item.description}</p>
-        <button type="button" onClick={() => setSession(item.kind)}>{item.action}<span>↗</span></button>
-      </article>)}</div>
-    </section>
-    <section className="racing-menu-next">
-      <div><p className="racing-menu-kicker">COMING THROUGH THE GARAGE</p><h2>More ways to compete.</h2><p>The next build separates solo racing from VS Bot, then adds saved game slots and completed race records. Online racing will follow only after local sessions and persistence are proven.</p></div>
-      <div className="racing-menu-roadmap"><span><b>02</b> Solo / VS Bot setup <small>UP NEXT</small></span><span><b>03</b> Save & continue <small>UP NEXT</small></span><span><b>04</b> Race records <small>UP NEXT</small></span><span><b>05</b> Online race <small>FUTURE</small></span></div>
-    </section>
+    <section className="racing-menu-next"><div><p className="racing-menu-kicker">LOCAL RACING</p><h2>Your races. Your records.</h2><p>Saved sessions and completed results stay on this device and remain available offline. They are not shared or server-verified.</p></div><div className="racing-menu-roadmap"><span><b>{data.slots.length}</b> Save slots <small>ON THIS DEVICE</small></span><span><b>{data.scores.length}</b> Completed races <small>LOCAL RECORDS</small></span></div></section>
     <footer className="racing-menu-footer"><span>VULA RACING</span><span>BUILT TO DRIVE · DESIGNED TO COMPETE</span><Link href="/">Back to Vula&apos;s Car Wash ↗</Link></footer>
   </main>;
 }
