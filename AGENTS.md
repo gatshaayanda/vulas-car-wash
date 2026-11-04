@@ -94,3 +94,20 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Never claim a bot capability exists until it is implemented and tested in the live game.
 - Keep offline results device-only. Only server-verified results may enter shared leaderboards or award verified online credits.
 - If QA finds a regression, revert the feature to the exact golden commit above and re-implement it more narrowly.
+
+
+## Approved Kago track knowledge and race experience
+
+- Kago must know how to drive each circuit before the player's first race on it. His baseline competence comes from predefined track knowledge, not from losing races and learning the circuit through the player's driving.
+- The player learns each circuit through warm-ups. Qualifying establishes grid positions; the race then uses those positions and the opponents' existing knowledge to create a competitive event.
+- Apply this consistently across the planned 12 tracks. Each track's driving knowledge is derived from its canonical spline: corner shape, braking/turn-in/apex/exit references and viable racing-line options.
+- Kago may retain limited observations about the player's successful lines and previous encounters, but this is supplementary. Learning must never be required for him to race competently or challenge the player's fastest known line.
+- Keep the implementation direct and bounded: corner-aware track model, a few derived racing lines, contextual attacking/defensive choices, opponent gap-trend awareness, and useful performance telemetry. Avoid an elaborate adaptive-AI framework, artificial rubber-banding or unrelated systems.
+- Preserve the intended player journey: warm-up → qualifying → race → results. Reuse the same race engine as the game expands; do not create separate racing implementations for future divisions, career or online modes.
+- This approved direction is separate from visual-only tasks. Do not start implementing Race Intelligence V1 unless explicitly requested.
+
+## HUD visual scope protection
+
+- The approved HUD addition is a compact live circuit map showing the canonical track layout and both actual car positions. Keep it subordinate to the road view and readable on mobile.
+- The road's centre guide/racing line is intentionally removed. Do not reintroduce a painted racing guide line unless explicitly requested.
+- For this visual task, do not alter vehicle physics, AI tuning, track geometry, barriers, collision handling, camera, driving controls, warm-up flow, save/persistence, PWA/offline behavior or race rules.
