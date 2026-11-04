@@ -7,7 +7,7 @@ import { createRacingTrack, getTrackTurn } from "./racing-track";
 import type { Controls, Phase, Race } from "./racing-warmup";
 import RacingTrackMap from "./racing-track-map";
 
-type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase> };
+type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase>; preview?: boolean };
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 function ribbon(curve: THREE.Curve<THREE.Vector3>, width: number, segments: number, y: number) {
@@ -103,7 +103,7 @@ function makeCar(bodyColor = "#f04478") {
   return car;
 }
 
-export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props) {
+export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview = false }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const host = mountRef.current;
@@ -327,7 +327,22 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
     };
     const render = () => {
+      const frameDelta = Math.min(clock.getDelta(), .05);
       const race = raceRef.current;
+      if (preview) {
+        const playerT = (clock.elapsedTime * 0.035) % 1;
+        const playerPoint = track.getPointAt(playerT);
+        const playerTangent = track.getTangentAt(playerT).normalize();
+        race.progress = playerT;
+        race.worldX = playerPoint.x;
+        race.worldZ = playerPoint.z;
+        race.worldYaw = Math.atan2(-playerTangent.x, -playerTangent.z);
+        race.speed = 168;
+        race.botProgress = (playerT + 0.025) % 1;
+        race.botInitialized = false;
+        race.botSpeed = 174;
+        race.botDrift = 0.08;
+      }
       const controls = controlsRef.current;
       const currentPhase = phaseRef.current;
       // Render the independent world-space vehicle state; track geometry is not a movement rail.
@@ -366,7 +381,6 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       groundShadow.rotation.z = -car.rotation.y;
       const cameraTarget = new THREE.Vector3(carWorld.x + forward.x * 10, 1.25, carWorld.z + forward.z * 10);
       const cameraPosition = new THREE.Vector3(carWorld.x - forward.x * 8.4, 4.7, carWorld.z - forward.z * 8.4);
-      const frameDelta = Math.min(clock.getDelta(), .05);
       camera.position.lerp(cameraPosition, 1 - Math.exp(-frameDelta * 4.2));
       camera.lookAt(cameraTarget);
       // Rear tyres leave short, fading-in-place rubber traces while the car is
