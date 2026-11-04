@@ -36,6 +36,7 @@ export default function RacingMainMenu() {
   useEffect(() => { setData(readData()); }, []);
   const commit = (next: LocalData) => { if (writeData(next)) { setData(next); setNotice("Saved on this device."); } else setNotice("Storage is unavailable. Your game was not saved."); };
   const newGame = () => {
+    if (data.slots.length >= 5) { setNotice("All five save slots are in use. Load a slot before starting another game."); return; }
     const slot: SaveSlot = { id: `slot-${Date.now()}`, name: `Race save ${data.slots.length + 1}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), state: null };
     const next = { ...data, activeSlotId: slot.id, slots: [...data.slots, slot].slice(-5) };
     if (!writeData(next)) { setNotice("Could not create a save on this device."); return; }
@@ -43,7 +44,7 @@ export default function RacingMainMenu() {
   };
   const continueGame = () => {
     const slot = data.slots.find(item => item.id === data.activeSlotId) ?? data.slots[data.slots.length - 1];
-    if (!slot) { setNotice("No saved game yet. Start a New Game first."); return; }
+    if (!slot || !slot.state) { setNotice("There is no saved progress to continue. Start a New Game, then pause and save it."); return; }
     setActiveSlotId(slot.id); setSession(true); setNotice("");
   };
   const loadGame = (slot: SaveSlot) => { setActiveSlotId(slot.id); setSession(true); setView("home"); setNotice(""); };
@@ -61,7 +62,7 @@ export default function RacingMainMenu() {
       <div className="racing-menu-actions"><button type="button" onClick={newGame}>New Game <span>↗</span></button><button type="button" onClick={continueGame}>Continue <span>→</span></button><button type="button" onClick={() => setView("slots")}>Load Game <span>⌄</span></button><button type="button" onClick={() => setView("scores")}>High Scores <span>↗</span></button></div>
       {notice && <p className="racing-menu-notice" role="status">{notice}</p>}
       {view === "slots" && <div className="racing-menu-panel"><div className="racing-menu-panelhead"><h3>Saved games</h3><button type="button" onClick={() => setView("home")}>Close ×</button></div>{data.slots.length ? data.slots.map(slot => <article className="racing-menu-slot" key={slot.id}><div><strong>{slot.name}</strong><small>{slot.state ? `Saved ${new Date(slot.updatedAt).toLocaleString()}` : "New race · not yet saved"}</small></div><button type="button" onClick={() => loadGame(slot)}>Load</button></article>) : <p>No saved games on this device yet.</p>}</div>}
-      {view === "scores" && <div className="racing-menu-panel"><div className="racing-menu-panelhead"><h3>High scores</h3><button type="button" onClick={() => setView("home")}>Close ×</button></div>{data.scores.length ? <div className="racing-menu-scorelist">{data.scores.map((score,index)=><article key={score.id}><b>#{index+1}</b><div><strong>{score.position === 1 ? "1st · Beat Kago" : "2nd · Kago won"}</strong><small>{new Date(score.completedAt).toLocaleString()} · {score.difficulty} · {score.laps} lap</small></div><span>{time(score.bestLap)}</span></article>)}</div> : <p>No completed races yet. Finish a Quick Race to create your first score.</p>}</div>}
+      {view === "scores" && <div className="racing-menu-panel"><div className="racing-menu-panelhead"><h3>High scores</h3><button type="button" onClick={() => setView("home")}>Close ×</button></div>{data.scores.length ? <div className="racing-menu-scorelist">{data.scores.map((score,index)=><article key={score.id}><b>#{index+1}</b><div><strong>{score.position === 1 ? "1st · Beat Kago" : "2nd · Kago won"}</strong><small>{new Date(score.completedAt).toLocaleString()} · {score.difficulty} · {score.laps} lap · Race {time(score.elapsed)}</small></div><span>Best {time(score.bestLap)}</span></article>)}</div> : <p>No completed races yet. Finish a Quick Race to create your first score.</p>}</div>}
     </section>
     <section className="racing-menu-next"><div><p className="racing-menu-kicker">LOCAL RACING</p><h2>Your races. Your records.</h2><p>Saved sessions and completed results stay on this device and remain available offline. They are not shared or server-verified.</p></div><div className="racing-menu-roadmap"><span><b>{data.slots.length}</b> Save slots <small>ON THIS DEVICE</small></span><span><b>{data.scores.length}</b> Completed races <small>LOCAL RECORDS</small></span></div></section>
     <footer className="racing-menu-footer"><span>VULA RACING</span><span>BUILT TO DRIVE · DESIGNED TO COMPETE</span><Link href="/">Back to Vula&apos;s Car Wash ↗</Link></footer>
