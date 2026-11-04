@@ -26,22 +26,26 @@ function fmt(seconds: number | null): string {
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
 }
 
-export default function RacingWarmup({ embedded = false }: { embedded?: boolean }) {
+type LocalRaceSave = { race: Race; difficulty: "Easy" | "Normal" | "Hard"; savedAt: string };
+type RaceResult = { id: string; completedAt: string; difficulty: "Easy" | "Normal" | "Hard"; elapsed: number; bestLap: number | null; position: 1 | 2; laps: number };
+
+export default function RacingWarmup({ embedded = false, initialSave, onSave, onComplete, onExit }: { embedded?: boolean; initialSave?: LocalRaceSave | null; onSave?: (save: LocalRaceSave) => void; onComplete?: (result: RaceResult) => void; onExit?: () => void }) {
   const [expanded, setExpanded] = useState(!embedded);
-  const raceRef = useRef<Race>(newRace());
+  const raceRef = useRef<Race>(initialSave?.race ? { ...newRace(), ...initialSave.race } : newRace());
   const trackRef = useRef<ReturnType<typeof createRacingTrack> | null>(null);
   if (!trackRef.current) trackRef.current = createRacingTrack();
   const controlsRef = useRef<Controls>({ steer: 0, accelerate: false, brake: false, boost: false });
-  const phaseRef = useRef<Phase>("ready");
-  const [phase, setPhase] = useState<Phase>("ready");
+  const phaseRef = useRef<Phase>(initialSave ? "paused" : "ready");
+  const [phase, setPhase] = useState<Phase>(initialSave ? "paused" : "ready");
+  const completedRef = useRef(false);
   const [countdown, setCountdown] = useState(3);
   const [speed, setSpeed] = useState(0);
-  const [botDifficulty, setBotDifficulty] = useState<"Easy" | "Normal" | "Hard">("Normal");
-  const botDifficultyRef = useRef<"Easy" | "Normal" | "Hard">("Normal");
+  const [botDifficulty, setBotDifficulty] = useState<"Easy" | "Normal" | "Hard">(initialSave?.difficulty ?? "Normal");
+  const botDifficultyRef = useRef<"Easy" | "Normal" | "Hard">(initialSave?.difficulty ?? "Normal");
   const [rivalGap, setRivalGap] = useState(0);
-  const [lapTime, setLapTime] = useState(0);
-  const [bestLap, setBestLap] = useState<number | null>(null);
-  const [lap, setLap] = useState(1);
+  const [lapTime, setLapTime] = useState(initialSave?.race.lapTime ?? 0);
+  const [bestLap, setBestLap] = useState<number | null>(initialSave?.race.bestLap ?? null);
+  const [lap, setLap] = useState(initialSave?.race.lap ?? 1);
   const [nos, setNos] = useState(100);
   const [signal, setSignal] = useState({ label: "GREEN LIGHT · BUILD SPEED", tone: "go" });
   const lastSignal = useRef("");
@@ -74,7 +78,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setBoostActive(false); setRivalGap(0);
     setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
   }, []);
-  const startRace = useCallback(() => reset(true), [reset]);
+  const startRace = useCallback(() => { completedRef.current = false; reset(true); }, [reset]);
   const pauseRace = useCallback(() => {
     if (phaseRef.current === "running") {
       controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
@@ -617,12 +621,19 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.lapTime += dt;
         const lapNow = Math.floor(race.progress) + 1;
         if (lapNow > race.lap) {
+          const completedLapTime = race.lapTime;
           if (!race.lapInvalid && (race.bestLap === null || race.lapTime < race.bestLap)) {
             race.bestLap = race.lapTime;
             setBestLap(race.lapTime);
             notify("New personal best lap!", "success");
           } else if (race.lapInvalid) notify("Lap invalid — stay on the racing surface.", "error");
           race.lap = lapNow;
+          if (lapNow >= 2 && !completedRef.current) {
+            completedRef.current = true;
+            controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+            phaseRef.current = "finished"; setPhase("finished");
+            onComplete?.({ id: `race-${Date.now()}`, completedAt: new Date().toISOString(), difficulty: botDifficultyRef.current, elapsed: race.elapsed, bestLap: race.bestLap ?? (!race.lapInvalid ? completedLapTime : null), position: race.progress >= race.botProgress ? 1 : 2, laps: 1 });
+          }
           race.lapTime = 0;
           race.lapInvalid = false;
           setLap(lapNow);
@@ -647,7 +658,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     };
     raf = window.requestAnimationFrame(frame);
     return () => window.cancelAnimationFrame(raf);
-  }, [notify]);
+  }, [notify, onComplete]);
 
   useEffect(() => {
     const keyDown = (e: KeyboardEvent) => {
@@ -748,7 +759,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           <button type="button" className="accelerate-button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>GAS ↑</button>
           <button type="button" className="nos-button" aria-label="Toggle NOS burst" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0} onClick={toggleBoost}>{boostActive ? "NOS ON ⚡" : "TAP NOS ⚡"}</button>
         </div>
-        <div className="warmup-actions">{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start driving ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Drive again ↻</button>}<button type="button" className="vula-button secondary" onClick={() => reset(false)}>Restart ↻</button></div>
+        <div className="warmup-actions">{phase === "paused" && onSave && <button type="button" className="vula-button secondary" onClick={() => onSave({ race: { ...raceRef.current }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString() })}>Save game</button>}{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start driving ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Drive again ↻</button>}<button type="button" className="vula-button secondary" onClick={() => reset(false)}>Restart ↻</button>{onExit && <button type="button" className="vula-button secondary" onClick={onExit}>Racing menu</button>}</div>
       </div>
       <p className="warmup-help">Phone: move the circular thumbstick with your left thumb; BRAKE is left and GAS is right under your right thumb. Tap NOS once for a burst, tap again to stop. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause.</p>
     </section>
