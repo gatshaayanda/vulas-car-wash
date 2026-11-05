@@ -792,6 +792,19 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             race.lap = 2;
             race.elapsed = 0;
             race.lapTime = 0;
+            const qualifyingPoint = botTrack.getPointAt(0);
+            const qualifyingTangent = botTrack.getTangentAt(0).normalize();
+            const qualifyingSideX = -qualifyingTangent.z, qualifyingSideZ = qualifyingTangent.x;
+            const qualifyingYaw = Math.atan2(-qualifyingTangent.x, -qualifyingTangent.z);
+            race.botProgress = 1;
+            race.botWorldX = qualifyingPoint.x - qualifyingSideX * 2.45;
+            race.botWorldZ = qualifyingPoint.z - qualifyingSideZ * 2.45;
+            race.botWorldYaw = qualifyingYaw;
+            race.botVelocityX = -Math.sin(qualifyingYaw) * 8.5;
+            race.botVelocityZ = -Math.cos(qualifyingYaw) * 8.5;
+            race.botInitialized = true;
+            race.botPitDone = false; race.botPitting = false; race.botPitServiced = false;
+            race.botPitProgress = 0; race.botPitServiceRemaining = 0;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
             setSpeed(0); setLapTime(0);
             notify("PRACTICE COMPLETE · next lap is qualifying. Find a clean, fast lap.", "success");
@@ -800,20 +813,23 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             const gridTangent = botTrack.getTangentAt(0).normalize();
             const gridSideX = -gridTangent.z, gridSideZ = gridTangent.x;
             const gridYaw = Math.atan2(-gridTangent.x, -gridTangent.z);
-            race.worldX = gridPoint.x + gridSideX * 2.45;
-            race.worldZ = gridPoint.z + gridSideZ * 2.45;
+            const playerOnPole = race.botProgress < 2;
+            const playerGridSide = playerOnPole ? 1 : -1;
+            race.worldX = gridPoint.x + gridSideX * 2.45 * playerGridSide;
+            race.worldZ = gridPoint.z + gridSideZ * 2.45 * playerGridSide;
             race.worldYaw = gridYaw; race.velocityX = 0; race.velocityZ = 0; race.speed = 0;
             race.progress = 2; race.trackT = 0;
-            race.botWorldX = gridPoint.x - gridSideX * 2.45;
-            race.botWorldZ = gridPoint.z - gridSideZ * 2.45;
+            race.botWorldX = gridPoint.x - gridSideX * 2.45 * playerGridSide;
+            race.botWorldZ = gridPoint.z - gridSideZ * 2.45 * playerGridSide;
             race.botWorldYaw = gridYaw; race.botVelocityX = 0; race.botVelocityZ = 0; race.botSpeed = 0;
             race.botProgress = 2; race.botInitialized = true;
+            race.botLineOffset = playerOnPole ? -2.45 : 2.45;
             race.botPitDone = false; race.botPitting = false; race.botPitServiced = false; race.botPitProgress = 0; race.botPitServiceRemaining = 0;
             race.elapsed = 0; race.lapTime = 0; race.botNos = 100; race.botNosCooldown = 0; race.botBoostActive = false; race.nos = 100;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
             setSpeed(0); setLapTime(0); setNos(100); setCountdown(3);
             phaseRef.current = "grid"; setPhase("grid");
-            notify("QUALIFYING COMPLETE · your lap time sets the grid. Kago joins now.", "success");
+            notify(playerOnPole ? "POLE POSITION · your qualifying lap puts you ahead of Kago." : "GRID SET · Kago takes pole; you start alongside him.", "success");
           } else if (lapNow >= 5 && !completedRef.current) {
             if (!race.playerPitDone) {
               notify("MANDATORY PIT STOP · return to the marked pit entry before the finish can be confirmed.", "error");
