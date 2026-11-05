@@ -295,15 +295,13 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
     assetCar.visible = false;
     scene.add(assetCar);
     if (preview && previewGraphics === "kenney") {
-      // Kenney Racing Kit's Race Car White model (CC0). The earlier local
-      // manifest path was never populated in this repository, so the selector
-      // silently fell back to the procedural chassis every time.
+      // Load the locally prepared Kenney model from the Racing Kit manifest.
       onGraphicsStatus?.("loading");
+      let cancelled = false;
       const loader = new GLTFLoader();
-      loader.setCrossOrigin("anonymous");
-      loader.load(
-        "https://api.flockbay.com/bootstrap/library/models/v1/3a80878e2912a0bf19813ea76ecdf13fc54f8af10e1033c3ff7bbf84925c0804/raceCarWhite.glb",
-        gltf => {
+      const loadModel = (modelUrl: string) => {
+        loader.load(modelUrl, gltf => {
+          if (cancelled) return;
           const model = gltf.scene;
           model.updateMatrixWorld(true);
           const bounds = new THREE.Box3().setFromObject(model);
@@ -311,17 +309,28 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
           const center = bounds.getCenter(new THREE.Vector3());
           const longest = Math.max(size.x, size.z, 0.001);
           model.position.sub(center);
-          model.position.y += size.y / 2;
-          model.scale.multiplyScalar(3.55 / longest);
-          // glTF vehicle models commonly face +Z; Vula's chassis faces -Z.
           model.rotation.y = Math.PI;
+          model.scale.setScalar(3.9 / longest);
           assetCar.add(model);
           assetCar.visible = true;
+          car.visible = false;
           onGraphicsStatus?.("ready");
-        },
-        undefined,
-        () => { host.dataset.graphicsStatus = "asset-unavailable"; },
-      );
+        }, undefined, () => {
+          if (!cancelled) { host.dataset.graphicsStatus = "asset-unavailable"; onGraphicsStatus?.("error"); }
+        });
+      };
+      fetch("/game-assets/racing-kit/manifest.json", { cache: "force-cache" })
+        .then(response => { if (!response.ok) throw new Error("Kenney manifest unavailable"); return response.json(); })
+        .then(manifest => {
+          const assets = Array.isArray(manifest?.assets) ? manifest.assets : [];
+          const selected = assets.find((asset: { name?: string; path?: string }) => /racecarwhite/i.test(asset.name || ""))
+            || assets.find((asset: { name?: string; path?: string }) => /race.?car/i.test(asset.name || ""));
+          if (!selected || typeof selected.path !== "string" || !selected.path.startsWith("/game-assets/racing-kit/")) throw new Error("Kenney car missing from manifest");
+          if (!cancelled) loadModel(selected.path);
+        })
+        .catch(() => { if (!cancelled) { host.dataset.graphicsStatus = "asset-unavailable"; onGraphicsStatus?.("error"); } });
+      host.dataset.graphicsStatus = "loading";
+      (host as HTMLDivElement & { __cancelKenneyLoad?: () => void }).__cancelKenneyLoad = () => { cancelled = true; };
     }
     // Keep the car's proportions credible against the 12-unit road and leave
     // more visual room around it for steering on narrow mobile screens.
@@ -586,6 +595,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
     };
     resize(); window.addEventListener("resize", resize); raf = requestAnimationFrame(render);
     return () => {
+      (host as HTMLDivElement & { __cancelKenneyLoad?: () => void }).__cancelKenneyLoad?.();
       cancelAnimationFrame(raf); window.removeEventListener("resize", resize);
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
