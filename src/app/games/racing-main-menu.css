@@ -64,3 +64,5 @@
 @media(min-width:760px){.racing-menu-art{height:300px;min-height:300px}.racing-menu-graphics-switch button{font-size:9px;padding:8px 11px}}
 
 .racing-menu-graphics-status{max-width:100%;padding:6px 8px;border:1px solid #ffffff30;border-radius:5px;background:#071116c9;color:#dce7e3;font-size:7px;font-weight:900;letter-spacing:.1em;pointer-events:none}
+
+.racing-menu-preview{min-width:0;display:grid;gap:8px;align-content:start}
