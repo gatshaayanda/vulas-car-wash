@@ -602,7 +602,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
         const pulse = .82 + Math.sin(clock.elapsedTime * 42) * .18;
         flame.scale.setScalar(pulse);
       }
-      if (currentPhase === "running") {
+      if (preview) camera.fov = 43;
+      else if (currentPhase === "running") {
         camera.fov = 63 + Math.min(12, race.speed / 19) + (controls.boost && race.nos > 0 && !controls.brake ? 7 : 0);
       } else camera.fov = 63;
       camera.updateProjectionMatrix();
