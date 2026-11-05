@@ -20,6 +20,7 @@ export type Race = {
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
+const RACING_PIT_LANE = createRacingPitLane(createRacingTrack());
 export const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 17.9, botWorldX: 0, botWorldZ: 0, botWorldYaw: 0, botVelocityX: 0, botVelocityZ: 0, botSteering: 0, botThrottle: 0, botBrake: 0, botDrift: 0, botNos: 100, botBoostActive: false, botInitialized: false, botImpactX: 0, botImpactZ: 0, botImpactAt: 0, botImpactStrength: 0, botLineOffset: -2.45, botNosCooldown: 0, botPitting: false, botPitDone: false, botPitProgress: 0, botPitServiceRemaining: 0, botPitServiced: false });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
@@ -409,7 +410,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // Kago has his own world-space vehicle state. The spline is navigation
         // and progress reference only; it no longer moves his car.
         const botTrack = trackRef.current!;
-        const botPitLane = createRacingPitLane(botTrack);
+        const botPitLane = RACING_PIT_LANE;
         if (!race.botInitialized) {
           const p = botTrack.getPointAt(race.botProgress), tangent = botTrack.getTangentAt(race.botProgress).normalize();
           const sideX = -tangent.z, sideZ = tangent.x;
@@ -463,8 +464,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         const lineBlend = 1 - Math.exp(-dt * (botLevel === "Hard" ? 4.5 : botLevel === "Normal" ? 3.8 : 3.2));
         race.botLineOffset += (clamp(desiredOffset, -3.35, 3.35) - race.botLineOffset) * lineBlend;
         const lookAhead = clamp(.012 + Math.hypot(race.botVelocityX, race.botVelocityZ) * .0011, .018, .038);
-        const targetPoint = botTrack.getPointAt(wrap(botCurrentT + lookAhead, 1));
-        const targetTangent = botTrack.getTangentAt(wrap(botCurrentT + lookAhead, 1)).normalize();
+        const pitAimProgress = race.botPitServiceRemaining > 0 ? .52 : clamp(race.botPitProgress + lookAhead * 2.2, 0, .995);
+        const targetPoint = race.botPitting ? botPitLane.getPointAt(pitAimProgress) : botTrack.getPointAt(wrap(botCurrentT + lookAhead, 1));
+        const targetTangent = (race.botPitting ? botPitLane.getTangentAt(pitAimProgress) : botTrack.getTangentAt(wrap(botCurrentT + lookAhead, 1))).normalize();
         const targetSideX = -targetTangent.z, targetSideZ = targetTangent.x;
         // Commit to a corner-specific entry line: attack wider for a pass, defend
         // the inside when challenged, otherwise use a small deterministic apex bias.
@@ -473,7 +475,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         const cornerLineBias = cornerLineDemand > .24
           ? Math.sign(botTurn || 1) * (attackWindow ? -0.9 : defendWindow ? 0.85 : 0.32)
           : 0;
-        const racingLineOffset = clamp(race.botLineOffset + clamp(botTurn * 16, -1.25, 1.25) + cornerLineBias, -3.45, 3.45);
+        const racingLineOffset = race.botPitting ? 0 : clamp(race.botLineOffset + clamp(botTurn * 16, -1.25, 1.25) + cornerLineBias, -3.45, 3.45);
         const aimX = targetPoint.x + targetSideX * racingLineOffset, aimZ = targetPoint.z + targetSideZ * racingLineOffset;
         const aimYaw = Math.atan2(-(aimX - race.botWorldX), -(aimZ - race.botWorldZ));
         const yawError = Math.atan2(Math.sin(aimYaw - race.botWorldYaw), Math.cos(aimYaw - race.botWorldYaw));
