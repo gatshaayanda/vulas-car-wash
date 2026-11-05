@@ -18,7 +18,7 @@
 .racing-menu-rival small{font-size:8px;letter-spacing:.16em;color:#aab9bc}
 .racing-menu-rival strong{font-size:13px;letter-spacing:.1em}
 .racing-menu-rival-level{margin-left:8px;padding-left:10px;border-left:1px solid #ffffff24;color:var(--lime);font-size:8px;font-weight:800;letter-spacing:.12em}
-.racing-menu-art{height:174px;min-height:174px;position:relative;overflow:hidden;border:1px solid #ffffff24;border-radius:10px;background:#9fc8dc;isolation:isolate}
+.racing-menu-art{height:260px;min-height:260px;position:relative;overflow:hidden;border:1px solid #ffffff24;border-radius:10px;background:#9fc8dc;isolation:isolate}
 .racing-menu-art .racing-3d-root{position:absolute;inset:0;width:100%;height:100%;min-height:0}
 .racing-menu-art .racing-3d-root canvas{display:block;width:100%!important;height:100%!important}
 .racing-menu-art .racing-3d-root>:not(canvas){display:none!important}
@@ -57,10 +57,10 @@
 .racing-main-menu-embedded{min-height:0;padding:14px}
 @media(min-width:760px){.racing-main-menu{padding:24px}.racing-menu-hero{grid-template-columns:.9fr 1.1fr;align-items:center;gap:24px;padding:30px 0 22px}.racing-menu-art{height:280px;min-height:280px}.racing-menu-copy h1{font-size:clamp(64px,7vw,92px)}.racing-menu-lede{font-size:14px}.racing-menu-sessions{padding-bottom:24px}.racing-menu-actions{grid-template-columns:repeat(4,minmax(0,1fr))}.racing-menu-actions button:first-child{grid-column:auto}.racing-menu-next{display:none}}
 
-.racing-menu-graphics-switch{position:absolute;z-index:3;left:50%;bottom:42px;transform:translateX(-50%);display:flex;gap:3px;padding:3px;border:1px solid #ffffff45;border-radius:6px;background:#071116dc;backdrop-filter:blur(8px)}
+.racing-menu-preview-controls{display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap;margin-top:8px}.racing-menu-graphics-switch{display:flex;gap:3px;padding:3px;border:1px solid #ffffff45;border-radius:6px;background:#071116dc;max-width:100%;}
 .racing-menu-graphics-switch button{border:0;border-radius:4px;background:transparent;color:#dce7e3;padding:7px 9px;font-size:8px;font-weight:900;letter-spacing:.1em;white-space:nowrap;cursor:pointer}
 .racing-menu-graphics-switch button[aria-pressed="true"]{background:var(--lime);color:#101810}
 .racing-menu-graphics-switch button:focus-visible{outline:2px solid #fff;outline-offset:2px}
-@media(min-width:760px){.racing-menu-graphics-switch{bottom:46px}.racing-menu-graphics-switch button{font-size:9px;padding:8px 11px}}
+@media(min-width:760px){.racing-menu-art{height:300px;min-height:300px}.racing-menu-graphics-switch button{font-size:9px;padding:8px 11px}}
 
-.racing-menu-graphics-status{position:absolute;left:9px;top:9px;z-index:3;max-width:calc(100% - 130px);padding:6px 8px;border:1px solid #ffffff30;border-radius:5px;background:#071116c9;color:#dce7e3;font-size:7px;font-weight:900;letter-spacing:.1em;pointer-events:none}
+.racing-menu-graphics-status{max-width:100%;padding:6px 8px;border:1px solid #ffffff30;border-radius:5px;background:#071116c9;color:#dce7e3;font-size:7px;font-weight:900;letter-spacing:.1em;pointer-events:none}
