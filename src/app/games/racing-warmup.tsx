@@ -460,7 +460,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // Commit to a corner-specific entry line: attack wider for a pass, defend
         // the inside when challenged, otherwise use a small deterministic apex bias.
         // This is a bounded offset from the canonical centreline, not a second track.
-        const cornerLineBias = cornerDemand > .24
+        const cornerLineDemand = clamp(Math.abs(botTurn) * 30, 0, 1);
+        const cornerLineBias = cornerLineDemand > .24
           ? Math.sign(botTurn || 1) * (attackWindow ? -0.9 : defendWindow ? 0.85 : 0.32)
           : 0;
         const racingLineOffset = clamp(race.botLineOffset + clamp(botTurn * 16, -1.25, 1.25) + cornerLineBias, -3.45, 3.45);
