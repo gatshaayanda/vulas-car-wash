@@ -103,7 +103,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       } else setCountdown(n => n - 1);
     }, 650);
     return () => window.clearTimeout(timer);
-  }, [phase, countdown]);
+  }, [phase, countdown, notify]);
 
   useEffect(() => {
     let raf = 0;
@@ -835,11 +835,15 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           setLapTime(race.lapTime);
           setNos(race.nos);
           setBoostActive(boost);
-          const cue = upcomingBend > 0.62 && race.speed > 105
-            ? { label: "BRAKE POINT · LIFT NOW", tone: "brake" }
-            : upcomingBend > 0.34
-              ? { label: (upcomingTurn < 0 ? "TURN LEFT" : "TURN RIGHT") + " · PREPARE", tone: "turn" }
-              : { label: "GREEN LIGHT · BUILD SPEED", tone: "go" };
+          const cue = race.progress < 1
+            ? { label: "SOLO PRACTICE · STEER LEFT & RIGHT", tone: "go" }
+            : race.progress < 2
+              ? { label: "QUALIFYING · SET YOUR GRID TIME", tone: "go" }
+              : upcomingBend > 0.62 && race.speed > 105
+                ? { label: "BRAKE POINT · LIFT NOW", tone: "brake" }
+                : upcomingBend > 0.34
+                  ? { label: (upcomingTurn < 0 ? "TURN LEFT" : "TURN RIGHT") + " · PREPARE", tone: "turn" }
+                  : { label: "GREEN LIGHT · BUILD SPEED", tone: "go" };
           if (cue.tone === "brake" && lastSignal.current !== "brake") notify("Brake point ahead — lift before turn-in.", "info");
           lastSignal.current = cue.tone;
           setSignal(cue);
