@@ -421,7 +421,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // One consistent swept-frame safety envelope, inside the visible rail
         // centreline at 8.4 units. Keep the car on the road without crash/respawn.
         const safeOffset = trackSafetyOffset;
-        if (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset) {
+        const pitEntryAttempt = !race.playerPitDone && !race.playerPitting && Math.floor(race.progress) >= 2
+          && nearestT >= .89 && nearestT <= .96 && signedOffset < -4.5;
+        if (!pitEntryAttempt && (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset)) {
           const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
           const correctionX = distanceFromCentre > safeOffset
             ? outwardX
