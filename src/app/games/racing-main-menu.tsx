@@ -31,7 +31,7 @@ function RacingMenuPreview({ graphics, onGraphicsStatus }: { graphics: "procedur
   const raceRef = useRef<Race>(newRace());
   const controlsRef = useRef<Controls>({ steer: 0, accelerate: false, brake: false, boost: false });
   const phaseRef = useRef<Phase>("running");
-  return <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} preview previewGraphics={graphics} onGraphicsStatus={onGraphicsStatus} />;
+  return <Racing3DScene key={graphics} raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} preview previewGraphics={graphics} onGraphicsStatus={onGraphicsStatus} />;
 }
 
 export default function RacingMainMenu({ embedded = false }: { embedded?: boolean }) {
