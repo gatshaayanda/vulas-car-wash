@@ -307,7 +307,13 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
           const bounds = new THREE.Box3().setFromObject(model);
           const size = bounds.getSize(new THREE.Vector3());
           const center = bounds.getCenter(new THREE.Vector3());
-          const longest = Math.max(size.x, size.z, 0.001);
+          const longest = Math.max(size.x, size.y, size.z);
+          if (!Number.isFinite(longest) || longest < 0.001) {
+            onGraphicsStatus?.("error");
+            return;
+          }
+          // Kenney's exported vehicle models vary in their dominant axis and origin.
+          // Fit against the full 3D bounds so a model cannot become microscopic or huge.
           model.position.sub(center);
           model.rotation.y = Math.PI;
           model.scale.setScalar(3.9 / longest);
@@ -323,9 +329,11 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
         .then(response => { if (!response.ok) throw new Error("Kenney manifest unavailable"); return response.json(); })
         .then(manifest => {
           const assets = Array.isArray(manifest?.assets) ? manifest.assets : [];
-          const selected = assets.find((asset: { name?: string; path?: string }) => /racecarwhite/i.test(asset.name || ""))
-            || assets.find((asset: { name?: string; path?: string }) => /race.?car/i.test(asset.name || ""));
-          if (!selected || typeof selected.path !== "string" || !selected.path.startsWith("/game-assets/racing-kit/")) throw new Error("Kenney car missing from manifest");
+          const normalizedName = (asset: { name?: string }) => (asset.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+          const selected = assets.find((asset: { name?: string; path?: string }) => normalizedName(asset) === "racecarwhite")
+            || assets.find((asset: { name?: string; path?: string }) => normalizedName(asset).includes("racecar"))
+            || assets.find((asset: { name?: string; path?: string }) => /car|vehicle/i.test(asset.name || ""));
+          if (!selected || typeof selected.path !== "string" || !selected.path.startsWith("/game-assets/racing-kit/")) throw new Error("No usable Kenney vehicle model in manifest");
           if (!cancelled) loadModel(selected.path);
         })
         .catch(() => { if (!cancelled) { host.dataset.graphicsStatus = "asset-unavailable"; onGraphicsStatus?.("error"); } });
