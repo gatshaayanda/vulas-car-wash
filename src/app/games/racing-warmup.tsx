@@ -117,7 +117,13 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       if (phaseRef.current === "running" && dt > 0) {
         const controls = controlsRef.current;
         const playerTrackT = wrap(race.trackT, 1);
-        if (race.playerPitRequested && !race.playerPitDone && !race.playerPitting && Math.floor(race.progress) >= 1 && playerTrackT >= .895 && playerTrackT < .985) {
+        if (!race.playerPitDone && !race.playerPitting && Math.floor(race.progress) >= 2 && playerTrackT >= .895 && playerTrackT < .985) {
+          let pitEntryDistance = Number.POSITIVE_INFINITY;
+          for (let sample = .08; sample <= .28; sample += .02) {
+            const point = RACING_PIT_LANE.getPointAt(sample);
+            pitEntryDistance = Math.min(pitEntryDistance, Math.hypot(race.worldX - point.x, race.worldZ - point.z));
+          }
+          if (pitEntryDistance <= 3.8) {
           // Commit the car to the physical pit-lane entrance. The pit spline starts
           // at the circuit's .91 point; beginning projection at spline progress zero
           // without aligning the car there can leave it trapped on the racing line.
@@ -135,7 +141,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           race.playerPitServiced = false;
           race.playerPitServiceRemaining = 0;
           controls.accelerate = true;
-          notify("Pit lane entry · follow the guided line", "info");
+          notify("PIT ENTRY · follow the yellow line to your service box", "info");
+          }
         }
         const pitAim = clamp(race.playerPitProgress + .035, 0, .995);
         const pitTangent = RACING_PIT_LANE.getTangentAt(pitAim).normalize();
@@ -452,8 +459,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           race.playerPitProgress = nearestT;
           if (!race.playerPitServiced && race.playerPitProgress >= .49) {
             race.playerPitServiced = true;
-            race.playerPitServiceRemaining = 2.8;
-            notify("Pit box · service underway", "info");
+            race.playerPitServiceRemaining = 999;
+            notify("PIT BOX · choose your tyre compound to begin service", "info");
           }
           if (race.playerPitServiceRemaining > 0) {
             race.playerPitServiceRemaining = Math.max(0, race.playerPitServiceRemaining - dt);
@@ -463,7 +470,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           if (race.playerPitProgress >= .985 && race.playerPitServiceRemaining <= 0) {
             race.playerPitting = false;
             race.playerPitDone = true;
-            race.progress = 2.105;
+            race.progress = 3.105;
             race.trackT = .105;
             notify("Pit stop complete · back on track", "success");
           } else {
@@ -492,7 +499,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // The physical pit lane uses the same route geometry as the rendered circuit.
         const botCurrentT = wrap(race.botProgress, 1);
         const botWasPitting = race.botPitting;
-        if (!race.botPitDone && !race.botPitting && Math.floor(race.botProgress) === 1 && botCurrentT >= .895 && botCurrentT < .96) {
+        if (!race.botPitDone && !race.botPitting && Math.floor(race.botProgress) === 3 && botCurrentT >= .895 && botCurrentT < .96) {
           race.botPitting = true;
           race.botPitProgress = 0;
           race.botPitServiced = false;
@@ -623,10 +630,10 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           if (race.botPitProgress >= .985 && race.botPitServiceRemaining <= 0) {
             race.botPitting = false;
             race.botPitDone = true;
-            race.botProgress = 2.105;
+            race.botProgress = 3.105;
             notify("Kago rejoins the circuit · pit stop complete", "success");
           } else {
-            race.botProgress = 1.91;
+            race.botProgress = 2.91;
           }
         } else {
           for (let i = -56; i <= 56; i++) {
@@ -764,17 +771,26 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         if (lapNow > race.lap) {
           const completedLapTime = race.lapTime;
           const completedLapValid = !race.lapInvalid;
-          const formationComplete = race.lap === 1 && lapNow === 2;
-          if (!formationComplete && !race.lapInvalid && (race.bestLap === null || race.lapTime < race.bestLap)) {
+          const practiceComplete = race.lap === 1 && lapNow === 2;
+          const qualifyingComplete = race.lap === 2 && lapNow === 3;
+          if (!practiceComplete && !race.lapInvalid && (race.bestLap === null || race.lapTime < race.bestLap)) {
             race.bestLap = race.lapTime;
             setBestLap(race.lapTime);
             notify("New personal best lap!", "success");
-          } else if (!formationComplete && race.lapInvalid) notify("Lap invalid — stay on the racing surface.", "error");
+          } else if (!practiceComplete && race.lapInvalid) notify("Lap invalid — stay on the racing surface.", "error");
           race.lap = lapNow;
           race.lapTime = 0;
           race.lapInvalid = false;
           setLap(lapNow);
-          if (formationComplete) {
+          if (practiceComplete) {
+            race.progress = 1;
+            race.lap = 2;
+            race.elapsed = 0;
+            race.lapTime = 0;
+            controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+            setSpeed(0); setLapTime(0);
+            notify("PRACTICE COMPLETE · next lap is qualifying. Find a clean, fast lap.", "success");
+          } else if (qualifyingComplete) {
             const gridPoint = botTrack.getPointAt(0);
             const gridTangent = botTrack.getTangentAt(0).normalize();
             const gridSideX = -gridTangent.z, gridSideZ = gridTangent.x;
@@ -782,17 +798,20 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             race.worldX = gridPoint.x + gridSideX * 2.45;
             race.worldZ = gridPoint.z + gridSideZ * 2.45;
             race.worldYaw = gridYaw; race.velocityX = 0; race.velocityZ = 0; race.speed = 0;
-            race.progress = 1; race.trackT = 0;
+            race.progress = 2; race.trackT = 0;
             race.botWorldX = gridPoint.x - gridSideX * 2.45;
             race.botWorldZ = gridPoint.z - gridSideZ * 2.45;
             race.botWorldYaw = gridYaw; race.botVelocityX = 0; race.botVelocityZ = 0; race.botSpeed = 0;
-            race.botProgress = 1; race.botInitialized = true;
+            race.botProgress = 2; race.botInitialized = true;
             race.elapsed = 0; race.lapTime = 0; race.botNos = 100; race.botNosCooldown = 0; race.botBoostActive = false; race.nos = 100;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
             setSpeed(0); setLapTime(0); setNos(100); setCountdown(3);
             phaseRef.current = "grid"; setPhase("grid");
-            notify("Formation lap complete · take your grid position", "info");
-          } else if (lapNow >= 4 && !completedRef.current) {
+            notify("QUALIFYING COMPLETE · your lap time sets the grid. Kago joins now.", "success");
+          } else if (lapNow >= 5 && !completedRef.current) {
+            if (!race.playerPitDone) {
+              notify("MANDATORY PIT STOP · return to the marked pit entry before the finish can be confirmed.", "error");
+            } else {
             completedRef.current = true;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
             const position: 1 | 2 = race.progress >= race.botProgress ? 1 : 2;
@@ -801,6 +820,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             phaseRef.current = "finished"; setPhase("finished");
             notify(position === 1 ? "🏆 VICTORY · Kago beaten!" : "Race complete · Kago takes the win", position === 1 ? "success" : "info");
             onComplete?.(result);
+            }
           }
         }
         if (now - lastUi > 33) {
@@ -892,7 +912,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     {embedded && <div className="race-inline-heading"><div><p className="vula-eyebrow">VULA RACING · CIRCUIT PRACTICE</p><h2>Find your racing line.</h2><p>One more lap? Smooth corners, clean exits, well-timed NOS.</p></div><button type="button" className="vula-button secondary" onClick={() => { if (phaseRef.current === "running") pauseRace(); setExpanded(false); }}>Close game ×</button></div>}
     <section className="vula-section warmup-game">
       <div className="warmup-opponent-menu"><div><span>RACE OPPONENT</span><strong>Kago · The Attacker</strong><small>Offline AI rival · runs on this circuit</small></div><label>Difficulty<select value={botDifficulty} disabled={phase === "running" || phase === "countdown"} onChange={event => { const next = event.target.value as "Easy" | "Normal" | "Hard"; botDifficultyRef.current = next; setBotDifficulty(next); }}><option>Easy</option><option>Normal</option><option>Hard</option></select></label></div>
-      <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>{lap <= 1 ? "Session" : "Race lap"}</span><strong>{lap <= 1 ? "Warm-up" : Math.min(lap - 1, 2) + "/2"}</strong></div><div><span>Current lap</span><strong>{fmt(lapTime)}</strong></div><div><span>Best lap</span><strong>{fmt(bestLap)}</strong></div><div><span>Rival gap</span><strong>{Math.abs(Math.round(rivalGap))}m <small>{rivalGap >= 0 ? "Kago ahead" : "You ahead"}</small></strong></div></div>
+      <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>{lap <= 1 ? "Session" : "Race lap"}</span><strong>{lap === 1 ? "Practice" : lap === 2 ? "Qualifying" : Math.min(lap - 2, 2) + "/2"}</strong></div><div><span>Current lap</span><strong>{fmt(lapTime)}</strong></div><div><span>Best lap</span><strong>{fmt(bestLap)}</strong></div><div><span>Rival gap</span><strong>{Math.abs(Math.round(rivalGap))}m <small>{rivalGap >= 0 ? "Kago ahead" : "You ahead"}</small></strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} />
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
@@ -902,19 +922,24 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           <span>VULA RACING · KAGO CHALLENGE</span>
           <strong>{phase === "ready" ? "PIT GARAGE · RACE PREP" : phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>
           {phase === "ready" ? <>
-            <p>Choose your starting compound. Tyres are visual-only in this QA build; handling is unchanged.</p>
+            <p>Choose your starting tyres, then take a quiet solo practice lap. Your qualifying lap sets the grid; Kago joins only when the race begins.</p>
             <div className="warmup-pit-tyres" aria-label="Starting tyre selection">
               {(["Soft", "Medium", "Hard"] as const).map((tyre) => <button type="button" key={tyre} className={"warmup-pit-tyre " + tyre.toLowerCase() + (tyreChoice === tyre ? " selected" : "")} aria-pressed={tyreChoice === tyre} onClick={() => setTyreChoice(tyre)}><strong>{tyre}</strong><small>{tyre === "Soft" ? "More grip · shorter life" : tyre === "Medium" ? "Balanced starting choice" : "Less peak grip · durable"}</small></button>)}
             </div>
             <div className="warmup-pit-brief"><b>ENGINEER</b><span>{tyreChoice} selected. NOS is your only race resource: spend it on straights, then lift to recharge.</span></div>
-            <div className="warmup-pit-check"><span>✓ Car systems ready</span><span>✓ Kago briefing loaded</span><span>✓ One formation lap + two race laps</span></div>
+            <div className="warmup-pit-check"><span>✓ Car systems ready</span><span>✓ Kago briefing loaded</span><span>✓ Solo practice · qualifying · two race laps</span></div>
           </> : <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>}
         </div>
       </div>
+      <div className="warmup-pit-service-overlay" role="dialog" aria-label="Pit stop tyre service">
+          <span>PIT CREW · SERVICE BOX</span><strong>Choose your race tyres</strong>
+          <p>Your mandatory stop is complete once the crew fits your selected compound.</p>
+          <div>{(["Soft", "Medium", "Hard"] as const).map(tyre => <button type="button" key={tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => { setTyreChoice(tyre); raceRef.current.playerPitServiceRemaining = 2.8; notify(tyre.toUpperCase() + " TYRES FITTED · GO GO GO!", "success"); }}>{tyre}</button>)}</div>
+        </div>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
         <div className="warmup-steering" aria-label="Analog steering">
-          <span className="steering-caption">STEER</span>
+          <span className="steering-caption"> </span>
           <div className={"steering-stick" + (phase !== "running" ? " is-disabled" : "")}
             role="slider" aria-label="Steering thumbstick" aria-valuemin={-100} aria-valuemax={100} aria-valuenow={Math.round(controlsRef.current.steer * 100)}
             tabIndex={phase === "running" ? 0 : -1}
@@ -926,16 +951,16 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             <span className="steering-stick-track" />
             <span className="steering-stick-knob"><span>●</span></span>
           </div>
-          <span className="steering-caption">Move thumb to steer</span>
+           
         </div>
-        <div className="warmup-driving">\n          <button type="button" className="pit-button" disabled={phase !== "running" || raceRef.current.playerPitDone || raceRef.current.playerPitRequested} onClick={() => { raceRef.current.playerPitRequested = true; notify("Pit requested · entry is ahead near the start/finish straight.", "info"); }}>PIT {raceRef.current.playerPitDone ? "DONE" : raceRef.current.playerPitRequested ? "QUEUED" : "NOW"}</button>
+        <div className="warmup-driving">\n           
           <button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>BRAKE ↓</button>
           <button type="button" className="accelerate-button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>GAS ↑</button>
           <button type="button" className="nos-button" aria-label="Toggle NOS burst" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0} onClick={toggleBoost}>{boostActive ? "NOS ON ⚡" : "TAP NOS ⚡"}</button>
         </div>
         <div className="warmup-actions">{phase === "paused" && onSave && <button type="button" className="vula-button secondary" onClick={() => onSave({ race: { ...raceRef.current }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString() })}>Save game</button>}{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start driving ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Drive again ↻</button>}<button type="button" className="vula-button secondary" onClick={() => reset(false)}>Restart ↻</button>{onExit && <button type="button" className="vula-button secondary" onClick={onExit}>Racing menu</button>}</div>
       </div>
-      <p className="warmup-help">Phone: use PIT NOW to queue your single stop; the car takes the marked entry on the start/finish straight. Move the circular thumbstick with your left thumb; BRAKE is left and GAS is right under your right thumb. Tap NOS once for a burst, tap again to stop; lifting off the gas recharges it faster. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause.</p>
+      <p className="warmup-help">Phone: steer left or right with the thumbstick, hold GAS to accelerate and BRAKE to slow down. Drive through the marked pit entry when the engineer calls you in; select tyres at the service box, then accelerate to rejoin. Move the circular thumbstick with your left thumb; BRAKE is left and GAS is right under your right thumb. Tap NOS once for a burst, tap again to stop; lifting off the gas recharges it faster. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause.</p>
     </section>
     {!embedded && <footer className="vula-footer"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></Link><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></footer>}
   </div>;
