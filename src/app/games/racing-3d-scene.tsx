@@ -3,7 +3,7 @@
 import { useEffect, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { createRacingTrack, getTrackTurn } from "./racing-track";
+import { createRacingTrack, createRacingPitLane, getTrackTurn } from "./racing-track";
 import type { Controls, Phase, Race } from "./racing-warmup";
 import RacingTrackMap from "./racing-track-map";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -148,20 +148,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
 
     // Dedicated pit lane: branches off the main straight, runs parallel to the
     // circuit past a marked service box, then merges back onto the racing line.
-    const pitSamples: THREE.Vector3[] = [];
-    const pitStartT = .91;
-    const pitEndT = .105;
-    const pitSpan = pitEndT + 1 - pitStartT;
-    for (let i = 0; i <= 42; i++) {
-      const t = (pitStartT + pitSpan * i / 42) % 1;
-      const point = track.getPointAt(t);
-      const tangent = track.getTangentAt(t).normalize();
-      const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-      const blend = Math.min(1, i / 7, (42 - i) / 7);
-      point.addScaledVector(side, -13 * Math.max(0, blend));
-      pitSamples.push(point);
-    }
-    const pitLane = new THREE.CatmullRomCurve3(pitSamples, false, "centripetal", .35);
+    const pitLane = createRacingPitLane(track);
     const pitRoad = new THREE.Mesh(
       ribbon(pitLane, 7.2, 220, .035),
       new THREE.MeshStandardMaterial({ color: "#252d32", roughness: .96, side: THREE.DoubleSide }),
