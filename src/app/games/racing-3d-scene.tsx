@@ -6,8 +6,9 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import { createRacingTrack, getTrackTurn } from "./racing-track";
 import type { Controls, Phase, Race } from "./racing-warmup";
 import RacingTrackMap from "./racing-track-map";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
-type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase>; preview?: boolean };
+type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase>; preview?: boolean; previewGraphics?: "procedural" | "kenney" };
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 function ribbon(curve: THREE.Curve<THREE.Vector3>, width: number, segments: number, y: number) {
@@ -103,7 +104,7 @@ function makeCar(bodyColor = "#f04478") {
   return car;
 }
 
-export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview = false }: Props) {
+export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview = false, previewGraphics = "procedural" }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const host = mountRef.current;
@@ -235,6 +236,32 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       }
     }
     const car = makeCar();
+    const assetCar = new THREE.Group();
+    assetCar.visible = false;
+    scene.add(assetCar);
+    if (preview && previewGraphics === "kenney") {
+      const loader = new GLTFLoader();
+      fetch("/game-assets/racing-kit/manifest.json").then(response => {
+        if (!response.ok) throw new Error("Racing Kit manifest unavailable");
+        return response.json();
+      }).then((manifest: { assets?: Array<{ name?: string; path?: string; format?: string }> }) => {
+        const candidates = (manifest.assets ?? []).filter(item => item.path && (item.format === "glb" || item.format === "gltf"));
+        const selected = candidates.find(item => /car|vehicle|race/i.test(item.name ?? item.path ?? "")) ?? candidates[0];
+        if (!selected?.path) throw new Error("No prepared Kenney vehicle model found");
+        loader.load(selected.path, gltf => {
+          const model = gltf.scene;
+          const bounds = new THREE.Box3().setFromObject(model);
+          const size = bounds.getSize(new THREE.Vector3());
+          const center = bounds.getCenter(new THREE.Vector3());
+          const longest = Math.max(size.x, size.z, 0.001);
+          model.position.sub(center);
+          model.position.y += size.y / 2;
+          model.scale.multiplyScalar(3.55 / longest);
+          assetCar.add(model);
+          assetCar.visible = true;
+        });
+      }).catch(() => { /* Procedural preview remains the safe fallback. */ });
+    }
     // Keep the car's proportions credible against the 12-unit road and leave
     // more visual room around it for steering on narrow mobile screens.
     car.scale.setScalar(0.82);
@@ -352,6 +379,12 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
       car.position.copy(carWorld);
       car.rotation.y = race.worldYaw;
+      assetCar.position.copy(carWorld);
+      assetCar.rotation.y = race.worldYaw;
+      assetCar.scale.setScalar(0.82);
+      const showAsset = preview && previewGraphics === "kenney" && assetCar.children.length > 0;
+      assetCar.visible = showAsset;
+      car.visible = !showAsset;
       const botT = ((race.botProgress % 1) + 1) % 1;
       const botPoint = track.getPointAt(botT), botTangent = track.getTangentAt(botT).normalize();
       const botSide = new THREE.Vector3(-botTangent.z, 0, botTangent.x).normalize();
@@ -504,7 +537,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       renderer.dispose();
       if (renderer.domElement.parentElement === host) host.removeChild(renderer.domElement);
     };
-  }, [raceRef, controlsRef, phaseRef, preview]);
+  }, [raceRef, controlsRef, phaseRef, preview, previewGraphics]);
 
   return (
     <div ref={mountRef} className="racing-3d-root" data-phase={phaseRef.current} data-braking={controlsRef.current.brake ? "true" : "false"}>
