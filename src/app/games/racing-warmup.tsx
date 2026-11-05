@@ -232,7 +232,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         const driveAccel = (race.throttle * 20 + (boost ? 20 : 0)) * (longitudinalVelocity < 0 ? 1.7 : 1);
         const brakeAccel = race.brakePressure * 13.5 * brakeEfficiency;
         const dragAccel = longitudinalVelocity * (0.24 + Math.abs(longitudinalVelocity) * 0.009);
-        const nextLongitudinal = clamp(longitudinalVelocity + (driveAccel - brakeAccel - dragAccel) * dt, -7, 22.5);
+        const nextLongitudinal = race.playerPitting && race.playerPitServiceRemaining > 0 ? 0 : clamp(longitudinalVelocity + (driveAccel - brakeAccel - dragAccel) * dt, -7, race.playerPitting ? 9.5 : 22.5);
         const longitudinalAccel = dt > 0 ? (nextLongitudinal - longitudinalVelocity) / dt : 0;
         // Normal grip recentres lateral slip progressively. Once the friction
         // circle is exceeded, weaker recovery lets momentum carry the car sideways
