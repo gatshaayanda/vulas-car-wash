@@ -369,14 +369,14 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         if (race.playerPitting || race.playerGarageExit) {
           if (race.playerGarageExit) {
             if (controls.accelerate && !controls.brake) race.playerPitProgress = Math.min(.985, race.playerPitProgress + (9.2 * dt) / Math.max(1, RACING_PIT_LANE.getLength()));
-          } else if (race.playerPitServiceRemaining <= 0) {
+          } else if (race.playerPitServiceRemaining <= 0 && controls.accelerate && !controls.brake) {
             race.playerPitProgress = Math.min(.985, race.playerPitProgress + (9.2 * dt) / Math.max(1, RACING_PIT_LANE.getLength()));
           }
           const pitPoint = RACING_PIT_LANE.getPointAt(race.playerPitProgress);
           const pitDirection = RACING_PIT_LANE.getTangentAt(race.playerPitProgress).normalize();
           const pitLaneSpeed = race.playerGarageExit
             ? controls.accelerate && !controls.brake ? 9.2 : 0
-            : race.playerPitServiceRemaining > 0 ? 0 : 9.2;
+            : race.playerPitServiceRemaining > 0 || !controls.accelerate || controls.brake ? 0 : 9.2;
           race.worldX = pitPoint.x;
           race.worldZ = pitPoint.z;
           race.worldYaw = Math.atan2(-pitDirection.x, -pitDirection.z);
@@ -492,6 +492,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           if (!race.playerPitServiced && race.playerPitProgress >= .49) {
             race.playerPitServiced = true;
             race.playerPitServiceRemaining = 4;
+            controls.steer = 0; controls.accelerate = false; controls.brake = false; controls.boost = false;
+            setBoostActive(false);
             notify("PIT BOX · choose your tyre compound to begin service", "info");
           }
           if (race.playerPitServiceRemaining > 0 && race.playerPitServiceRemaining <= 3) {
@@ -936,6 +938,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     const keyDown = (e: KeyboardEvent) => {
       if (embedded && !expanded) return;
       if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "a", "d", "w", "s", " "].includes(e.key)) e.preventDefault();
+      if (raceRef.current.playerPitting && raceRef.current.playerPitServiceRemaining > 0) return;
       if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") controlsRef.current.steer = -1;
       if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") controlsRef.current.steer = 1;
       if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") controlsRef.current.accelerate = true;
@@ -957,6 +960,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   // Circular thumbstick, like the movement controls in Shooters Trigger/Paws World.
   // The knob follows the thumb in two dimensions; horizontal displacement steers the car.
   const steerStickPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (raceRef.current.playerPitting && raceRef.current.playerPitServiceRemaining > 0) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const maxX = Math.max(1, rect.width * 0.28);
     const maxY = Math.max(1, rect.height * 0.28);
@@ -976,6 +980,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     if (knob) knob.style.transform = "translate3d(0, 0, 0)";
   };
   const hold = (key: "accelerate" | "brake", down: boolean) => {
+    if (raceRef.current.playerPitting && raceRef.current.playerPitServiceRemaining > 0) { controlsRef.current[key] = false; return; }
     controlsRef.current[key] = down;
     if (key === "brake" && down) {
       controlsRef.current.boost = false;
@@ -985,13 +990,14 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   // NOS is a compact tap-to-toggle tactical burst, not a hold pedal.
   // Tap once to fire, tap again to cut it; braking safely cancels the burst.
   const toggleBoost = () => {
-    if (phaseRef.current !== "running" || raceRef.current.nos <= 0) return;
+    if (phaseRef.current !== "running" || raceRef.current.nos <= 0 || raceRef.current.playerPitting) return;
     const next = !controlsRef.current.boost;
     controlsRef.current.boost = next;
     setBoostActive(next);
     notify(next ? "NOS deployed · use the burst to build a gap." : "NOS cut · reserve will recover when you lift.", "info");
   };
 
+  const pitServiceLocked = raceRef.current.playerPitting && raceRef.current.playerPitServiceRemaining > 0;
   if (embedded && !expanded) return <div className="race-inline-promo"><div><p className="vula-eyebrow">VULA RACING · QUICK BREAK</p><h2>Take a quick lap.</h2><p>A little circuit practice while you wait. Your wash booking stays right where you left it.</p></div><button type="button" className="vula-button primary" onClick={() => setExpanded(true)}>Play now ↗</button></div>;
 
   return <div className={"vula race-hub" + (embedded ? " race-hub-embedded" : "")}>
@@ -1028,10 +1034,10 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       <div className="warmup-controls warmup-circuit-controls">
         <div className="warmup-steering" aria-label="Analog steering">
            
-          <div className={"steering-stick" + (phase !== "running" ? " is-disabled" : "")}
+          <div className={"steering-stick" + (phase !== "running" || pitServiceLocked ? " is-disabled" : "")}
             role="slider" aria-label="Steering thumbstick" aria-valuemin={-100} aria-valuemax={100} aria-valuenow={Math.round(controlsRef.current.steer * 100)}
-            tabIndex={phase === "running" ? 0 : -1}
-            onPointerDown={e => { if (phase !== "running") return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); steerStickPointer(e); }}
+            tabIndex={phase === "running" && !pitServiceLocked ? 0 : -1}
+            onPointerDown={e => { if (phase !== "running" || pitServiceLocked) return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); steerStickPointer(e); }}
             onPointerMove={e => { if (e.currentTarget.hasPointerCapture(e.pointerId)) steerStickPointer(e); }}
             onPointerUp={releaseSteerStick} onPointerCancel={releaseSteerStick} onLostPointerCapture={releaseSteerStick}
             onKeyDown={e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); const steer = e.key === "ArrowLeft" ? -0.72 : 0.72; controlsRef.current.steer = steer; const knob = e.currentTarget.querySelector<HTMLElement>(".steering-stick-knob"); if (knob) knob.style.transform = `translate3d(${steer * 25}px, 0, 0)`; } }}
@@ -1042,9 +1048,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
            
         </div>
         <div className="warmup-driving"> 
-          <button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>BRAKE ↓</button>
-          <button type="button" className="accelerate-button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>GAS ↑</button>
-          <button type="button" className="nos-button" aria-label="Toggle NOS burst" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0} onClick={toggleBoost}>{boostActive ? "NOS ON ⚡" : "TAP NOS ⚡"}</button>
+          <button type="button" aria-label="Brake" disabled={phase !== "running" || pitServiceLocked} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>BRAKE ↓</button>
+          <button type="button" className="accelerate-button" aria-label="Accelerate" disabled={phase !== "running" || pitServiceLocked} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>GAS ↑</button>
+          <button type="button" className="nos-button" aria-label="Toggle NOS burst" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0 || pitServiceLocked} onClick={toggleBoost}>{boostActive ? "NOS ON ⚡" : "TAP NOS ⚡"}</button>
         </div>
         <div className="warmup-actions">{phase === "paused" && onSave && <button type="button" className="vula-button secondary" onClick={() => onSave({ race: { ...raceRef.current }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString() })}>Save game</button>}{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start driving ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Drive again ↻</button>}<button type="button" className="vula-button secondary" onClick={() => reset(false)}>Restart ↻</button>{onExit && <button type="button" className="vula-button secondary" onClick={onExit}>Racing menu</button>}</div>
       </div>
