@@ -15,6 +15,23 @@ export function createRacingTrack() {
   );
 }
 
+export function createRacingPitLane(track: THREE.CatmullRomCurve3) {
+  const samples: THREE.Vector3[] = [];
+  const startT = .91;
+  const endT = .105;
+  const span = endT + 1 - startT;
+  for (let i = 0; i <= 42; i++) {
+    const t = (startT + span * i / 42) % 1;
+    const point = track.getPointAt(t);
+    const tangent = track.getTangentAt(t).normalize();
+    const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+    const blend = Math.min(1, i / 7, (42 - i) / 7);
+    point.addScaledVector(side, -13 * Math.max(0, blend));
+    samples.push(point);
+  }
+  return new THREE.CatmullRomCurve3(samples, false, "centripetal", .35);
+}
+
 export function getTrackTurn(track: THREE.CatmullRomCurve3, progress: number, sample = .006) {
   const t = ((progress % 1) + 1) % 1;
   const before = track.getTangentAt((t - sample + 1) % 1).normalize();
