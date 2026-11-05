@@ -431,3 +431,23 @@
   .racing-track-map-heading{font-size:7px}
   .racing-track-map-legend{font-size:6px;gap:7px}
 }
+
+
+/* Race finish presentation: clear, celebratory win state without obscuring live driving. */
+.warmup-race-result{
+  position:absolute;z-index:12;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(88%,390px);padding:22px 20px 18px;border:1px solid #ffffff66;border-radius:20px;
+  background:linear-gradient(145deg,rgba(13,31,26,.96),rgba(28,48,39,.94));
+  box-shadow:0 18px 60px #07140e88;color:#f7f8ed;text-align:center;backdrop-filter:blur(12px);
+  display:grid;justify-items:center;gap:9px;
+}
+.warmup-race-result>span{font-size:9px;font-weight:950;letter-spacing:.2em;color:#c8d9bd}
+.warmup-race-result>strong{font:900 clamp(23px,6vw,34px)/1.02 "Space Grotesk",system-ui,sans-serif;letter-spacing:-.045em}
+.warmup-race-result>p{margin:0;color:#d4dfd2;font-size:12px;font-weight:700}
+.warmup-race-result>button{margin-top:7px;min-height:42px;padding:0 22px;border:0;border-radius:999px;background:#d8f3a7;color:#1d3024;font-size:11px;font-weight:950;letter-spacing:.08em}
+.warmup-race-result.victory{border-color:#e6d28c;background:linear-gradient(145deg,rgba(38,47,25,.98),rgba(28,61,43,.96));box-shadow:0 0 0 2px #f5d97844,0 20px 70px #07140eaa}
+.warmup-race-result.victory>span{color:#ffe08a}
+.warmup-race-result.victory>strong{color:#fff1bb;text-shadow:0 0 24px #f5d97855}
+.warmup-race-result.victory>button{background:linear-gradient(135deg,#fff0a8,#d8f3a7);box-shadow:0 4px 18px #f3d97844}
+.warmup-race-result.defeat{border-color:#b9c5c0}
+@media(max-width:420px){.warmup-race-result{width:calc(100% - 28px);padding:19px 14px 16px;border-radius:16px}}
