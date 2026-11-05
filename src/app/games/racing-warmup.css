@@ -462,3 +462,5 @@
 .warmup-pit-brief{display:flex;gap:10px;align-items:flex-start;width:min(100%,620px);padding:9px 11px;border-left:3px solid #f2bd45;background:rgba(9,16,15,.78);text-align:left;font-size:11px;line-height:1.45}.warmup-pit-brief b{flex:0 0 auto;color:#f2bd45;letter-spacing:.08em;font-size:10px}
 .warmup-pit-check{display:flex;flex-wrap:wrap;gap:7px 14px;width:min(100%,620px);margin-top:9px;color:rgba(255,255,255,.8);font-size:10px}
 @media(max-width:560px){.warmup-pit-tyres{gap:5px}.warmup-pit-tyre{padding:8px 6px}.warmup-pit-tyre small{font-size:9px}.warmup-pit-check{gap:5px 9px}}
+
+.warmup-driving .pit-button{border:1px solid #e8bd48;background:linear-gradient(180deg,#f3cf66,#c58b25);color:#17130a;font-weight:950;letter-spacing:.08em;box-shadow:0 3px 12px #0005}.warmup-driving .pit-button:disabled{opacity:.48;filter:saturate(.55)}
