@@ -119,7 +119,7 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Quick Race must have an actual race completion condition and a result event. Capture elapsed race time, valid best lap, difficulty and player finish position from the simulation; do not invent or imply server verification.
 - New Game creates a separate device-local save slot and starts the existing 3D Quick Race. Continue restores the active validated save. Load Game lists saved slots. Save Game is available from a paused state and persists a validated snapshot. Never overwrite a slot silently; preserve the last valid stored value if a write fails.
 - Local save data uses a versioned, validated schema and device storage. High Scores contains only completed results. Clearly label records as device-local/offline, not shared leaderboard entries or rewards.
-- Keep Kago speed targets (Easy, Normal and Hard 24.67 world-units/second) and approved 3D player handling untouched. Do not refactor simulation or alter controls to implement menu navigation.
+- Keep Kago speed targets (Easy, Normal and Hard 25.45 world-units/second) and approved 3D player handling untouched. Do not refactor simulation or alter controls to implement menu navigation.
 - Design portrait/mobile first: compact screens, thumb-reachable actions and readable touch targets.
 - Do not add pit stops, tyre/fuel strategy, qualifying, divisions, career mode, online multiplayer or unrelated features in this delivery.
 - QA must prove New Game, Continue, Load, Save/restore after refresh, completed race result recording, High Scores persistence and offline behavior on a phone. Report only checks actually run. Product owner handles Vercel deployment unless explicitly delegated.
