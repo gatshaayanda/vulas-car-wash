@@ -28,7 +28,7 @@ const writeData = (data: LocalData) => { try { localStorage.setItem(STORAGE_KEY,
 const time = (value: number | null) => value === null || !Number.isFinite(value) ? "—" : `${Math.floor(value / 60)}:${(value % 60).toFixed(2).padStart(5, "0")}`;
 
 function RacingMenuPreview({ graphics, onGraphicsStatus }: { graphics: "procedural" | "kenney"; onGraphicsStatus: (status: "loading" | "ready" | "error") => void }) {
-  const raceRef = useRef<Race>(newRace());
+  const raceRef = useRef<Race>({ ...newRace(), worldX: 0, worldZ: 72, worldYaw: -1.34, playerGarageExit: false, playerOutLap: false });
   const controlsRef = useRef<Controls>({ steer: 0, accelerate: false, brake: false, boost: false });
   const phaseRef = useRef<Phase>("running");
   return <Racing3DScene key={graphics} raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} preview previewGraphics={graphics} onGraphicsStatus={onGraphicsStatus} />;
