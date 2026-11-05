@@ -476,7 +476,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       const botYaw = race.botInitialized ? race.botWorldYaw : Math.atan2(-botTangent.x, -botTangent.z);
       botCar.position.copy(botWorld);
       botCar.rotation.y = botYaw;
-      botCar.visible = race.progress >= 2;
+      botCar.visible = race.lap >= 3;
       botCar.rotation.z = clamp(-race.botDrift * .18, -.14, .14);
       botCar.rotation.x = clamp(race.botBrake * .08, 0, .08);
       const botFlame = botCar.userData.flame as THREE.Object3D | undefined;
