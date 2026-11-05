@@ -476,7 +476,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             race.trackT = .105;
             notify("Pit stop complete · back on track", "success");
           } else {
-            race.progress = 1.91;
+            race.progress = 2.91;
           }
         } else {
           race.trackT = nearestT;
