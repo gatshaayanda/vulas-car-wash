@@ -48,8 +48,8 @@ self.addEventListener("notificationclick", (event) => {
   }));
 });
 
-const CACHE_VERSION = "vula-shell-v7";
-const GAME_CACHE = "vula-game-v7";
+const CACHE_VERSION = "vula-shell-v8";
+const GAME_CACHE = "vula-game-v8";
 const MEDIA_CACHE = "vula-media-v1";
 const SHELL_CACHE = CACHE_VERSION;
 const STATIC_LIMIT = 160;
@@ -159,8 +159,8 @@ self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
     const obsolete = new Set([
-      "vula-shell-v1", "vula-shell-v2", "vula-shell-v3", "vula-shell-v4", "vula-shell-v5", "vula-shell-v6",
-      "vula-game-v1", "vula-game-v2", "vula-game-v3", "vula-game-v4", "vula-game-v5", "vula-game-v6",
+      "vula-shell-v1", "vula-shell-v2", "vula-shell-v3", "vula-shell-v4", "vula-shell-v5", "vula-shell-v6", "vula-shell-v7",
+      "vula-game-v1", "vula-game-v2", "vula-game-v3", "vula-game-v4", "vula-game-v5", "vula-game-v6", "vula-game-v7",
       "theplug-shell-v1", "theplug-media-v1",
       "iteration13-shell-v1", "iteration13-media-v1"
     ]);
