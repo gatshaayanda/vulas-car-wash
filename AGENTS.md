@@ -129,3 +129,10 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 ## Racing entry point and QA contract
 - The racing menu is the primary game entry point both when embedded in the homepage section `#vula-racing` and on the standalone `/games` route. The homepage must render `RacingMainMenu` (not `RacingWarmup` directly), so New Game, Continue, Load Game and High Scores are visible before Quick Race.
 - Preserve the standalone `/games` entry while keeping the embedded homepage version mobile-first and contained within the Vula landing-page layout. Verify the actual homepage URL after deployment, not only `/games`.
+
+## Formation lap, Kago difficulty and race finish (2026-11-05)
+- Race format: one unscored formation/warm-up lap, then return both cars to the start grid, stop the warm-up clock, and launch a three-light countdown. Follow with exactly two scored race laps. The formation lap must not count toward race elapsed time, best lap, or the stored two-lap result.
+- The player and Kago must both be reset to opposite grid slots at the start/finish line after the formation lap. Keep the existing player handling and speed caps unchanged.
+- Easy, Normal and Hard share the same 327 km/h Kago target. Difficulty is expressed through steering precision/response, corner confidence and mistakes, braking judgement, NOS conservation/commitment, and attack/defend decisions. Easy should leave genuine opportunities; Normal should race more cleanly; Hard should be consistent and more assertive. Do not use hidden rubber-banding or difficulty-specific top-speed bonuses.
+- The completed result records two scored laps and the player's finishing position. A win receives a distinct celebratory finish treatment; a loss receives a clear but restrained result treatment.
+- Preserve offline play and local race-result/high-score integration. QA the complete formation → grid countdown → two-lap race → result flow on a phone, including Easy/Normal/Hard. These changes do not authorize online multiplayer or changes to player physics.
