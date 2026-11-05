@@ -475,7 +475,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             ? { aggression: .91, steeringGain: 2.02, steeringResponse: 4.8, cornerConfidence: .045, brakeMargin: .56, brakeResponse: .27, brakeLimit: .41, mistakeThreshold: .82, mistakeStrength: .075, nosDrain: 27, nosRegen: 8, nosStart: 28, nosReserve: 8, nosCooldown: 2.5, nosBoost: 1.08 }
             : { aggression: 1, steeringGain: 2.2, steeringResponse: 5.35, cornerConfidence: .022, brakeMargin: .72, brakeResponse: .30, brakeLimit: .46, mistakeThreshold: .965, mistakeStrength: .025, nosDrain: 24, nosRegen: 6, nosStart: 18, nosReserve: 5, nosCooldown: 1.5, nosBoost: 1.12 };
         const botAggression = botProfile.aggression;
-        const botCurrentT = wrap(race.botProgress, 1);
         const botTurn = getTrackTurn(botTrack, botCurrentT, .006);
         // Use actual world-space proximity for tactical decisions rather than wrapped
         // progress fractions, which can be ambiguous around the start/finish line.
