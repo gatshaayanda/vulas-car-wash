@@ -418,6 +418,7 @@
 .racing-track-map-road-edge{fill:none;stroke:#0b1513;stroke-width:22;stroke-linecap:round;stroke-linejoin:round;opacity:.58}
 .racing-track-map-road{fill:none;stroke:#aeb9b1;stroke-width:15;stroke-linecap:round;stroke-linejoin:round;opacity:.72}
 .racing-track-map-road-centre{fill:none;stroke:#f2f5ed;stroke-width:1.2;stroke-dasharray:3 5;opacity:.5}
+.racing-track-map-pit{fill:none;stroke:#f4c64e;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:2.5 2;opacity:.95}
 .racing-track-map-start{fill:#fff7dc;stroke:#172820;stroke-width:1.5}
 .racing-track-map-player{fill:#58dcff;stroke:#062a37;stroke-width:2.5;filter:drop-shadow(0 0 3px #58dcff)}
 .racing-track-map-rival{fill:#ffd45c;stroke:#3c2a04;stroke-width:2.5;filter:drop-shadow(0 0 3px #ffd45c)}
