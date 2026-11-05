@@ -62,3 +62,5 @@
 .racing-menu-graphics-switch button[aria-pressed="true"]{background:var(--lime);color:#101810}
 .racing-menu-graphics-switch button:focus-visible{outline:2px solid #fff;outline-offset:2px}
 @media(min-width:760px){.racing-menu-graphics-switch{bottom:46px}.racing-menu-graphics-switch button{font-size:9px;padding:8px 11px}}
+
+.racing-menu-graphics-status{position:absolute;left:9px;top:9px;z-index:3;max-width:calc(100% - 130px);padding:6px 8px;border:1px solid #ffffff30;border-radius:5px;background:#071116c9;color:#dce7e3;font-size:7px;font-weight:900;letter-spacing:.1em;pointer-events:none}
