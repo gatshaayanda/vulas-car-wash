@@ -117,7 +117,19 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       if (phaseRef.current === "running" && dt > 0) {
         const controls = controlsRef.current;
         const playerTrackT = wrap(race.trackT, 1);
-        if (race.playerPitRequested && !race.playerPitDone && !race.playerPitting && Math.floor(race.progress) >= 1 && playerTrackT >= .885 && playerTrackT < .965) {
+        if (race.playerPitRequested && !race.playerPitDone && !race.playerPitting && Math.floor(race.progress) >= 1 && playerTrackT >= .895 && playerTrackT < .985) {
+          // Commit the car to the physical pit-lane entrance. The pit spline starts
+          // at the circuit's .91 point; beginning projection at spline progress zero
+          // without aligning the car there can leave it trapped on the racing line.
+          const entry = RACING_PIT_LANE.getPointAt(0);
+          const entryTangent = RACING_PIT_LANE.getTangentAt(0).normalize();
+          const entryYaw = Math.atan2(-entryTangent.x, -entryTangent.z);
+          const entrySpeed = Math.min(Math.hypot(race.velocityX, race.velocityZ), 7.5);
+          race.worldX = entry.x;
+          race.worldZ = entry.z;
+          race.worldYaw = entryYaw;
+          race.velocityX = entryTangent.x * entrySpeed;
+          race.velocityZ = entryTangent.z * entrySpeed;
           race.playerPitting = true;
           race.playerPitProgress = 0;
           race.playerPitServiced = false;
