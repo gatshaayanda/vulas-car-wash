@@ -435,16 +435,20 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         const playerRelativeZ = race.worldZ - race.botWorldZ;
         const playerLongitudinal = playerRelativeX * botHeadingX + playerRelativeZ * botHeadingZ;
         const playerLateral = playerRelativeX * botLateralX + playerRelativeZ * botLateralZ;
-        const playerNear = Math.abs(playerLongitudinal) < 18 && Math.abs(playerLateral) < 8.5;
+        const playerNear = Math.abs(playerLongitudinal) < 30 && Math.abs(playerLateral) < 9.5;
         const playerAhead = playerLongitudinal > 0;
+        const playerClosing = (race.velocityX - race.botVelocityX) * botHeadingX + (race.velocityZ - race.botVelocityZ) * botHeadingZ;
+        const attackWindow = playerAhead && playerLongitudinal < 34 && playerClosing < 1.8;
+        const defendWindow = !playerAhead && Math.abs(playerLongitudinal) < 17;
         // Choose a passing lane opposite the car ahead, or defend the side occupied
         // by a close challenger. Blend lane changes to avoid snapping the chassis.
         let desiredOffset = -2.45;
         if (playerNear) {
-          if (playerAhead) desiredOffset = playerLateral >= 0
-            ? (botAggression > .7 ? -3.05 : -2.75)
-            : (botAggression > .7 ? 3.05 : 2.75);
-          else desiredOffset = playerLateral >= 0 ? 2.7 : -2.7;
+          if (attackWindow) desiredOffset = playerLateral >= 0
+            ? (botAggression > .85 ? -3.25 : -2.55)
+            : (botAggression > .85 ? 3.25 : 2.55);
+          else if (defendWindow) desiredOffset = playerLateral >= 0 ? 3.0 : -3.0;
+          else if (playerAhead) desiredOffset = playerLateral >= 0 ? -2.8 : 2.8;
         }
         const lineBlend = 1 - Math.exp(-dt * (botLevel === "Hard" ? 4.5 : botLevel === "Normal" ? 3.8 : 3.2));
         race.botLineOffset += (clamp(desiredOffset, -3.35, 3.35) - race.botLineOffset) * lineBlend;
@@ -456,14 +460,17 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         const aimX = targetPoint.x + targetSideX * racingLineOffset, aimZ = targetPoint.z + targetSideZ * racingLineOffset;
         const aimYaw = Math.atan2(-(aimX - race.botWorldX), -(aimZ - race.botWorldZ));
         const yawError = Math.atan2(Math.sin(aimYaw - race.botWorldYaw), Math.cos(aimYaw - race.botWorldYaw));
-        const desiredSteer = clamp(-yawError * (botLevel === "Hard" ? 2.15 : botLevel === "Normal" ? 2.0 : 1.9), -1, 1);
-        race.botSteering += (desiredSteer - race.botSteering) * (1 - Math.exp(-dt * (botLevel === "Hard" ? 5.2 : botLevel === "Normal" ? 4.8 : 4.4)));
         const cornerDemand = clamp(Math.abs(botTurn) * 30, 0, 1);
-        const cornerConfidence = botLevel === "Easy" ? .06 : botLevel === "Normal" ? .04 : .025;
-        const cornerPace = botTargetSpeed * (1 - cornerDemand * cornerConfidence);
-        const brakingMargin = botLevel === "Easy" ? .55 : botLevel === "Normal" ? .65 : .75;
-        const brakeResponse = botLevel === "Easy" ? .30 : botLevel === "Normal" ? .28 : .26;
-        const brakeLimit = botLevel === "Easy" ? .48 : botLevel === "Normal" ? .44 : .40;
+        // Repeatable corner-pressure windows create deliberate Easy mistakes without
+        // adding random frame noise. Normal is steadier; Hard rarely misses a cue.
+        const mistakeWave = Math.sin(botCurrentT * Math.PI * 14 + .7);
+        const botMistake = cornerDemand > .32 && mistakeWave > botProfile.mistakeThreshold ? botProfile.mistakeStrength : 0;
+        const desiredSteer = clamp(-yawError * botProfile.steeringGain * (1 - botMistake), -1, 1);
+        race.botSteering += (desiredSteer - race.botSteering) * (1 - Math.exp(-dt * botProfile.steeringResponse));
+        const cornerPace = botTargetSpeed * (1 - cornerDemand * botProfile.cornerConfidence - botMistake * .12);
+        const brakingMargin = botProfile.brakeMargin;
+        const brakeResponse = botProfile.brakeResponse;
+        const brakeLimit = botProfile.brakeLimit;
         const botBrakeTarget = race.botSpeed > cornerPace + brakingMargin
           ? clamp((race.botSpeed - cornerPace) * brakeResponse + .06, 0, brakeLimit) : 0;
         const botThrottleTarget = botBrakeTarget > .34 ? 0 : 1;
@@ -471,13 +478,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         race.botBrake += (botBrakeTarget - race.botBrake) * (1 - Math.exp(-dt * (botBrakeTarget ? 7.5 : 4.5)));
         const botOnStraight = cornerDemand < .16;
         const botNeedsPace = race.botSpeed < botTargetSpeed * .97;
-        const botUseNos = race.botNos > 8 && botOnStraight && (botLevel === "Easy"
-          ? playerNear || botNeedsPace
-          : botLevel === "Normal"
-            ? (playerNear || playerAhead) && botNeedsPace
-            : playerNear || botNeedsPace || playerAhead);
+        const botUseNos = race.botNos > 8 && botOnStraight && (botNeedsPace || (attackWindow && botAggression > .8) || (playerNear && botAggression > .9));
         race.botBoostActive = botUseNos;
-        race.botNos = botUseNos ? Math.max(0, race.botNos - (botLevel === "Hard" ? 28 : botLevel === "Normal" ? 25 : 24) * dt) : Math.min(100, race.botNos + (botLevel === "Hard" ? 5 : 7) * dt);
+        race.botNos = botUseNos ? Math.max(0, race.botNos - botProfile.nosDrain * dt) : Math.min(100, race.botNos + botProfile.nosRegen * dt);
         const botForwardX = -Math.sin(race.botWorldYaw), botForwardZ = -Math.cos(race.botWorldYaw);
         const botSideX = Math.cos(race.botWorldYaw), botSideZ = -Math.sin(race.botWorldYaw);
         const botLongitudinal = race.botVelocityX * botForwardX + race.botVelocityZ * botForwardZ;
@@ -629,21 +632,44 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         const lapNow = Math.floor(race.progress) + 1;
         if (lapNow > race.lap) {
           const completedLapTime = race.lapTime;
-          if (!race.lapInvalid && (race.bestLap === null || race.lapTime < race.bestLap)) {
+          const formationComplete = race.lap === 1 && lapNow === 2;
+          if (!formationComplete && !race.lapInvalid && (race.bestLap === null || race.lapTime < race.bestLap)) {
             race.bestLap = race.lapTime;
             setBestLap(race.lapTime);
             notify("New personal best lap!", "success");
-          } else if (race.lapInvalid) notify("Lap invalid — stay on the racing surface.", "error");
+          } else if (!formationComplete && race.lapInvalid) notify("Lap invalid — stay on the racing surface.", "error");
           race.lap = lapNow;
-          if (lapNow >= 2 && !completedRef.current) {
-            completedRef.current = true;
-            controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-            phaseRef.current = "finished"; setPhase("finished");
-            onComplete?.({ id: `race-${Date.now()}`, completedAt: new Date().toISOString(), difficulty: botDifficultyRef.current, elapsed: race.elapsed, bestLap: race.bestLap ?? (!race.lapInvalid ? completedLapTime : null), position: race.progress >= race.botProgress ? 1 : 2, laps: 1 });
-          }
           race.lapTime = 0;
           race.lapInvalid = false;
           setLap(lapNow);
+          if (formationComplete) {
+            const gridPoint = botTrack.getPointAt(0);
+            const gridTangent = botTrack.getTangentAt(0).normalize();
+            const gridSideX = -gridTangent.z, gridSideZ = gridTangent.x;
+            const gridYaw = Math.atan2(-gridTangent.x, -gridTangent.z);
+            race.worldX = gridPoint.x + gridSideX * 2.45;
+            race.worldZ = gridPoint.z + gridSideZ * 2.45;
+            race.worldYaw = gridYaw; race.velocityX = 0; race.velocityZ = 0; race.speed = 0;
+            race.progress = 1; race.trackT = 0;
+            race.botWorldX = gridPoint.x - gridSideX * 2.45;
+            race.botWorldZ = gridPoint.z - gridSideZ * 2.45;
+            race.botWorldYaw = gridYaw; race.botVelocityX = 0; race.botVelocityZ = 0; race.botSpeed = 0;
+            race.botProgress = 1; race.botInitialized = true;
+            race.elapsed = 0; race.lapTime = 0; race.botNos = 100; race.nos = 100;
+            controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+            setSpeed(0); setLapTime(0); setNos(100); setCountdown(3);
+            phaseRef.current = "grid"; setPhase("grid");
+            notify("Formation lap complete · take your grid position", "info");
+          } else if (lapNow >= 4 && !completedRef.current) {
+            completedRef.current = true;
+            controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+            const position: 1 | 2 = race.progress >= race.botProgress ? 1 : 2;
+            const result: RaceResult = { id: "race-" + Date.now(), completedAt: new Date().toISOString(), difficulty: botDifficultyRef.current, elapsed: race.elapsed, bestLap: race.bestLap ?? (!race.lapInvalid ? completedLapTime : null), position, laps: 2 };
+            setRaceResult(result);
+            phaseRef.current = "finished"; setPhase("finished");
+            notify(position === 1 ? "🏆 VICTORY · Kago beaten!" : "Race complete · Kago takes the win", position === 1 ? "success" : "info");
+            onComplete?.(result);
+          }
         }
         if (now - lastUi > 33) {
           lastUi = now;
