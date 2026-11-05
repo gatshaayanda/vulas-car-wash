@@ -154,3 +154,11 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - The live menu preview remains the safe place to compare procedural and imported Kenney Racing Kit vehicles. Do not replace the in-race player or Kago models as part of a menu-only experiment.
 - Use only models produced by the repository's prepare:racing-assets build step and preserve the procedural fallback when the manifest, model, WebGL or offline asset is unavailable.
 - Keep the existing circuit, preview camera and animation. Cache any newly selected local model and its dependencies before claiming offline graphics support.
+
+
+## Menu-only Kenney vehicle graphics comparison — 2026-11-05
+
+- The live main-menu preview may switch between the existing procedural player car and a prepared Kenney Racing Kit GLB/glTF vehicle loaded from the build-generated `public/game-assets/racing-kit/manifest.json`.
+- This is a visual comparison only. Keep the existing preview circuit, camera, animation, bot, game physics, controls, race models and gameplay flow unchanged. The imported model replaces only the player car in the menu preview.
+- Select a vehicle model by manifest metadata (prefer a car/vehicle/race filename); if the manifest or model cannot load, keep the procedural preview visible. Do not report imported-asset success unless the browser confirms the model loaded.
+- The asset extraction runs as part of `npm run build`; generated manifest and model files are not necessarily present in the source branch before build. Offline caching of these generated assets must be verified separately before claiming the Kenney preview works offline.
