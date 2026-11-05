@@ -667,6 +667,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             : Math.floor(previousBotProgress) + botNearestT;
         }
 
+        if (race.progress >= 2) {
         // Player-vs-Kago collision: oriented vehicle footprints are tested in
         // world space using the separating-axis theorem. Resolve the player
         // against Kago's independently moving chassis for this frame, preserving the
@@ -758,6 +759,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, race.playerPitting ? 122 : 290);
           }
         }
+        }
+
 
         race.offTrack = distanceFromCentre > 7.2 ? race.offTrack + dt : Math.max(0, race.offTrack - dt * 1.5);
         if (distanceFromCentre > 7.2 || race.offTrack > 0.5) race.lapInvalid = true;
@@ -803,6 +806,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             race.botWorldZ = gridPoint.z - gridSideZ * 2.45;
             race.botWorldYaw = gridYaw; race.botVelocityX = 0; race.botVelocityZ = 0; race.botSpeed = 0;
             race.botProgress = 2; race.botInitialized = true;
+            race.botPitDone = false; race.botPitting = false; race.botPitServiced = false; race.botPitProgress = 0; race.botPitServiceRemaining = 0;
             race.elapsed = 0; race.lapTime = 0; race.botNos = 100; race.botNosCooldown = 0; race.botBoostActive = false; race.nos = 100;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
             setSpeed(0); setLapTime(0); setNos(100); setCountdown(3);
@@ -931,11 +935,11 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           </> : <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>}
         </div>
       </div>
-      <div className="warmup-pit-service-overlay" role="dialog" aria-label="Pit stop tyre service">
+      {raceRef.current.playerPitServiced && raceRef.current.playerPitServiceRemaining > 3 && <div className="warmup-pit-service-overlay" role="dialog" aria-label="Pit stop tyre service">
           <span>PIT CREW · SERVICE BOX</span><strong>Choose your race tyres</strong>
           <p>Your mandatory stop is complete once the crew fits your selected compound.</p>
           <div>{(["Soft", "Medium", "Hard"] as const).map(tyre => <button type="button" key={tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => { setTyreChoice(tyre); raceRef.current.playerPitServiceRemaining = 2.8; notify(tyre.toUpperCase() + " TYRES FITTED · GO GO GO!", "success"); }}>{tyre}</button>)}</div>
-        </div>
+        </div>}
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
         <div className="warmup-steering" aria-label="Analog steering">
