@@ -16,12 +16,12 @@ export type Race = {
   longitudinalLoad: number; lateralG: number; wheelLock: number;
   worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; damage: number; lastImpactAt: number; trackT: number; botProgress: number; botSpeed: number;
   botWorldX: number; botWorldZ: number; botWorldYaw: number; botVelocityX: number; botVelocityZ: number; botSteering: number; botThrottle: number; botBrake: number; botDrift: number; botNos: number; botBoostActive: boolean; botInitialized: boolean;
-  botImpactX: number; botImpactZ: number; botImpactAt: number; botImpactStrength: number; botLineOffset: number; botNosCooldown: number; botPitting: boolean; botPitDone: boolean; botPitProgress: number; botPitServiceRemaining: number; botPitServiced: boolean;
+  botImpactX: number; botImpactZ: number; botImpactAt: number; botImpactStrength: number; botLineOffset: number; botNosCooldown: number; botPitting: boolean; botPitDone: boolean; botPitProgress: number; botPitServiceRemaining: number; botPitServiced: boolean; playerPitRequested: boolean; playerPitting: boolean; playerPitDone: boolean; playerPitProgress: number; playerPitServiceRemaining: number; playerPitServiced: boolean;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
 const RACING_PIT_LANE = createRacingPitLane(createRacingTrack());
-export const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 17.9, botWorldX: 0, botWorldZ: 0, botWorldYaw: 0, botVelocityX: 0, botVelocityZ: 0, botSteering: 0, botThrottle: 0, botBrake: 0, botDrift: 0, botNos: 100, botBoostActive: false, botInitialized: false, botImpactX: 0, botImpactZ: 0, botImpactAt: 0, botImpactStrength: 0, botLineOffset: -2.45, botNosCooldown: 0, botPitting: false, botPitDone: false, botPitProgress: 0, botPitServiceRemaining: 0, botPitServiced: false });
+export const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 17.9, botWorldX: 0, botWorldZ: 0, botWorldYaw: 0, botVelocityX: 0, botVelocityZ: 0, botSteering: 0, botThrottle: 0, botBrake: 0, botDrift: 0, botNos: 100, botBoostActive: false, botInitialized: false, botImpactX: 0, botImpactZ: 0, botImpactAt: 0, botImpactStrength: 0, botLineOffset: -2.45, botNosCooldown: 0, botPitting: false, botPitDone: false, botPitProgress: 0, botPitServiceRemaining: 0, botPitServiced: false, playerPitRequested: false, playerPitting: false, playerPitDone: false, playerPitProgress: 0, playerPitServiceRemaining: 0, playerPitServiced: false });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -116,9 +116,23 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       previous = now;
       if (phaseRef.current === "running" && dt > 0) {
         const controls = controlsRef.current;
+        const playerTrackT = wrap(race.trackT, 1);
+        if (race.playerPitRequested && !race.playerPitDone && !race.playerPitting && Math.floor(race.progress) >= 1 && playerTrackT >= .885 && playerTrackT < .965) {
+          race.playerPitting = true;
+          race.playerPitProgress = 0;
+          race.playerPitServiced = false;
+          race.playerPitServiceRemaining = 0;
+          controls.accelerate = true;
+          notify("Pit lane entry · follow the guided line", "info");
+        }
+        const pitAim = clamp(race.playerPitProgress + .035, 0, .995);
+        const pitTangent = RACING_PIT_LANE.getTangentAt(pitAim).normalize();
+        const pitHeading = Math.atan2(-pitTangent.x, -pitTangent.z);
+        const pitHeadingError = Math.atan2(Math.sin(pitHeading - race.worldYaw), Math.cos(pitHeading - race.worldYaw));
+        const pitSteer = race.playerPitting ? clamp(-pitHeadingError * 1.8, -1, 1) : controls.steer;
         // Smooth steering inputs before applying tyre force; ease back to centre on release.
-        const steerEase = 1 - Math.exp(-dt * (Math.abs(controls.steer) > Math.abs(race.steering) ? 10.5 : 6.5));
-        race.steering += (controls.steer - race.steering) * steerEase;
+        const steerEase = 1 - Math.exp(-dt * (Math.abs(pitSteer) > Math.abs(race.steering) ? 10.5 : 6.5));
+        race.steering += (pitSteer - race.steering) * steerEase;
         const steering = race.steering;
         const t = wrap(race.progress, 1);
         const trackTurn = getTrackTurn(trackRef.current!, t, .006);
@@ -235,7 +249,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // velocity from a freshly rotated chassis basis (which suppresses drifting).
         race.velocityX += (forwardX * longitudinalAccel + lateralX * lateralAccel) * dt;
         race.velocityZ += (forwardZ * longitudinalAccel + lateralZ * lateralAccel) * dt;
-        const maxWorldSpeed = (boost ? 290 : 255) * 0.28 / 3.6;
+        const maxWorldSpeed = race.playerPitting ? 9.5 : (boost ? 290 : 255) * 0.28 / 3.6;
         const worldSpeed = Math.hypot(race.velocityX, race.velocityZ);
         if (worldSpeed > maxWorldSpeed) {
           const speedScale = maxWorldSpeed / worldSpeed;
@@ -250,7 +264,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // Sweep the car's complete frame movement in short substeps against the
         // same closed track envelope. This catches thin endpoint gaps and fast
         // corner exits even when a rendered frame is delayed.
-        const trackSafetyOffset = 7.15;
+        const trackSafetyOffset = race.playerPitting ? 3.45 : 7.15;
+        const playerSafetyTrack = race.playerPitting ? RACING_PIT_LANE : trackRef.current!;
         const sweepDx = race.worldX - sweepStartX;
         const sweepDz = race.worldZ - sweepStartZ;
         const sweepDistance = Math.hypot(sweepDx, sweepDz);
@@ -264,15 +279,15 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           let nearestDistanceSq = Number.POSITIVE_INFINITY;
           let nearestX = 0, nearestZ = 0, nearestTangentX = 0, nearestTangentZ = -1;
           for (let offset = -72; offset <= 72; offset++) {
-            const sample = ((sweepCentre + offset) % sweepSamples + sweepSamples) % sweepSamples;
+            const sample = race.playerPitting ? Math.round(clamp(race.playerPitProgress + offset / sweepSamples, 0, 1) * sweepSamples) : ((sweepCentre + offset) % sweepSamples + sweepSamples) % sweepSamples;
             const sampleT = sample / sweepSamples;
-            const point = trackRef.current!.getPointAt(sampleT);
+            const point = playerSafetyTrack.getPointAt(sampleT);
             const dx = sampleX - point.x, dz = sampleZ - point.z;
             const distanceSq = dx * dx + dz * dz;
             if (distanceSq < nearestDistanceSq) {
               nearestDistanceSq = distanceSq;
               nearestX = point.x; nearestZ = point.z;
-              const tangent = trackRef.current!.getTangentAt(sampleT);
+              const tangent = playerSafetyTrack.getTangentAt(sampleT);
               nearestTangentX = tangent.x; nearestTangentZ = tangent.z;
             }
           }
@@ -320,7 +335,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         race.drift = clamp(race.heading * clamp(Math.abs(finalLateralVelocity) / 1.8, 0, 1) * 1.15, -0.95, 0.95);
 
         // Circuit projection is used only for lap timing, track limits, and collision queries.
-        let nearestT = wrap(race.trackT, 1);
+        let nearestT = race.playerPitting ? race.playerPitProgress : wrap(race.trackT, 1);
+        const playerProjectionTrack = race.playerPitting ? RACING_PIT_LANE : trackRef.current!;
         let nearestDistanceSq = Number.POSITIVE_INFINITY;
         let nearestX = 0;
         let nearestZ = 0;
@@ -337,15 +353,15 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         const projectionWindow = 72;
         const projectionCentre = Math.round(nearestT * projectionSamples);
         for (let offset = -projectionWindow; offset <= projectionWindow; offset++) {
-          const sample = ((projectionCentre + offset) % projectionSamples + projectionSamples) % projectionSamples;
+          const sample = race.playerPitting ? Math.round(clamp(nearestT + offset / projectionSamples, 0, 1) * projectionSamples) : ((projectionCentre + offset) % projectionSamples + projectionSamples) % projectionSamples;
           const sampleT = sample / projectionSamples;
-          const point = trackRef.current!.getPointAt(sampleT);
+          const point = playerProjectionTrack.getPointAt(sampleT);
           const dx = race.worldX - point.x;
           const dz = race.worldZ - point.z;
           const distanceSq = dx * dx + dz * dz;
           if (distanceSq < nearestDistanceSq) {
             nearestDistanceSq = distanceSq; nearestT = sampleT; nearestX = point.x; nearestZ = point.z;
-            const tangent = trackRef.current!.getTangentAt(sampleT);
+            const tangent = playerProjectionTrack.getTangentAt(sampleT);
             nearestTangentX = tangent.x; nearestTangentZ = tangent.z;
           }
         }
@@ -403,10 +419,33 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           }
         }
         const previousProgress = race.progress;
-        race.trackT = nearestT;
-        race.progress = nearestT < 0.08 && previousProgress % 1 > 0.82 && longitudinalVelocity > 0
-          ? Math.floor(previousProgress) + 1 + nearestT
-          : Math.floor(previousProgress) + nearestT;
+        if (race.playerPitting) {
+          race.playerPitProgress = nearestT;
+          if (!race.playerPitServiced && race.playerPitProgress >= .49) {
+            race.playerPitServiced = true;
+            race.playerPitServiceRemaining = 2.8;
+            notify("Pit box · service underway", "info");
+          }
+          if (race.playerPitServiceRemaining > 0) {
+            race.playerPitServiceRemaining = Math.max(0, race.playerPitServiceRemaining - dt);
+            race.velocityX *= Math.max(0, 1 - dt * 5);
+            race.velocityZ *= Math.max(0, 1 - dt * 5);
+          }
+          if (race.playerPitProgress >= .985 && race.playerPitServiceRemaining <= 0) {
+            race.playerPitting = false;
+            race.playerPitDone = true;
+            race.progress = 2.105;
+            race.trackT = .105;
+            notify("Pit stop complete · back on track", "success");
+          } else {
+            race.progress = 1.91;
+          }
+        } else {
+          race.trackT = nearestT;
+          race.progress = nearestT < 0.08 && previousProgress % 1 > 0.82 && longitudinalVelocity > 0
+            ? Math.floor(previousProgress) + 1 + nearestT
+            : Math.floor(previousProgress) + nearestT;
+        }
         // Kago has his own world-space vehicle state. The spline is navigation
         // and progress reference only; it no longer moves his car.
         const botTrack = trackRef.current!;
@@ -678,7 +717,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
               race.damage = Math.min(99, clamp(race.damage + (impactKmh - 18) * (impactKmh > 75 ? 0.34 : 0.14), 0, 100));
               notify(impactKmh > 75 ? "Heavy contact with Kago · speed lost" : "Kago contact · cars separated", impactKmh > 75 ? "error" : "info");
             }
-            race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, 290);
+            race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, race.playerPitting ? 122 : 290);
           }
         }
 
@@ -858,14 +897,14 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           </div>
           <span className="steering-caption">Move thumb to steer</span>
         </div>
-        <div className="warmup-driving">
+        <div className="warmup-driving">\n          <button type="button" className="pit-button" disabled={phase !== "running" || raceRef.current.playerPitDone || raceRef.current.playerPitRequested} onClick={() => { raceRef.current.playerPitRequested = true; notify("Pit requested · entry is ahead near the start/finish straight.", "info"); }}>PIT {raceRef.current.playerPitDone ? "DONE" : raceRef.current.playerPitRequested ? "QUEUED" : "NOW"}</button>
           <button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>BRAKE ↓</button>
           <button type="button" className="accelerate-button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>GAS ↑</button>
           <button type="button" className="nos-button" aria-label="Toggle NOS burst" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0} onClick={toggleBoost}>{boostActive ? "NOS ON ⚡" : "TAP NOS ⚡"}</button>
         </div>
         <div className="warmup-actions">{phase === "paused" && onSave && <button type="button" className="vula-button secondary" onClick={() => onSave({ race: { ...raceRef.current }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString() })}>Save game</button>}{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start driving ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Drive again ↻</button>}<button type="button" className="vula-button secondary" onClick={() => reset(false)}>Restart ↻</button>{onExit && <button type="button" className="vula-button secondary" onClick={onExit}>Racing menu</button>}</div>
       </div>
-      <p className="warmup-help">Phone: move the circular thumbstick with your left thumb; BRAKE is left and GAS is right under your right thumb. Tap NOS once for a burst, tap again to stop; lifting off the gas recharges it faster. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause.</p>
+      <p className="warmup-help">Phone: use PIT NOW to queue your single stop; the car takes the marked entry on the start/finish straight. Move the circular thumbstick with your left thumb; BRAKE is left and GAS is right under your right thumb. Tap NOS once for a burst, tap again to stop; lifting off the gas recharges it faster. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause.</p>
     </section>
     {!embedded && <footer className="vula-footer"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></Link><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></footer>}
   </div>;
