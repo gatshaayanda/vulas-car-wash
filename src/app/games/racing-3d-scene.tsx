@@ -8,7 +8,7 @@ import type { Controls, Phase, Race } from "./racing-warmup";
 import RacingTrackMap from "./racing-track-map";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
-type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase>; preview?: boolean; previewGraphics?: "procedural" | "kenney" };
+type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase>; preview?: boolean; previewGraphics?: "procedural" | "kenney"; onGraphicsStatus?: (status: "loading" | "ready" | "error") => void };
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 function ribbon(curve: THREE.Curve<THREE.Vector3>, width: number, segments: number, y: number) {
@@ -104,7 +104,7 @@ function makeCar(bodyColor = "#f04478") {
   return car;
 }
 
-export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview = false, previewGraphics = "procedural" }: Props) {
+export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview = false, previewGraphics = "procedural", onGraphicsStatus }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const host = mountRef.current;
@@ -298,6 +298,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       // Kenney Racing Kit's Race Car White model (CC0). The earlier local
       // manifest path was never populated in this repository, so the selector
       // silently fell back to the procedural chassis every time.
+      onGraphicsStatus?.("loading");
       const loader = new GLTFLoader();
       loader.setCrossOrigin("anonymous");
       loader.load(
@@ -316,6 +317,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
           model.rotation.y = Math.PI;
           assetCar.add(model);
           assetCar.visible = true;
+          onGraphicsStatus?.("ready");
         },
         undefined,
         () => { host.dataset.graphicsStatus = "asset-unavailable"; },
@@ -596,7 +598,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       renderer.dispose();
       if (renderer.domElement.parentElement === host) host.removeChild(renderer.domElement);
     };
-  }, [raceRef, controlsRef, phaseRef, preview, previewGraphics]);
+  }, [raceRef, controlsRef, phaseRef, preview, previewGraphics, onGraphicsStatus]);
 
   return (
     <div ref={mountRef} className="racing-3d-root" data-phase={phaseRef.current} data-braking={controlsRef.current.brake ? "true" : "false"}>
