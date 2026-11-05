@@ -346,6 +346,23 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // A meaningful, signed slip angle feeds the car's body lean and drift visuals.
         race.drift = clamp(race.heading * clamp(Math.abs(finalLateralVelocity) / 1.8, 0, 1) * 1.15, -0.95, 0.95);
 
+        // Pit service is a guided physical route: keep the car centred on the visible pit spline
+        // instead of relying on steering/projection convergence to find a narrow parallel lane.
+        // The driver still chooses whether to pit; once committed, the lane controls the route.
+        if (race.playerPitting) {
+          if (race.playerPitServiceRemaining <= 0) {
+            race.playerPitProgress = Math.min(.985, race.playerPitProgress + (9.2 * dt) / Math.max(1, RACING_PIT_LANE.getLength()));
+          }
+          const pitPoint = RACING_PIT_LANE.getPointAt(race.playerPitProgress);
+          const pitDirection = RACING_PIT_LANE.getTangentAt(race.playerPitProgress).normalize();
+          const pitLaneSpeed = race.playerPitServiceRemaining > 0 ? 0 : 9.2;
+          race.worldX = pitPoint.x;
+          race.worldZ = pitPoint.z;
+          race.worldYaw = Math.atan2(-pitDirection.x, -pitDirection.z);
+          race.velocityX = pitDirection.x * pitLaneSpeed;
+          race.velocityZ = pitDirection.z * pitLaneSpeed;
+          race.speed = pitLaneSpeed * 3.6 / .28;
+        }
         // Circuit projection is used only for lap timing, track limits, and collision queries.
         let nearestT = race.playerPitting ? race.playerPitProgress : wrap(race.trackT, 1);
         const playerProjectionTrack = race.playerPitting ? RACING_PIT_LANE : trackRef.current!;
@@ -636,9 +653,11 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         const botHeading = Math.atan2(-race.botVelocityX, -race.botVelocityZ);
         race.botDrift = clamp(Math.atan2(Math.sin(botHeading - race.botWorldYaw), Math.cos(botHeading - race.botWorldYaw)), -.95, .95);
         race.botSpeed = Math.hypot(race.botVelocityX, race.botVelocityZ);
-        race.botProgress = wrap(previousBotProgress, 1) > .82 && botNearestT < .08
-          ? Math.floor(previousBotProgress) + 1 + botNearestT
-          : Math.floor(previousBotProgress) + botNearestT;
+        if (!race.botPitting) {
+          race.botProgress = wrap(previousBotProgress, 1) > .82 && botNearestT < .08
+            ? Math.floor(previousBotProgress) + 1 + botNearestT
+            : Math.floor(previousBotProgress) + botNearestT;
+        }
 
         // Player-vs-Kago collision: oriented vehicle footprints are tested in
         // world space using the separating-axis theorem. Resolve the player
