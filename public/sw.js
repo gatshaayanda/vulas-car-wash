@@ -48,8 +48,8 @@ self.addEventListener("notificationclick", (event) => {
   }));
 });
 
-const CACHE_VERSION = "vula-shell-v15";
-const GAME_CACHE = "vula-game-v15";
+const CACHE_VERSION = "vula-shell-v16";
+const GAME_CACHE = "vula-game-v16";
 const MEDIA_CACHE = "vula-media-v1";
 const SHELL_CACHE = CACHE_VERSION;
 const STATIC_LIMIT = 160;
@@ -109,7 +109,9 @@ async function precacheRacingAssets() {
     if (!response) return;
     const manifest = await response.clone().json();
     const assets = Array.isArray(manifest.assets) ? manifest.assets : [];
-    const selected = assets.find((asset) => /race.?car.?white|car.?white/i.test(asset.name))
+    const selected = assets.find((asset) => /race.?car.?red|car.?red/i.test(asset.name))
+      || assets.find((asset) => /race.?car.?orange|car.?orange/i.test(asset.name))
+      || assets.find((asset) => /race.?car.?green|car.?green/i.test(asset.name))
       || assets.find((asset) => /race.?car|vehicle.?race/i.test(asset.name))
       || assets.find((asset) => /car|vehicle/i.test(asset.name));
     if (!selected || typeof selected.path !== "string") {
@@ -159,8 +161,8 @@ self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
     const obsolete = new Set([
-      "vula-shell-v1", "vula-shell-v2", "vula-shell-v3", "vula-shell-v4", "vula-shell-v5", "vula-shell-v6", "vula-shell-v7", "vula-shell-v8", "vula-shell-v9", "vula-shell-v10", "vula-shell-v11", "vula-shell-v12", "vula-shell-v13", "vula-shell-v14",
-      "vula-game-v1", "vula-game-v2", "vula-game-v3", "vula-game-v4", "vula-game-v5", "vula-game-v6", "vula-game-v7", "vula-game-v8", "vula-game-v9", "vula-game-v10", "vula-game-v11", "vula-game-v12", "vula-game-v13", "vula-game-v14",
+      "vula-shell-v1", "vula-shell-v2", "vula-shell-v3", "vula-shell-v4", "vula-shell-v5", "vula-shell-v6", "vula-shell-v7", "vula-shell-v8", "vula-shell-v9", "vula-shell-v10", "vula-shell-v11", "vula-shell-v12", "vula-shell-v13", "vula-shell-v14", "vula-shell-v15",
+      "vula-game-v1", "vula-game-v2", "vula-game-v3", "vula-game-v4", "vula-game-v5", "vula-game-v6", "vula-game-v7", "vula-game-v8", "vula-game-v9", "vula-game-v10", "vula-game-v11", "vula-game-v12", "vula-game-v13", "vula-game-v14", "vula-game-v15",
       "theplug-shell-v1", "theplug-media-v1",
       "iteration13-shell-v1", "iteration13-media-v1"
     ]);
