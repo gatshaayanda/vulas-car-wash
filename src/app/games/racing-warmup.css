@@ -451,3 +451,13 @@
 .warmup-race-result.victory>button{background:linear-gradient(135deg,#fff0a8,#d8f3a7);box-shadow:0 4px 18px #f3d97844}
 .warmup-race-result.defeat{border-color:#b9c5c0}
 @media(max-width:420px){.warmup-race-result{width:calc(100% - 28px);padding:19px 14px 16px;border-radius:16px}}
+
+
+/* Compact pre-race pit briefing; tyre choice is presentation-only until tyre physics are approved. */
+.warmup-pit-tyres{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0 10px;width:min(100%,620px)}
+.warmup-pit-tyre{display:flex;flex-direction:column;gap:4px;min-height:58px;padding:9px 10px;border:1px solid rgba(255,255,255,.22);border-radius:10px;background:rgba(12,20,19,.82);color:#fff;text-align:left;cursor:pointer;pointer-events:auto}
+.warmup-pit-tyre strong{font-size:12px;letter-spacing:.08em;text-transform:uppercase}.warmup-pit-tyre small{font-size:10px;line-height:1.3;color:rgba(255,255,255,.72)}
+.warmup-pit-tyre.soft{border-top:3px solid #ed514d}.warmup-pit-tyre.medium{border-top:3px solid #e9c84b}.warmup-pit-tyre.hard{border-top:3px solid #e9e9e2}.warmup-pit-tyre.selected{outline:2px solid #fff;outline-offset:1px;background:rgba(255,255,255,.16)}
+.warmup-pit-brief{display:flex;gap:10px;align-items:flex-start;width:min(100%,620px);padding:9px 11px;border-left:3px solid #f2bd45;background:rgba(9,16,15,.78);text-align:left;font-size:11px;line-height:1.45}.warmup-pit-brief b{flex:0 0 auto;color:#f2bd45;letter-spacing:.08em;font-size:10px}
+.warmup-pit-check{display:flex;flex-wrap:wrap;gap:7px 14px;width:min(100%,620px);margin-top:9px;color:rgba(255,255,255,.8);font-size:10px}
+@media(max-width:560px){.warmup-pit-tyres{gap:5px}.warmup-pit-tyre{padding:8px 6px}.warmup-pit-tyre small{font-size:9px}.warmup-pit-check{gap:5px 9px}}
