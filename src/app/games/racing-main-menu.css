@@ -56,3 +56,9 @@
 .racing-menu-game-embedded{min-height:0;border-radius:18px;overflow:hidden}
 .racing-main-menu-embedded{min-height:0;padding:14px}
 @media(min-width:760px){.racing-main-menu{padding:24px}.racing-menu-hero{grid-template-columns:.9fr 1.1fr;align-items:center;gap:24px;padding:30px 0 22px}.racing-menu-art{height:280px;min-height:280px}.racing-menu-copy h1{font-size:clamp(64px,7vw,92px)}.racing-menu-lede{font-size:14px}.racing-menu-sessions{padding-bottom:24px}.racing-menu-actions{grid-template-columns:repeat(4,minmax(0,1fr))}.racing-menu-actions button:first-child{grid-column:auto}.racing-menu-next{display:none}}
+
+.racing-menu-graphics-switch{position:absolute;z-index:3;left:50%;bottom:42px;transform:translateX(-50%);display:flex;gap:3px;padding:3px;border:1px solid #ffffff45;border-radius:6px;background:#071116dc;backdrop-filter:blur(8px)}
+.racing-menu-graphics-switch button{border:0;border-radius:4px;background:transparent;color:#dce7e3;padding:7px 9px;font-size:8px;font-weight:900;letter-spacing:.1em;white-space:nowrap;cursor:pointer}
+.racing-menu-graphics-switch button[aria-pressed="true"]{background:var(--lime);color:#101810}
+.racing-menu-graphics-switch button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+@media(min-width:760px){.racing-menu-graphics-switch{bottom:46px}.racing-menu-graphics-switch button{font-size:9px;padding:8px 11px}}
