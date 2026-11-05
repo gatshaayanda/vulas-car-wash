@@ -295,16 +295,16 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
     assetCar.visible = false;
     scene.add(assetCar);
     if (preview && previewGraphics === "kenney") {
+      // Kenney Racing Kit's Race Car White model (CC0). The earlier local
+      // manifest path was never populated in this repository, so the selector
+      // silently fell back to the procedural chassis every time.
       const loader = new GLTFLoader();
-      fetch("/game-assets/racing-kit/manifest.json").then(response => {
-        if (!response.ok) throw new Error("Racing Kit manifest unavailable");
-        return response.json();
-      }).then((manifest: { assets?: Array<{ name?: string; path?: string; format?: string }> }) => {
-        const candidates = (manifest.assets ?? []).filter(item => item.path && (item.format === "glb" || item.format === "gltf"));
-        const selected = candidates.find(item => /car|vehicle|race/i.test(item.name ?? item.path ?? "")) ?? candidates[0];
-        if (!selected?.path) throw new Error("No prepared Kenney vehicle model found");
-        loader.load(selected.path, gltf => {
+      loader.setCrossOrigin("anonymous");
+      loader.load(
+        "https://api.flockbay.com/bootstrap/library/models/v1/3a80878e2912a0bf19813ea76ecdf13fc54f8af10e1033c3ff7bbf84925c0804/raceCarWhite.glb",
+        gltf => {
           const model = gltf.scene;
+          model.updateMatrixWorld(true);
           const bounds = new THREE.Box3().setFromObject(model);
           const size = bounds.getSize(new THREE.Vector3());
           const center = bounds.getCenter(new THREE.Vector3());
@@ -312,10 +312,14 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
           model.position.sub(center);
           model.position.y += size.y / 2;
           model.scale.multiplyScalar(3.55 / longest);
+          // glTF vehicle models commonly face +Z; Vula's chassis faces -Z.
+          model.rotation.y = Math.PI;
           assetCar.add(model);
           assetCar.visible = true;
-        });
-      }).catch(() => { /* Procedural preview remains the safe fallback. */ });
+        },
+        undefined,
+        () => { host.dataset.graphicsStatus = "asset-unavailable"; },
+      );
     }
     // Keep the car's proportions credible against the 12-unit road and leave
     // more visual room around it for steering on narrow mobile screens.
@@ -405,7 +409,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
     const clock = new THREE.Clock();
     let raf = 0;
     const resize = () => {
-      const w = Math.max(280, host.clientWidth), h = Math.max(320, host.clientHeight);
+      const w = Math.max(1, host.clientWidth), h = Math.max(1, host.clientHeight);
       renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
     };
     const render = () => {
