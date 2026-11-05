@@ -99,7 +99,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     if (phase !== "countdown") return;
     const timer = window.setTimeout(() => {
       if (countdown <= 1) {
-        setCountdown(0); raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running");
+        setCountdown(0); raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running"); notify(raceRef.current.progress >= 2 ? "RACE START · hold GAS and steer smoothly. Brake before corners." : "SOLO PRACTICE · hold GAS, move the steering thumbstick left and right, and try a smooth lap.", "info");
       } else setCountdown(n => n - 1);
     }, 650);
     return () => window.clearTimeout(timer);
@@ -462,7 +462,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             race.playerPitServiceRemaining = 999;
             notify("PIT BOX · choose your tyre compound to begin service", "info");
           }
-          if (race.playerPitServiceRemaining > 0) {
+          if (race.playerPitServiceRemaining > 0 && race.playerPitServiceRemaining <= 3) {
             race.playerPitServiceRemaining = Math.max(0, race.playerPitServiceRemaining - dt);
             race.velocityX *= Math.max(0, 1 - dt * 5);
             race.velocityZ *= Math.max(0, 1 - dt * 5);
@@ -943,7 +943,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
         <div className="warmup-steering" aria-label="Analog steering">
-          <span className="steering-caption"> </span>
+           
           <div className={"steering-stick" + (phase !== "running" ? " is-disabled" : "")}
             role="slider" aria-label="Steering thumbstick" aria-valuemin={-100} aria-valuemax={100} aria-valuenow={Math.round(controlsRef.current.steer * 100)}
             tabIndex={phase === "running" ? 0 : -1}
@@ -957,7 +957,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           </div>
            
         </div>
-        <div className="warmup-driving">\n           
+        <div className="warmup-driving"> 
           <button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>BRAKE ↓</button>
           <button type="button" className="accelerate-button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>GAS ↑</button>
           <button type="button" className="nos-button" aria-label="Toggle NOS burst" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0} onClick={toggleBoost}>{boostActive ? "NOS ON ⚡" : "TAP NOS ⚡"}</button>
