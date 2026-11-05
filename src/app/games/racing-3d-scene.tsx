@@ -282,6 +282,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       const t = i / 220, p = track.getPointAt(t), tangent = track.getTangentAt(t).normalize();
       const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
       for (const s of [-1, 1]) {
+        // Leave the outside rail open where the pit lane branches away and merges.
+        if (s === -1 && ((t >= .89 && t <= .965) || (t >= .055 && t <= .12))) continue;
         const rail = new THREE.Mesh(new THREE.BoxGeometry(.22, .62, 2.9), i % 5 === 0 ? redKerb : barrierMat);
         rail.position.set(p.x + side.x * s * 8.4, .58, p.z + side.z * s * 8.4);
         rail.rotation.y = Math.atan2(tangent.x, tangent.z);
