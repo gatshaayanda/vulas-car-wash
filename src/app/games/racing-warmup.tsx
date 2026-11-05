@@ -48,6 +48,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [bestLap, setBestLap] = useState<number | null>(initialSave?.race.bestLap ?? null);
   const [lap, setLap] = useState(initialSave?.race.lap ?? 1);
   const [nos, setNos] = useState(100);
+  const [tyreChoice, setTyreChoice] = useState<"Soft" | "Medium" | "Hard">("Medium");
   const [signal, setSignal] = useState({ label: "GREEN LIGHT · BUILD SPEED", tone: "go" });
   const lastSignal = useRef("");
   const cornerSkillRef = useRef({ brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 });
@@ -160,7 +161,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         const boostAcceleration = boost ? 52 : 0;
         race.speed = clamp(race.speed + (engineAcceleration + boostAcceleration - aerodynamicDrag - brakeDeceleration) * dt, 0, boost ? 290 : 255);
         race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
-        if (race.nos <= 0 && controls.boost) { controls.boost = false; setBoostActive(false); }
+        if (race.nos <= 0 && controls.boost) { controls.boost = false; setBoostActive(false); notify("NOS reserve empty · lift to recharge.", "info"); }
 
         // A friction-circle model limits cornering when the tyres are already
         // spending grip on braking. Low-speed steering remains stable; excess
@@ -456,7 +457,13 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         const targetPoint = botTrack.getPointAt(wrap(botCurrentT + lookAhead, 1));
         const targetTangent = botTrack.getTangentAt(wrap(botCurrentT + lookAhead, 1)).normalize();
         const targetSideX = -targetTangent.z, targetSideZ = targetTangent.x;
-        const racingLineOffset = clamp(race.botLineOffset + clamp(botTurn * 16, -1.25, 1.25), -3.45, 3.45);
+        // Commit to a corner-specific entry line: attack wider for a pass, defend
+        // the inside when challenged, otherwise use a small deterministic apex bias.
+        // This is a bounded offset from the canonical centreline, not a second track.
+        const cornerLineBias = cornerDemand > .24
+          ? Math.sign(botTurn || 1) * (attackWindow ? -0.9 : defendWindow ? 0.85 : 0.32)
+          : 0;
+        const racingLineOffset = clamp(race.botLineOffset + clamp(botTurn * 16, -1.25, 1.25) + cornerLineBias, -3.45, 3.45);
         const aimX = targetPoint.x + targetSideX * racingLineOffset, aimZ = targetPoint.z + targetSideZ * racingLineOffset;
         const aimYaw = Math.atan2(-(aimX - race.botWorldX), -(aimZ - race.botWorldZ));
         const yawError = Math.atan2(Math.sin(aimYaw - race.botWorldYaw), Math.cos(aimYaw - race.botWorldYaw));
@@ -761,6 +768,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     const next = !controlsRef.current.boost;
     controlsRef.current.boost = next;
     setBoostActive(next);
+    notify(next ? "NOS deployed · use the burst to build a gap." : "NOS cut · reserve will recover when you lift.", "info");
   };
 
   if (embedded && !expanded) return <div className="race-inline-promo"><div><p className="vula-eyebrow">VULA RACING · QUICK BREAK</p><h2>Take a quick lap.</h2><p>A little circuit practice while you wait. Your wash booking stays right where you left it.</p></div><button type="button" className="vula-button primary" onClick={() => setExpanded(true)}>Play now ↗</button></div>;
@@ -778,8 +786,15 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         {phase === "finished" && raceResult && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.position === 1 ? "YOU BEAT KAGO!" : "KAGO TAKES THE WIN"}</strong><p>{fmt(raceResult.elapsed)} · 2 scored laps · {raceResult.difficulty}</p><button type="button" onClick={startRace}>RACE AGAIN ↗</button></div>}
         <div className="warmup-3d-overlay" hidden={phase === "running" || phase === "finished"} aria-live="polite">
           <span>VULA RACING · KAGO CHALLENGE</span>
-          <strong>{phase === "ready" ? "Beat Kago." : phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>
-          <p>{phase === "ready" ? "One formation lap, then two scored race laps. Find your own way past Kago." : phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>
+          <strong>{phase === "ready" ? "PIT GARAGE · RACE PREP" : phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>
+          {phase === "ready" ? <>
+            <p>Choose your starting compound. Tyres are visual-only in this QA build; handling is unchanged.</p>
+            <div className="warmup-pit-tyres" aria-label="Starting tyre selection">
+              {(["Soft", "Medium", "Hard"] as const).map((tyre) => <button type="button" key={tyre} className={"warmup-pit-tyre " + tyre.toLowerCase() + (tyreChoice === tyre ? " selected" : "")} aria-pressed={tyreChoice === tyre} onClick={() => setTyreChoice(tyre)}><strong>{tyre}</strong><small>{tyre === "Soft" ? "More grip · shorter life" : tyre === "Medium" ? "Balanced starting choice" : "Less peak grip · durable"}</small></button>)}
+            </div>
+            <div className="warmup-pit-brief"><b>ENGINEER</b><span>{tyreChoice} selected. NOS is your only race resource: spend it on straights, then lift to recharge.</span></div>
+            <div className="warmup-pit-check"><span>✓ Car systems ready</span><span>✓ Kago briefing loaded</span><span>✓ One formation lap + two race laps</span></div>
+          </> : <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>}
         </div>
       </div>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
@@ -806,7 +821,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         </div>
         <div className="warmup-actions">{phase === "paused" && onSave && <button type="button" className="vula-button secondary" onClick={() => onSave({ race: { ...raceRef.current }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString() })}>Save game</button>}{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start driving ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Drive again ↻</button>}<button type="button" className="vula-button secondary" onClick={() => reset(false)}>Restart ↻</button>{onExit && <button type="button" className="vula-button secondary" onClick={onExit}>Racing menu</button>}</div>
       </div>
-      <p className="warmup-help">Phone: move the circular thumbstick with your left thumb; BRAKE is left and GAS is right under your right thumb. Tap NOS once for a burst, tap again to stop. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause.</p>
+      <p className="warmup-help">Phone: move the circular thumbstick with your left thumb; BRAKE is left and GAS is right under your right thumb. Tap NOS once for a burst, tap again to stop; lifting off the gas recharges it faster. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause.</p>
     </section>
     {!embedded && <footer className="vula-footer"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></Link><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></footer>}
   </div>;
