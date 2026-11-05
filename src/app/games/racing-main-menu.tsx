@@ -27,11 +27,11 @@ const readData = (): LocalData => {
 const writeData = (data: LocalData) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); return true; } catch { return false; } };
 const time = (value: number | null) => value === null || !Number.isFinite(value) ? "—" : `${Math.floor(value / 60)}:${(value % 60).toFixed(2).padStart(5, "0")}`;
 
-function RacingMenuPreview({ graphics }: { graphics: "procedural" | "kenney" }) {
+function RacingMenuPreview({ graphics, onGraphicsStatus }: { graphics: "procedural" | "kenney"; onGraphicsStatus: (status: "loading" | "ready" | "error") => void }) {
   const raceRef = useRef<Race>(newRace());
   const controlsRef = useRef<Controls>({ steer: 0, accelerate: false, brake: false, boost: false });
   const phaseRef = useRef<Phase>("running");
-  return <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} preview previewGraphics={graphics} />;
+  return <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} preview previewGraphics={graphics} onGraphicsStatus={onGraphicsStatus} />;
 }
 
 export default function RacingMainMenu({ embedded = false }: { embedded?: boolean }) {
@@ -42,6 +42,7 @@ export default function RacingMainMenu({ embedded = false }: { embedded?: boolea
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [previewGraphics, setPreviewGraphics] = useState<"procedural" | "kenney">("procedural");
+  const [graphicsStatus, setGraphicsStatus] = useState<"loading" | "ready" | "error" | "idle">("idle");
   const activeSlot = useMemo(() => data.slots.find(slot => slot.id === activeSlotId) ?? null, [data.slots, activeSlotId]);
   useEffect(() => { setData(readData()); }, []);
   const commit = (next: LocalData) => { if (writeData(next)) { setData(next); setNotice("Saved on this device."); } else setNotice("Storage is unavailable. Your game was not saved."); };
@@ -71,7 +72,7 @@ export default function RacingMainMenu({ embedded = false }: { embedded?: boolea
       <div className="racing-menu-copy"><p className="racing-menu-kicker">01 / QUICK RACE</p><h1>TAKE<br/><em>THE LINE.</em></h1><p className="racing-menu-lede">One circuit. One rival. Your best lap.</p>
         <div className="racing-menu-rival"><span className="racing-menu-rival-mark">K</span><span><small>YOUR RIVAL</small><strong>KAGO</strong></span><span className="racing-menu-rival-level">OFFLINE AI</span></div>
       </div>
-      <div className="racing-menu-art" aria-label="Live view of the actual Vula Racing 3D circuit"><RacingMenuPreview graphics={previewGraphics}/><div className="racing-menu-art-caption"><b>LIVE</b><span>IN-GAME<br/>RACE VIEW</span></div><div className="racing-menu-graphics-switch" role="group" aria-label="Preview car graphics"><button type="button" aria-pressed={previewGraphics === "procedural"} onClick={() => setPreviewGraphics("procedural")}>PROCEDURAL</button><button type="button" aria-pressed={previewGraphics === "kenney"} onClick={() => setPreviewGraphics("kenney")}>KENNEY ASSET</button></div><div className="racing-menu-art-index">VULA CIRCUIT <i/> KAGO ON TRACK</div></div>
+      <div className="racing-menu-art" aria-label="Live view of the actual Vula Racing 3D circuit"><RacingMenuPreview graphics={previewGraphics} onGraphicsStatus={setGraphicsStatus}/><div className="racing-menu-art-caption"><b>LIVE</b><span>IN-GAME<br/>RACE VIEW</span></div><div className="racing-menu-graphics-switch" role="group" aria-label="Preview car graphics"><button type="button" aria-pressed={previewGraphics === "procedural"} onClick={() => setPreviewGraphics("procedural")}>PROCEDURAL</button><button type="button" aria-pressed={previewGraphics === "kenney"} onClick={() => setPreviewGraphics("kenney")}>KENNEY ASSET</button></div><div className="racing-menu-graphics-status" aria-live="polite">{previewGraphics === "procedural" ? "PROCEDURAL CAR" : graphicsStatus === "loading" ? "LOADING KENNEY CAR…" : graphicsStatus === "ready" ? "KENNEY ASSET ACTIVE" : graphicsStatus === "error" ? "ASSET UNAVAILABLE · PROCEDURAL FALLBACK" : "KENNEY ASSET"}</div><div className="racing-menu-art-index">VULA CIRCUIT <i/> KAGO ON TRACK</div></div>
     </section>
     <section className="racing-menu-sessions"><div className="racing-menu-sectionhead"><div><p className="racing-menu-kicker">RACE CONTROL</p><h2>Get on track.</h2></div><span>LOCAL SAVE</span></div>
       <div className="racing-menu-actions"><button type="button" onClick={newGame}>New Game <span>↗</span></button><button type="button" onClick={continueGame}>Continue <span>→</span></button><button type="button" onClick={() => setView("slots")}>Load Game <span>⌄</span></button><button type="button" onClick={() => setView("scores")}>High Scores <span>↗</span></button></div>
