@@ -14,6 +14,17 @@ const sampledTrack = Array.from({ length: 120 }, (_, index) => {
   return `${mapX(point.x).toFixed(1)},${mapY(point.z).toFixed(1)}`;
 });
 const trackPath = [...sampledTrack, sampledTrack[0]].join(" ");
+const pitMapPoints = Array.from({ length: 43 }, (_, index) => {
+  const t = (.91 + (.195 * index) / 42) % 1;
+  const point = mapTrack.getPointAt(t);
+  const tangent = mapTrack.getTangentAt(t).normalize();
+  const sideX = -tangent.z;
+  const sideZ = tangent.x;
+  const blend = Math.min(1, index / 7, (42 - index) / 7);
+  const offset = -13 * Math.max(0, blend);
+  return `${mapX(point.x + sideX * offset).toFixed(1)},${mapY(point.z + sideZ * offset).toFixed(1)}`;
+});
+const pitLanePath = pitMapPoints.join(" ");
 
 export default function RacingTrackMap({ raceRef }: Props) {
   const playerMarker = useRef<SVGCircleElement>(null);
@@ -48,6 +59,7 @@ export default function RacingTrackMap({ raceRef }: Props) {
         <polyline points={trackPath} className="racing-track-map-road-edge" />
         <polyline points={trackPath} className="racing-track-map-road" />
         <polyline points={trackPath} className="racing-track-map-road-centre" />
+        <polyline points={pitLanePath} className="racing-track-map-pit" />
         <circle cx={mapX(RACING_TRACK_POINTS[0][0])} cy={mapY(RACING_TRACK_POINTS[0][2])} r="3" className="racing-track-map-start" />
         <circle ref={playerMarker} cx={mapX(0)} cy={mapY(72)} r="6" className="racing-track-map-player" />
         <circle ref={rivalMarker} cx={mapX(3)} cy={mapY(70)} r="6" className="racing-track-map-rival" />
