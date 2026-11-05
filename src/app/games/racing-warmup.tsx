@@ -491,6 +491,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // One strategic stop maximum: Kago enters on the second scored lap, then rejoins.
         // The physical pit lane uses the same route geometry as the rendered circuit.
         const botCurrentT = wrap(race.botProgress, 1);
+        const botWasPitting = race.botPitting;
         if (!race.botPitDone && !race.botPitting && Math.floor(race.botProgress) === 1 && botCurrentT >= .895 && botCurrentT < .96) {
           race.botPitting = true;
           race.botPitProgress = 0;
@@ -653,7 +654,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         const botHeading = Math.atan2(-race.botVelocityX, -race.botVelocityZ);
         race.botDrift = clamp(Math.atan2(Math.sin(botHeading - race.botWorldYaw), Math.cos(botHeading - race.botWorldYaw)), -.95, .95);
         race.botSpeed = Math.hypot(race.botVelocityX, race.botVelocityZ);
-        if (!race.botPitting) {
+        if (!race.botPitting && !botWasPitting) {
           race.botProgress = wrap(previousBotProgress, 1) > .82 && botNearestT < .08
             ? Math.floor(previousBotProgress) + 1 + botNearestT
             : Math.floor(previousBotProgress) + botNearestT;
