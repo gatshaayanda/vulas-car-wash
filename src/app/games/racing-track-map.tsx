@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type RefObject } from "react";
-import { createRacingTrack, RACING_TRACK_POINTS } from "./racing-track";
+import { createRacingTrack, createRacingPitLane, RACING_TRACK_POINTS } from "./racing-track";
 import type { Race } from "./racing-warmup";
 
 type Props = { raceRef: RefObject<Race> };
@@ -14,17 +14,15 @@ const sampledTrack = Array.from({ length: 120 }, (_, index) => {
   return `${mapX(point.x).toFixed(1)},${mapY(point.z).toFixed(1)}`;
 });
 const trackPath = [...sampledTrack, sampledTrack[0]].join(" ");
-const pitMapPoints = Array.from({ length: 43 }, (_, index) => {
-  const t = (.91 + (.195 * index) / 42) % 1;
-  const point = mapTrack.getPointAt(t);
-  const tangent = mapTrack.getTangentAt(t).normalize();
-  const sideX = -tangent.z;
-  const sideZ = tangent.x;
-  const blend = Math.min(1, index / 7, (42 - index) / 7);
-  const offset = -13 * Math.max(0, blend);
-  return `${mapX(point.x + sideX * offset).toFixed(1)},${mapY(point.z + sideZ * offset).toFixed(1)}`;
+const mapPitLane = createRacingPitLane(mapTrack);
+const pitMapPoints = Array.from({ length: 61 }, (_, index) => {
+  const point = mapPitLane.getPointAt(index / 60);
+  return `${mapX(point.x).toFixed(1)},${mapY(point.z).toFixed(1)}`;
 });
 const pitLanePath = pitMapPoints.join(" ");
+const pitEntryPoint = mapPitLane.getPointAt(0);
+const pitExitPoint = mapPitLane.getPointAt(1);
+const pitBoxPoint = mapPitLane.getPointAt(.52);
 
 export default function RacingTrackMap({ raceRef }: Props) {
   const playerMarker = useRef<SVGCircleElement>(null);
@@ -53,13 +51,18 @@ export default function RacingTrackMap({ raceRef }: Props) {
   }, [raceRef]);
 
   return (
-    <aside className="racing-track-map" aria-label="Live circuit map showing your car and Kago">
+    <aside className="racing-track-map" aria-label="Live circuit map showing pit entry, service bay, pit exit, your car and Kago">
       <div className="racing-track-map-heading">CIRCUIT MAP</div>
       <svg viewBox="0 0 200 200" role="img" aria-label="Track layout with live player and Kago positions">
         <polyline points={trackPath} className="racing-track-map-road-edge" />
         <polyline points={trackPath} className="racing-track-map-road" />
         <polyline points={trackPath} className="racing-track-map-road-centre" />
         <polyline points={pitLanePath} className="racing-track-map-pit" />
+        <circle cx={mapX(pitEntryPoint.x)} cy={mapY(pitEntryPoint.z)} r="5" className="racing-track-map-pit-entry" />
+        <circle cx={mapX(pitExitPoint.x)} cy={mapY(pitExitPoint.z)} r="4" className="racing-track-map-pit-exit" />
+        <rect x={mapX(pitBoxPoint.x)-3.5} y={mapY(pitBoxPoint.z)-3.5} width="7" height="7" rx="1" className="racing-track-map-pit-box" />
+        <text x={mapX(pitEntryPoint.x)+7} y={mapY(pitEntryPoint.z)-5} className="racing-track-map-pit-label">PIT IN</text>
+        <text x={mapX(pitExitPoint.x)+6} y={mapY(pitExitPoint.z)+9} className="racing-track-map-pit-label">OUT</text>
         <circle cx={mapX(RACING_TRACK_POINTS[0][0])} cy={mapY(RACING_TRACK_POINTS[0][2])} r="3" className="racing-track-map-start" />
         <circle ref={playerMarker} cx={mapX(0)} cy={mapY(72)} r="6" className="racing-track-map-player" />
         <circle ref={rivalMarker} cx={mapX(3)} cy={mapY(70)} r="6" className="racing-track-map-rival" />
