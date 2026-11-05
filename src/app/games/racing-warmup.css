@@ -468,3 +468,12 @@
 @media(max-width:560px){.warmup-pit-tyres{gap:5px}.warmup-pit-tyre{padding:8px 6px}.warmup-pit-tyre small{font-size:9px}.warmup-pit-check{gap:5px 9px}}
 
 .warmup-driving .pit-button{border:1px solid #e8bd48;background:linear-gradient(180deg,#f3cf66,#c58b25);color:#17130a;font-weight:950;letter-spacing:.08em;box-shadow:0 3px 12px #0005}.warmup-driving .pit-button:disabled{opacity:.48;filter:saturate(.55)}
+
+
+.warmup-pit-service-overlay{display:grid;gap:10px;margin:12px 0;padding:16px;border:2px solid #e8bd48;border-radius:14px;background:linear-gradient(145deg,#17251e,#0b1511);color:#f5f7ee;box-shadow:0 12px 30px #0005}
+.warmup-pit-service-overlay>span{font-size:10px;font-weight:950;letter-spacing:.16em;color:#f5cf60}
+.warmup-pit-service-overlay>strong{font-size:20px;line-height:1.1}
+.warmup-pit-service-overlay>p{margin:0;color:#c4d0c5;font-size:12px;line-height:1.5}
+.warmup-pit-service-overlay>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.warmup-pit-service-overlay button{min-height:48px;border:1px solid #e8bd48;border-radius:8px;background:#27382b;color:#fff;font-weight:900;cursor:pointer}
+.warmup-pit-service-overlay button.selected,.warmup-pit-service-overlay button:focus-visible{background:#e8bd48;color:#172018;outline:2px solid #fff;outline-offset:2px}
