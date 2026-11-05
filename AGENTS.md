@@ -136,3 +136,21 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Easy, Normal and Hard share the same 310 km/h Kago base target. Difficulty is expressed through steering precision/response, corner confidence and mistakes, braking judgement, and attack/defend decisions. NOS must also differ materially: Easy uses it sparingly for a larger pace deficit and receives a modest burst; Normal uses it for pace recovery and attack/defence windows; Hard uses it more readily and gets the strongest burst for attacks, defence and pace recovery. Each level has its own reserve threshold, drain, recharge and post-burst cooldown. The player vehicle and player NOS are unchanged. Do not use hidden rubber-banding.
 - The completed result records two scored laps and the player's finishing position. A win receives a distinct celebratory finish treatment; a loss receives a clear but restrained result treatment.
 - Preserve offline play and local race-result/high-score integration. QA the complete formation → grid countdown → two-lap race → result flow on a phone, including Easy/Normal/Hard. These changes do not authorize online multiplayer or changes to player physics.
+
+
+## Pit preparation, tyre choice and NOS strategy — approved QA scope
+
+- The Quick Race pre-start screen includes a compact pit-garage briefing, a visual starting-tyre selection (Soft / Medium / Hard), a car-readiness checklist and a race engineer cue.
+- **Tyres are presentation-only in this QA stage.** The selected compound must not alter grip, steering, braking, speed, wear, temperature, damage or lap timing. Do not imply mechanical tyre effects until a separate approved physics implementation is tested.
+- Do not add fuel management. NOS is the race resource: it has a finite reserve, tactical tap-to-toggle burst, drain while active and passive recharge (faster when the player lifts off). Show the reserve clearly and communicate deployment/depletion without repeated toast spam. Kago has an independent NOS reserve and strategy; never couple it to the player's meter.
+- The pit briefing leads into the existing formation lap, grid reset/countdown and two scored laps. Preserve those race rules and existing save/result contracts.
+- Kago's line selection may use bounded, deterministic corner-entry/apex offsets and tactical inside/outside choices. Smooth transitions, maintain road clearance and use the canonical track spline; do not add alternate physical tracks or a second collision solver.
+- Keep communications grounded in real simulation events: persistent signal chip for current driving cue, short event toast for important changes, and concise contextual engineer copy. Suppress repetitive messages and do not stack competing alerts.
+- Preserve the approved player handling, controls, Kago 310 km/h shared base target, NOS difficulty profiles, offline gameplay and local-only offline results.
+- QA must cover tyre selection, pit-to-formation start, NOS deployment/cancellation/recharge/depletion, all three AI difficulties, corner-line behaviour, race completion, save/restore, mobile controls and offline launch. Report only checks actually run.
+
+## Menu vehicle graphics experiment — scope boundary
+
+- The live menu preview remains the safe place to compare procedural and imported Kenney Racing Kit vehicles. Do not replace the in-race player or Kago models as part of a menu-only experiment.
+- Use only models produced by the repository's prepare:racing-assets build step and preserve the procedural fallback when the manifest, model, WebGL or offline asset is unavailable.
+- Keep the existing circuit, preview camera and animation. Cache any newly selected local model and its dependencies before claiming offline graphics support.
