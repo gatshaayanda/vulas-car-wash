@@ -914,7 +914,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             : race.playerPitting && race.playerPitServiceRemaining > 0
               ? { label: "PIT CREW WORKING · WAIT A MOMENT", tone: "pit" }
               : race.playerPitting
-                ? { label: "GO GO GO! HOLD GAS ↑", tone: "go" }
+                ? { label: controlsRef.current.accelerate ? "FOLLOW THE PIT EXIT →" : "GO GO GO! HOLD GAS ↑", tone: "go" }
                 : race.playerOutLap
                   ? { label: "FOLLOW THE TRACK → START", tone: "go" }
                   : race.speed < 10 && !controlsRef.current.accelerate && !controlsRef.current.brake
@@ -1035,7 +1035,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           </> : <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>}
         </div>
         {raceRef.current.playerPitServiced && raceRef.current.playerPitServiceRemaining > 3 && <div className="warmup-pit-service-overlay" role="dialog" aria-modal="true" aria-label="Pit stop tyre service">
-          <span>PIT CREW · SERVICE BOX</span><strong>Choose your race tyres</strong>
+          <span>🛠️ PIT CREW · SERVICE BOX</span><strong>PICK A TYRE</strong>
           <p>Select a compound. The crew will fit it before releasing you back onto the circuit.</p>
           <div>{(["Soft", "Medium", "Hard"] as const).map(tyre => <button type="button" key={tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => { setTyreChoice(tyre); raceRef.current.playerPitServiceRemaining = 2.8; notify(`${tyre.toUpperCase()} SELECTED · pit crew fitting tyres.`, "info"); }}>{tyre}</button>)}</div>
         </div>}
