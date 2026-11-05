@@ -7,7 +7,7 @@ import Racing3DScene from "./racing-3d-scene";
 import { subscribeSettings } from "@/lib/firebase/vula-data";
 import { createRacingTrack, getTrackTurn } from "./racing-track";
 
-export type Phase = "ready" | "countdown" | "running" | "paused" | "finished" | "crashed";
+export type Phase = "ready" | "grid" | "countdown" | "running" | "paused" | "finished" | "crashed";
 export type Controls = { steer: number; accelerate: boolean; brake: boolean; boost: boolean };
 export type Race = {
   progress: number; speed: number; elapsed: number; lap: number; lapTime: number; steering: number; throttle: number; brakePressure: number;
@@ -39,6 +39,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [phase, setPhase] = useState<Phase>(initialSave ? "paused" : "ready");
   const completedRef = useRef(false);
   const [countdown, setCountdown] = useState(3);
+  const [raceResult, setRaceResult] = useState<RaceResult | null>(null);
   const [speed, setSpeed] = useState(0);
   const [botDifficulty, setBotDifficulty] = useState<"Easy" | "Normal" | "Hard">(initialSave?.difficulty ?? "Normal");
   const botDifficultyRef = useRef<"Easy" | "Normal" | "Hard">(initialSave?.difficulty ?? "Normal");
@@ -75,7 +76,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     raceRef.current = newRace();
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-    setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setBoostActive(false); setRivalGap(0);
+    setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setBoostActive(false); setRivalGap(0); setRaceResult(null);
     setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
   }, []);
   const startRace = useCallback(() => { completedRef.current = false; reset(true); }, [reset]);
@@ -89,6 +90,10 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   }, []);
 
   useEffect(() => {
+    if (phase === "grid") {
+      const timer = window.setTimeout(() => { setCountdown(3); phaseRef.current = "countdown"; setPhase("countdown"); }, 1100);
+      return () => window.clearTimeout(timer);
+    }
     if (phase !== "countdown") return;
     const timer = window.setTimeout(() => {
       if (countdown <= 1) {
@@ -412,12 +417,14 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           race.botInitialized = true;
         }
         const botLevel = botDifficultyRef.current;
-        // Player speed is capped at 255 km/h, which maps to 19.84 world-units/sec
-        // through the player's established 0.28-units-per-metre conversion.
-        // Easy preserves the current enjoyable competitive setup; Normal and Hard
-        // step up pace and racecraft without changing any player-car physics.
-        const botTargetSpeed = 25.45; // Easy, Normal and Hard share the 327 km/h baseline.
-        const botAggression = botLevel === "Easy" ? .86 : botLevel === "Normal" ? .94 : 1.0;
+        // Every setting shares the 327 km/h target; difficulty changes judgement and racecraft.
+        const botTargetSpeed = 25.45;
+        const botProfile = botLevel === "Easy"
+          ? { aggression: .76, steeringGain: 1.78, steeringResponse: 4.0, cornerConfidence: .105, brakeMargin: .36, brakeResponse: .22, brakeLimit: .34, mistakeThreshold: .42, mistakeStrength: .19, nosDrain: 22, nosRegen: 8 }
+          : botLevel === "Normal"
+            ? { aggression: .91, steeringGain: 2.02, steeringResponse: 4.8, cornerConfidence: .045, brakeMargin: .56, brakeResponse: .27, brakeLimit: .41, mistakeThreshold: .82, mistakeStrength: .075, nosDrain: 25, nosRegen: 7 }
+            : { aggression: 1, steeringGain: 2.2, steeringResponse: 5.35, cornerConfidence: .022, brakeMargin: .72, brakeResponse: .30, brakeLimit: .46, mistakeThreshold: .965, mistakeStrength: .025, nosDrain: 28, nosRegen: 5 };
+        const botAggression = botProfile.aggression;
         const botCurrentT = wrap(race.botProgress, 1);
         const botTurn = getTrackTurn(botTrack, botCurrentT, .006);
         // Use actual world-space proximity for tactical decisions rather than wrapped
