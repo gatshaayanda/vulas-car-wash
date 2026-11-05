@@ -483,7 +483,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           (attackWindow && race.botSpeed < botTargetSpeed * .995) ||
           (defendWindow && botLevel !== "Easy" && race.botSpeed < botTargetSpeed * .985)
         );
-        race.botNosCooldown = Math.max(0, race.botNosCooldown - dt);
+        race.botNosCooldown = Math.max(0, (race.botNosCooldown || 0) - dt);
         const botNosCanStart = race.botNos >= botProfile.nosStart && race.botNosCooldown <= 0;
         const botUseNos = race.botBoostActive
           ? botNosOpportunity && race.botNos > botProfile.nosReserve
