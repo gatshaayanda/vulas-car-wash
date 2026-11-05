@@ -632,6 +632,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         const lapNow = Math.floor(race.progress) + 1;
         if (lapNow > race.lap) {
           const completedLapTime = race.lapTime;
+          const completedLapValid = !race.lapInvalid;
           const formationComplete = race.lap === 1 && lapNow === 2;
           if (!formationComplete && !race.lapInvalid && (race.bestLap === null || race.lapTime < race.bestLap)) {
             race.bestLap = race.lapTime;
@@ -664,7 +665,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             completedRef.current = true;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
             const position: 1 | 2 = race.progress >= race.botProgress ? 1 : 2;
-            const result: RaceResult = { id: "race-" + Date.now(), completedAt: new Date().toISOString(), difficulty: botDifficultyRef.current, elapsed: race.elapsed, bestLap: race.bestLap ?? (!race.lapInvalid ? completedLapTime : null), position, laps: 2 };
+            const result: RaceResult = { id: "race-" + Date.now(), completedAt: new Date().toISOString(), difficulty: botDifficultyRef.current, elapsed: race.elapsed, bestLap: race.bestLap ?? (completedLapValid ? completedLapTime : null), position, laps: 2 };
             setRaceResult(result);
             phaseRef.current = "finished"; setPhase("finished");
             notify(position === 1 ? "🏆 VICTORY · Kago beaten!" : "Race complete · Kago takes the win", position === 1 ? "success" : "info");
