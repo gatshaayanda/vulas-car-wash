@@ -330,7 +330,9 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
         .then(manifest => {
           const assets = Array.isArray(manifest?.assets) ? manifest.assets : [];
           const normalizedName = (asset: { name?: string }) => (asset.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-          const selected = assets.find((asset: { name?: string; path?: string }) => normalizedName(asset) === "racecarwhite")
+          const selected = assets.find((asset: { name?: string; path?: string }) => normalizedName(asset) === "racecarred")
+            || assets.find((asset: { name?: string; path?: string }) => normalizedName(asset) === "racecarorange")
+            || assets.find((asset: { name?: string; path?: string }) => normalizedName(asset) === "racecargreen")
             || assets.find((asset: { name?: string; path?: string }) => normalizedName(asset).includes("racecar"))
             || assets.find((asset: { name?: string; path?: string }) => /car|vehicle/i.test(asset.name || ""));
           if (!selected || typeof selected.path !== "string" || !selected.path.startsWith("/game-assets/racing-kit/")) throw new Error("No usable Kenney vehicle model in manifest");
@@ -472,6 +474,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       const botYaw = race.botInitialized ? race.botWorldYaw : Math.atan2(-botTangent.x, -botTangent.z);
       botCar.position.copy(botWorld);
       botCar.rotation.y = botYaw;
+      botCar.visible = race.progress >= 2;
       botCar.rotation.z = clamp(-race.botDrift * .18, -.14, .14);
       botCar.rotation.x = clamp(race.botBrake * .08, 0, .08);
       const botFlame = botCar.userData.flame as THREE.Object3D | undefined;
@@ -490,10 +493,15 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       groundShadow.position.x = carWorld.x;
       groundShadow.position.z = carWorld.z;
       groundShadow.rotation.z = -car.rotation.y;
-      const cameraTarget = new THREE.Vector3(carWorld.x + forward.x * 10, 1.25, carWorld.z + forward.z * 10);
-      const cameraPosition = new THREE.Vector3(carWorld.x - forward.x * 8.4, 4.7, carWorld.z - forward.z * 8.4);
+      const cameraTarget = preview
+        ? new THREE.Vector3(carWorld.x + forward.x * 1.7, 1.05, carWorld.z + forward.z * 1.7)
+        : new THREE.Vector3(carWorld.x + forward.x * 10, 1.25, carWorld.z + forward.z * 10);
+      const cameraPosition = preview
+        ? new THREE.Vector3(carWorld.x - forward.x * 5.1, 3.25, carWorld.z - forward.z * 5.1)
+        : new THREE.Vector3(carWorld.x - forward.x * 8.4, 4.7, carWorld.z - forward.z * 8.4);
       camera.position.lerp(cameraPosition, 1 - Math.exp(-frameDelta * 4.2));
       camera.lookAt(cameraTarget);
+      if (preview) camera.fov = 43;
       // Rear tyres leave short, fading-in-place rubber traces while the car is
       // genuinely sliding. Bounded buffers prevent unbounded geometry growth.
       const slip = Math.abs(race.drift);
