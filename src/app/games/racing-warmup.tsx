@@ -16,11 +16,11 @@ export type Race = {
   longitudinalLoad: number; lateralG: number; wheelLock: number;
   worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; damage: number; lastImpactAt: number; trackT: number; botProgress: number; botSpeed: number;
   botWorldX: number; botWorldZ: number; botWorldYaw: number; botVelocityX: number; botVelocityZ: number; botSteering: number; botThrottle: number; botBrake: number; botDrift: number; botNos: number; botBoostActive: boolean; botInitialized: boolean;
-  botImpactX: number; botImpactZ: number; botImpactAt: number; botImpactStrength: number; botLineOffset: number;
+  botImpactX: number; botImpactZ: number; botImpactAt: number; botImpactStrength: number; botLineOffset: number; botNosCooldown: number;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
-export const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 17.9, botWorldX: 0, botWorldZ: 0, botWorldYaw: 0, botVelocityX: 0, botVelocityZ: 0, botSteering: 0, botThrottle: 0, botBrake: 0, botDrift: 0, botNos: 100, botBoostActive: false, botInitialized: false, botImpactX: 0, botImpactZ: 0, botImpactAt: 0, botImpactStrength: 0, botLineOffset: -2.45 });
+export const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 17.9, botWorldX: 0, botWorldZ: 0, botWorldYaw: 0, botVelocityX: 0, botVelocityZ: 0, botSteering: 0, botThrottle: 0, botBrake: 0, botDrift: 0, botNos: 100, botBoostActive: false, botInitialized: false, botImpactX: 0, botImpactZ: 0, botImpactAt: 0, botImpactStrength: 0, botLineOffset: -2.45, botNosCooldown: 0 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -417,13 +417,13 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           race.botInitialized = true;
         }
         const botLevel = botDifficultyRef.current;
-        // Every setting shares the 327 km/h target; difficulty changes judgement and racecraft.
-        const botTargetSpeed = 25.45;
+        // All settings share a 310 km/h base target; NOS gives each personality a distinct burst strategy.
+        const botTargetSpeed = 24.11;
         const botProfile = botLevel === "Easy"
-          ? { aggression: .76, steeringGain: 1.78, steeringResponse: 4.0, cornerConfidence: .105, brakeMargin: .36, brakeResponse: .22, brakeLimit: .34, mistakeThreshold: .42, mistakeStrength: .19, nosDrain: 22, nosRegen: 8 }
+          ? { aggression: .76, steeringGain: 1.78, steeringResponse: 4.0, cornerConfidence: .105, brakeMargin: .36, brakeResponse: .22, brakeLimit: .34, mistakeThreshold: .42, mistakeStrength: .19, nosDrain: 30, nosRegen: 10, nosStart: 42, nosReserve: 12, nosCooldown: 3.8, nosBoost: 1.045 }
           : botLevel === "Normal"
-            ? { aggression: .91, steeringGain: 2.02, steeringResponse: 4.8, cornerConfidence: .045, brakeMargin: .56, brakeResponse: .27, brakeLimit: .41, mistakeThreshold: .82, mistakeStrength: .075, nosDrain: 25, nosRegen: 7 }
-            : { aggression: 1, steeringGain: 2.2, steeringResponse: 5.35, cornerConfidence: .022, brakeMargin: .72, brakeResponse: .30, brakeLimit: .46, mistakeThreshold: .965, mistakeStrength: .025, nosDrain: 28, nosRegen: 5 };
+            ? { aggression: .91, steeringGain: 2.02, steeringResponse: 4.8, cornerConfidence: .045, brakeMargin: .56, brakeResponse: .27, brakeLimit: .41, mistakeThreshold: .82, mistakeStrength: .075, nosDrain: 27, nosRegen: 8, nosStart: 28, nosReserve: 8, nosCooldown: 2.5, nosBoost: 1.08 }
+            : { aggression: 1, steeringGain: 2.2, steeringResponse: 5.35, cornerConfidence: .022, brakeMargin: .72, brakeResponse: .30, brakeLimit: .46, mistakeThreshold: .965, mistakeStrength: .025, nosDrain: 24, nosRegen: 6, nosStart: 18, nosReserve: 5, nosCooldown: 1.5, nosBoost: 1.12 };
         const botAggression = botProfile.aggression;
         const botCurrentT = wrap(race.botProgress, 1);
         const botTurn = getTrackTurn(botTrack, botCurrentT, .006);
@@ -477,8 +477,18 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         race.botThrottle += (botThrottleTarget - race.botThrottle) * (1 - Math.exp(-dt * (botThrottleTarget ? 2.8 : 5)));
         race.botBrake += (botBrakeTarget - race.botBrake) * (1 - Math.exp(-dt * (botBrakeTarget ? 7.5 : 4.5)));
         const botOnStraight = cornerDemand < .16;
-        const botNeedsPace = race.botSpeed < botTargetSpeed * .97;
-        const botUseNos = race.botNos > 8 && botOnStraight && (botNeedsPace || (attackWindow && botAggression > .8) || (playerNear && botAggression > .9));
+        const botNeedsPace = race.botSpeed < botTargetSpeed * (botLevel === "Easy" ? .91 : botLevel === "Normal" ? .96 : .99);
+        const botNosOpportunity = botOnStraight && (
+          botNeedsPace ||
+          (attackWindow && race.botSpeed < botTargetSpeed * .995) ||
+          (defendWindow && botLevel !== "Easy" && race.botSpeed < botTargetSpeed * .985)
+        );
+        race.botNosCooldown = Math.max(0, race.botNosCooldown - dt);
+        const botNosCanStart = race.botNos >= botProfile.nosStart && race.botNosCooldown <= 0;
+        const botUseNos = race.botBoostActive
+          ? botNosOpportunity && race.botNos > botProfile.nosReserve
+          : botNosCanStart && botNosOpportunity;
+        if (race.botBoostActive && !botUseNos) race.botNosCooldown = botProfile.nosCooldown;
         race.botBoostActive = botUseNos;
         race.botNos = botUseNos ? Math.max(0, race.botNos - botProfile.nosDrain * dt) : Math.min(100, race.botNos + botProfile.nosRegen * dt);
         const botForwardX = -Math.sin(race.botWorldYaw), botForwardZ = -Math.cos(race.botWorldYaw);
@@ -491,9 +501,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // The old 3.45 drive force could not overcome drag at the advertised target
         // speeds, so Kago settled well below race pace and never challenged the player.
         // Keep the bot's own throttle, brake, NOS reserve and speed cap independent.
-        const botDrive = race.botThrottle * 20 + (botUseNos ? 20 : 0);
+        const botDrive = race.botThrottle * 20 + (botUseNos ? (botLevel === "Easy" ? 9 : botLevel === "Normal" ? 16 : 23) : 0);
         const botDrag = botLongitudinal * (.24 + Math.abs(botLongitudinal) * .009);
-        const nosSpeedMultiplier = botLevel === "Easy" ? 1.08 : botLevel === "Normal" ? 1.10 : 1.12;
+        const nosSpeedMultiplier = botProfile.nosBoost;
         const nextBotLongitudinal = clamp(botLongitudinal + (botDrive - race.botBrake * 13.5 - botDrag) * dt, 0, botTargetSpeed * (botUseNos ? nosSpeedMultiplier : 1.0));
         const botLongAccel = dt > 0 ? (nextBotLongitudinal - botLongitudinal) / dt : 0;
         const botLateralAccel = clamp(-botYawRate * botLongitudinal - botLateral * (cornerDemand > .7 ? .58 : 1.35), -7.2, 7.2);
@@ -656,7 +666,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             race.botWorldZ = gridPoint.z - gridSideZ * 2.45;
             race.botWorldYaw = gridYaw; race.botVelocityX = 0; race.botVelocityZ = 0; race.botSpeed = 0;
             race.botProgress = 1; race.botInitialized = true;
-            race.elapsed = 0; race.lapTime = 0; race.botNos = 100; race.nos = 100;
+            race.elapsed = 0; race.lapTime = 0; race.botNos = 100; race.botNosCooldown = 0; race.botBoostActive = false; race.nos = 100;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
             setSpeed(0); setLapTime(0); setNos(100); setCountdown(3);
             phaseRef.current = "grid"; setPhase("grid");
