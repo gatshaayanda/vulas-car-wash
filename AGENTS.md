@@ -19,7 +19,7 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Staff sign-in uses `/api/operations-login`, `FIREBASE_ADMIN_KEY`, and `VULA_OPERATIONS_WORD`. Never expose service-account credentials or staff secrets to the client.
 - Collections: `admins`, `customers`, `services`, `gallery`, `businessSettings`, `bookings`, `queueEntries`, `fleetRequests`, `loyaltyAccounts`, `reminderPreferences`, and `notificationTokens`.
 - Firestore authorization is in `firestore.rules`; image access is in `storage.rules`; indexes are in `firestore.indexes.json`.
-- `public/sw.js` uses isolated, versioned `vula-shell-v4` and `vula-game-v4` caches. It precaches the public game route, discovered Next.js assets, and the selected local racing model when available; the procedural car remains the offline fallback. Bump cache versions when shipped game assets change. Keep early `beforeinstallprompt` capture and the explicit branded install click intact. Updates must wait for the existing app's Refresh action; do not force-reload during install. iOS installation guidance is at `/iphone-install`.
+- `public/sw.js` uses isolated, versioned `vula-shell-v17` and `vula-game-v17` caches. It precaches the public game route, discovered Next.js assets, and the selected local racing model when available; the coloured procedural car remains the offline fallback. Bump cache versions when shipped game assets change. Keep early `beforeinstallprompt` capture and the explicit branded install click intact. Updates must wait for the existing app's Refresh action; do not force-reload during install. iOS installation guidance is at `/iphone-install`.
 - Legacy foundation routes redirect to the active customer or staff journey via `src/middleware.ts`.
 
 ## Online/offline rules
@@ -113,41 +113,30 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - For this visual task, do not alter vehicle physics, AI tuning, track geometry, barriers, collision handling, camera, driving controls, warm-up flow, save/persistence, PWA/offline behavior or race rules.
 
 
-## Racing menu, save/load, Quick Race and high scores — immediate approved scope
+## Racing menu, garage, Quick Break race and high scores — current approved scope
 
-- The current delivery order is fixed: **mobile-first main menu → New Game / Continue / Load Game / Save Game → existing 3D Quick Race with Kago → genuine completed-race results → High Scores**. Deliver this connected flow before adding any other racing feature.
-- Quick Race must have an actual race completion condition and a result event. Capture elapsed race time, valid best lap, difficulty and player finish position from the simulation; do not invent or imply server verification.
-- New Game creates a separate device-local save slot and starts the existing 3D Quick Race. Continue restores the active validated save. Load Game lists saved slots. Save Game is available from a paused state and persists a validated snapshot. Never overwrite a slot silently; preserve the last valid stored value if a write fails.
-- Local save data uses a versioned, validated schema and device storage. High Scores contains only completed results. Clearly label records as device-local/offline, not shared leaderboard entries or rewards.
-- Keep Kago's shared 310 km/h base target (24.11 world-units/second) and approved 3D player handling untouched. Do not refactor simulation or alter controls to implement menu navigation.
-- Design portrait/mobile first: compact screens, thumb-reachable actions and readable touch targets.
-- Do not add pit stops, tyre/fuel strategy, qualifying, divisions, career mode, online multiplayer or unrelated features in this delivery.
-- QA must prove New Game, Continue, Load, Save/restore after refresh, completed race result recording, High Scores persistence and offline behavior on a phone. Report only checks actually run. Product owner handles Vercel deployment unless explicitly delegated.
+- The delivery order remains: **mobile-first main menu → New Game / Continue / Load Game / Save Game → existing 3D Quick Race with Kago → genuine completed-race results → High Scores**. Keep the homepage VULA RACING · QUICK BREAK card as the customer-facing entry point and preserve the standalone `/games` route.
+- The current approved race journey supersedes the older formation-lap instructions: **pit garage and starting-tyre choice → solo practice lap → qualifying lap → grid set from qualifying time → two scored race laps with Kago → one mandatory physical pit stop → finish and results**.
+- During solo practice, Kago must be absent from the visible circuit, including his name tag, and must not collide with or obstruct the player. The player learns the controls alone: hold GAS while moving the left thumbstick left and right. Keep a persistent, concise signal chip and short, event-based toasts to coach the player; do not rely on a brief one-time message alone.
+- During qualifying, Kago remains visually absent. The player's valid qualifying lap time determines the grid order against Kago's qualifying benchmark/time. Never decide pole position from bot progress, a hard-coded player-first flag, or whether Kago happens to be ahead at the finish line. Make the comparison visible in the qualifying/grid feedback. Invalid qualifying laps do not earn pole.
+- Kago appears on the grid only when the two-lap race begins. The race has exactly two scored laps. Kago uses his own world-space driving state and independently makes one strategic pit stop during the race.
+- **The player must physically drive through the open pit-lane entry. There is no PIT NOW button and no manual pit request.** Keep the pit lane physically connected to the circuit, clearly marked, and open through the barrier. Use the same canonical pit-lane curve for the 3D road, map, entry detection, service bay, and exit. Do not teleport a player who is still on the racing line into the pit.
+- Give clear advance pit-in signalling/toasts and a visible PIT IN entry marker. When the car enters the pit lane, guide it to the service box. At the box, pause the car and display a real, tappable in-game tyre-selection dialog over the 3D scene. Choosing Soft / Medium / Hard starts the service animation/timer; only after service completes should the player receive the GO GO GO release cue and be guided back onto the circuit.
+- The player and Kago must not block or collide with each other in the pit lane or service box. Pit-lane service must remain usable if both cars pit at the same time. Keep each driver to one stop.
+- **Tyres are presentation-only in this QA stage.** Starting and pit-stop choices must not alter grip, steering, braking, speed, wear, temperature, damage or lap timing. Do not claim tyre strategy/physics until separately implemented and tested.
+- Do not add fuel management. NOS is the race resource: finite reserve, tactical tap-to-toggle burst, drain while active and passive recharge (faster when the player lifts off). Show the reserve clearly and communicate deployment/depletion without repeated toast spam. Kago has an independent NOS reserve and strategy; never couple it to the player's meter.
+- Preserve the approved player handling, steering, acceleration, braking, reverse, drift, NOS, camera, controls, track geometry, barriers, collision response, save/result contracts, PWA installation and offline gameplay. Never change player physics to compensate for AI or pit-lane issues.
+- New Game creates a separate device-local save slot; Continue restores the active validated save; Load Game lists slots; Save Game is available while paused. Never overwrite a slot silently and preserve the last valid value if a write fails. High Scores contains only genuinely completed results, labelled device-local/offline and not server-verified.
+- The result records the two scored race laps, elapsed race time, valid best lap, difficulty and actual finish position. A win receives a distinct celebratory finish treatment; a loss receives a clear but restrained result treatment.
+- Keep the UI portrait/mobile first, with thumb-reachable actions and readable touch targets. Do not display misleading steering percentages or the obsolete “Move thumb to steer” caption; the control instruction should tell players plainly to hold GAS and sweep the left thumbstick.
+- QA must cover garage tyre selection, solo practice with Kago hidden, qualifying-time grid order, Kago appearing at race start, both race laps, physical pit entry, tappable tyre dialog, service/release/rejoin, no pit-lane blocking, all three AI difficulties, results/high scores, save/restore, mobile controls and offline launch. Report only checks actually run. Product owner handles Vercel deployment unless explicitly delegated.
 
+## Race format and Kago difficulty (current)
 
-
-## Racing entry point and QA contract
-- The racing menu is the primary game entry point both when embedded in the homepage section `#vula-racing` and on the standalone `/games` route. The homepage must render `RacingMainMenu` (not `RacingWarmup` directly), so New Game, Continue, Load Game and High Scores are visible before Quick Race.
-- Preserve the standalone `/games` entry while keeping the embedded homepage version mobile-first and contained within the Vula landing-page layout. Verify the actual homepage URL after deployment, not only `/games`.
-
-## Formation lap, Kago difficulty and race finish (2026-11-05)
-- Race format: one unscored formation/warm-up lap, then return both cars to the start grid, stop the warm-up clock, and launch a three-light countdown. Follow with exactly two scored race laps. The formation lap must not count toward race elapsed time, best lap, or the stored two-lap result.
-- The player and Kago must both be reset to opposite grid slots at the start/finish line after the formation lap. Keep the existing player handling and speed caps unchanged.
-- Easy, Normal and Hard share the same 310 km/h Kago base target. Difficulty is expressed through steering precision/response, corner confidence and mistakes, braking judgement, and attack/defend decisions. NOS must also differ materially: Easy uses it sparingly for a larger pace deficit and receives a modest burst; Normal uses it for pace recovery and attack/defence windows; Hard uses it more readily and gets the strongest burst for attacks, defence and pace recovery. Each level has its own reserve threshold, drain, recharge and post-burst cooldown. The player vehicle and player NOS are unchanged. Do not use hidden rubber-banding.
-- The completed result records two scored laps and the player's finishing position. A win receives a distinct celebratory finish treatment; a loss receives a clear but restrained result treatment.
-- Preserve offline play and local race-result/high-score integration. QA the complete formation → grid countdown → two-lap race → result flow on a phone, including Easy/Normal/Hard. These changes do not authorize online multiplayer or changes to player physics.
-
-
-## Pit preparation, tyre choice and NOS strategy — approved QA scope
-
-- The Quick Race pre-start screen includes a compact pit-garage briefing, a visual starting-tyre selection (Soft / Medium / Hard), a car-readiness checklist and a race engineer cue.
-- **Tyres are presentation-only in this QA stage.** The selected compound must not alter grip, steering, braking, speed, wear, temperature, damage or lap timing. Do not imply mechanical tyre effects until a separate approved physics implementation is tested.
-- Do not add fuel management. NOS is the race resource: it has a finite reserve, tactical tap-to-toggle burst, drain while active and passive recharge (faster when the player lifts off). Show the reserve clearly and communicate deployment/depletion without repeated toast spam. Kago has an independent NOS reserve and strategy; never couple it to the player's meter.
-- The pit briefing leads into the existing formation lap, grid reset/countdown and two scored laps. Preserve those race rules and existing save/result contracts.
+- Easy, Normal and Hard share the same 310 km/h Kago base target (24.11 world-units/second). Difficulty is expressed through steering precision/response, corner confidence and mistakes, braking judgement, and attack/defend decisions. NOS must also differ materially: Easy uses it sparingly for a larger pace deficit and receives a modest burst; Normal uses it for pace recovery and attack/defence windows; Hard uses it more readily and gets the strongest burst for attacks, defence and pace recovery. Each level has its own reserve threshold, drain, recharge and post-burst cooldown. Player vehicle and player NOS remain unchanged. Do not use hidden rubber-banding.
+- The completed result records exactly two scored race laps and the player's actual finishing position. Keep local-only offline results and the existing save/high-score integration.
 - Kago's line selection may use bounded, deterministic corner-entry/apex offsets and tactical inside/outside choices. Smooth transitions, maintain road clearance and use the canonical track spline; do not add alternate physical tracks or a second collision solver.
 - Keep communications grounded in real simulation events: persistent signal chip for current driving cue, short event toast for important changes, and concise contextual engineer copy. Suppress repetitive messages and do not stack competing alerts.
-- Preserve the approved player handling, controls, Kago 310 km/h shared base target, NOS difficulty profiles, offline gameplay and local-only offline results.
-- QA must cover tyre selection, pit-to-formation start, NOS deployment/cancellation/recharge/depletion, all three AI difficulties, corner-line behaviour, race completion, save/restore, mobile controls and offline launch. Report only checks actually run.
 
 ## Menu vehicle graphics experiment — scope boundary
 

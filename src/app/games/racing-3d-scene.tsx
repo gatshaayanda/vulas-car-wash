@@ -170,6 +170,33 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
     }
     scene.add(pitMarkings);
 
+    // A readable PIT IN board marks the open branch before the player reaches it.
+    const pitEntryPoint = pitLane.getPointAt(.045);
+    const pitEntryTangent = pitLane.getTangentAt(.045).normalize();
+    const pitEntrySide = new THREE.Vector3(-pitEntryTangent.z, 0, pitEntryTangent.x).normalize();
+    const pitSign = new THREE.Group();
+    const pitSignPostMaterial = new THREE.MeshStandardMaterial({ color: "#202a27", roughness: .8 });
+    for (const x of [-2.05, 2.05]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(.16, 2.3, .16), pitSignPostMaterial);
+      post.position.set(x, 1.15, 0);
+      pitSign.add(post);
+    }
+    const pitSignCanvas = document.createElement("canvas");
+    pitSignCanvas.width = 512; pitSignCanvas.height = 160;
+    const pitSignContext = pitSignCanvas.getContext("2d");
+    if (pitSignContext) {
+      pitSignContext.fillStyle = "#101a17"; pitSignContext.fillRect(0, 0, 512, 160);
+      pitSignContext.strokeStyle = "#f2c64e"; pitSignContext.lineWidth = 12; pitSignContext.strokeRect(7, 7, 498, 146);
+      pitSignContext.fillStyle = "#f2c64e"; pitSignContext.font = "900 78px system-ui"; pitSignContext.textAlign = "center"; pitSignContext.textBaseline = "middle";
+      pitSignContext.fillText("PIT IN  →", 256, 83);
+    }
+    const pitSignTexture = new THREE.CanvasTexture(pitSignCanvas);
+    const pitSignFace = new THREE.Mesh(new THREE.PlaneGeometry(4.05, 1.26), new THREE.MeshBasicMaterial({ map: pitSignTexture, side: THREE.DoubleSide }));
+    pitSignFace.position.set(0, 1.72, .1); pitSign.add(pitSignFace);
+    pitSign.position.set(pitEntryPoint.x + pitEntrySide.x * 4.2, .04, pitEntryPoint.z + pitEntrySide.z * 4.2);
+    pitSign.rotation.y = Math.atan2(pitEntryTangent.x, pitEntryTangent.z);
+    scene.add(pitSign);
+
     // A clearly visible service bay beside the pit lane.
     const pitBoxPoint = pitLane.getPointAt(.52);
     const pitBoxTangent = pitLane.getTangentAt(.52).normalize();
@@ -305,6 +332,23 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
         loader.load(modelUrl, gltf => {
           if (cancelled) return;
           const model = gltf.scene;
+          // Racing Kit exports can contain pale/default body materials. Apply a
+          // clear racing-red tint while retaining dark tyres, glass and trim.
+          const racingPaint = new THREE.Color("#e44361");
+          model.traverse(object => {
+            if (!(object instanceof THREE.Mesh)) return;
+            const sourceMaterials = Array.isArray(object.material) ? object.material : [object.material];
+            const paintedMaterials = sourceMaterials.map(source => {
+              const material = source.clone() as THREE.Material & { color?: THREE.Color };
+              const identity = (object.name + " " + material.name).toLowerCase();
+              if (material.color && !/(wheel|tyre|tire|rubber|glass|window|lamp|light|chrome|metal|rim|brake)/.test(identity)) {
+                const lightness = material.color.getHSL({ h: 0, s: 0, l: 0 }).l;
+                if (lightness > .34) material.color.lerp(racingPaint, .78);
+              }
+              return material;
+            });
+            object.material = Array.isArray(object.material) ? paintedMaterials : paintedMaterials[0];
+          });
           model.updateMatrixWorld(true);
           const bounds = new THREE.Box3().setFromObject(model);
           const size = bounds.getSize(new THREE.Vector3());
@@ -476,7 +520,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       const botYaw = race.botInitialized ? race.botWorldYaw : Math.atan2(-botTangent.x, -botTangent.z);
       botCar.position.copy(botWorld);
       botCar.rotation.y = botYaw;
-      botCar.visible = race.lap >= 3;
+      botCar.visible = preview || race.lap >= 3;
       botCar.rotation.z = clamp(-race.botDrift * .18, -.14, .14);
       botCar.rotation.x = clamp(race.botBrake * .08, 0, .08);
       const botFlame = botCar.userData.flame as THREE.Object3D | undefined;
@@ -485,7 +529,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
         botFlame.scale.setScalar(.78 + Math.sin(clock.elapsedTime * 37) * .22);
       }
       nameTag.position.set(botWorld.x, 3.0, botWorld.z);
-      nameTag.visible = currentPhase !== "ready" || race.botProgress > .025;
+      nameTag.visible = preview || race.lap >= 3;
       // Subtle suspension response: braking transfers load forward and cornering
       // rolls the body. These are visual cues driven by the physics state.
       car.rotation.x = clamp(-race.longitudinalLoad * 0.22, -0.075, 0.025);

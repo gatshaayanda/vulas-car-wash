@@ -477,3 +477,13 @@
 .warmup-pit-service-overlay>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .warmup-pit-service-overlay button{min-height:48px;border:1px solid #e8bd48;border-radius:8px;background:#27382b;color:#fff;font-weight:900;cursor:pointer}
 .warmup-pit-service-overlay button.selected,.warmup-pit-service-overlay button:focus-visible{background:#e8bd48;color:#172018;outline:2px solid #fff;outline-offset:2px}
+
+/* Current Quick Break onboarding and physical pit-service interaction. */
+.warmup-3d-overlay.is-interactive{pointer-events:auto}
+.warmup-signal-chip.pit{border-color:#f2bd45;background:#332713ef}
+.warmup-signal-chip.pit span{background:#f2bd45;box-shadow:0 0 0 3px #f2bd4525}
+.warmup-circuit-wrap .warmup-pit-service-overlay{position:absolute;z-index:6;left:50%;top:50%;transform:translate(-50%,-50%);width:min(420px,calc(100% - 24px));margin:0;pointer-events:auto}
+.warmup-pit-service-progress{position:absolute;z-index:5;right:12px;bottom:12px;display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid #f2bd45;border-radius:9px;background:#14241fee;color:#fff;box-shadow:0 4px 16px #07140e30;pointer-events:none}
+.warmup-pit-service-progress strong{font-size:9px;letter-spacing:.08em}
+.warmup-pit-service-progress span{font-size:13px;font-weight:950;color:#f2bd45;font-variant-numeric:tabular-nums}
+@media(max-width:480px){.warmup-circuit-wrap .warmup-pit-service-overlay{padding:13px}.warmup-circuit-wrap .warmup-pit-service-overlay>strong{font-size:18px}.warmup-pit-service-progress{right:8px;bottom:8px;padding:8px 9px}}

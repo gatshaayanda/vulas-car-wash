@@ -52,6 +52,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [tyreChoice, setTyreChoice] = useState<"Soft" | "Medium" | "Hard">("Medium");
   const [signal, setSignal] = useState({ label: "GREEN LIGHT · BUILD SPEED", tone: "go" });
   const lastSignal = useRef("");
+  const botQualifyingElapsedRef = useRef(0);
+  const botQualifyingTimeRef = useRef<number | null>(null);
+  const lastPitPromptLapRef = useRef(-1);
   const cornerSkillRef = useRef({ brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 });
   const [boostActive, setBoostActive] = useState(false);
   const [toast, setToast] = useState<{ text: string; kind: "success" | "error" | "info" } | null>(null);
@@ -76,6 +79,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
 
   const reset = useCallback((start: boolean) => {
     raceRef.current = newRace();
+    botQualifyingElapsedRef.current = 0; botQualifyingTimeRef.current = null; lastPitPromptLapRef.current = -1;
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
     setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setBoostActive(false); setRivalGap(0); setRaceResult(null);
@@ -461,20 +465,21 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           race.playerPitProgress = nearestT;
           if (!race.playerPitServiced && race.playerPitProgress >= .49) {
             race.playerPitServiced = true;
-            race.playerPitServiceRemaining = 999;
+            race.playerPitServiceRemaining = 4;
             notify("PIT BOX · choose your tyre compound to begin service", "info");
           }
           if (race.playerPitServiceRemaining > 0 && race.playerPitServiceRemaining <= 3) {
             race.playerPitServiceRemaining = Math.max(0, race.playerPitServiceRemaining - dt);
             race.velocityX *= Math.max(0, 1 - dt * 5);
             race.velocityZ *= Math.max(0, 1 - dt * 5);
+            if (race.playerPitServiceRemaining === 0) notify("GO GO GO · accelerate to rejoin the circuit.", "success");
           }
           if (race.playerPitProgress >= .985 && race.playerPitServiceRemaining <= 0) {
             race.playerPitting = false;
             race.playerPitDone = true;
             race.progress = 3.105;
             race.trackT = .105;
-            notify("Pit stop complete · back on track", "success");
+            notify("PIT EXIT · accelerate to rejoin the racing line.", "success");
           } else {
             race.progress = 2.91;
           }
@@ -608,6 +613,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         race.botWorldX += race.botVelocityX * dt; race.botWorldZ += race.botVelocityZ * dt;
         // Local projection is for lap progress and gradual off-line recovery only.
         const previousBotProgress = race.botProgress;
+        if (race.progress >= 1 && race.progress < 2 && botQualifyingTimeRef.current === null) botQualifyingElapsedRef.current += dt;
         let botNearestT = botCurrentT, botNearestDistance = Number.POSITIVE_INFINITY;
         let botNearestPoint = botTrack.getPointAt(botCurrentT), botNearestTangent = botTrack.getTangentAt(botCurrentT).normalize();
         if (race.botPitting) {
@@ -668,8 +674,12 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             ? Math.floor(previousBotProgress) + 1 + botNearestT
             : Math.floor(previousBotProgress) + botNearestT;
         }
+        if (race.progress >= 1 && race.progress < 2 && botQualifyingTimeRef.current === null
+          && previousBotProgress < 2 && race.botProgress >= 2) {
+          botQualifyingTimeRef.current = botQualifyingElapsedRef.current;
+        }
 
-        if (race.progress >= 2) {
+        if (race.progress >= 2 && !race.playerPitting && !race.botPitting) {
         // Player-vs-Kago collision: oriented vehicle footprints are tested in
         // world space using the separating-axis theorem. Resolve the player
         // against Kago's independently moving chassis for this frame, preserving the
@@ -797,6 +807,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             const qualifyingSideX = -qualifyingTangent.z, qualifyingSideZ = qualifyingTangent.x;
             const qualifyingYaw = Math.atan2(-qualifyingTangent.x, -qualifyingTangent.z);
             race.botProgress = 1;
+            botQualifyingElapsedRef.current = 0; botQualifyingTimeRef.current = null;
             race.botWorldX = qualifyingPoint.x - qualifyingSideX * 2.45;
             race.botWorldZ = qualifyingPoint.z - qualifyingSideZ * 2.45;
             race.botWorldYaw = qualifyingYaw;
@@ -813,7 +824,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             const gridTangent = botTrack.getTangentAt(0).normalize();
             const gridSideX = -gridTangent.z, gridSideZ = gridTangent.x;
             const gridYaw = Math.atan2(-gridTangent.x, -gridTangent.z);
-            const playerOnPole = race.botProgress < 2;
+            const botQualifyingTime = botQualifyingTimeRef.current
+              ?? (botQualifyingElapsedRef.current + trackRef.current!.getLength() * Math.max(0, 2 - race.botProgress) / Math.max(8.5, race.botSpeed));
+            const playerOnPole = completedLapValid && completedLapTime <= botQualifyingTime;
             const playerGridSide = playerOnPole ? 1 : -1;
             race.worldX = gridPoint.x + gridSideX * 2.45 * playerGridSide;
             race.worldZ = gridPoint.z + gridSideZ * 2.45 * playerGridSide;
@@ -829,7 +842,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
             setSpeed(0); setLapTime(0); setNos(100); setCountdown(3);
             phaseRef.current = "grid"; setPhase("grid");
-            notify(playerOnPole ? "POLE POSITION · your qualifying lap puts you ahead of Kago." : "GRID SET · Kago takes pole; you start alongside him.", "success");
+            notify(`${playerOnPole ? "POLE POSITION" : "GRID SET"} · your ${fmt(completedLapTime)} vs Kago ${fmt(botQualifyingTime)}${completedLapValid ? "" : " · invalid lap"}.`, playerOnPole ? "success" : "info");
           } else if (lapNow >= 5 && !completedRef.current) {
             if (!race.playerPitDone) {
               notify("MANDATORY PIT STOP · return to the marked pit entry before the finish can be confirmed.", "error");
@@ -845,17 +858,27 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             }
           }
         }
+        if (race.progress >= 2 && !race.playerPitDone && !race.playerPitting) {
+          const raceLapIndex = Math.floor(race.progress);
+          if (race.trackT >= .84 && race.trackT < .9 && lastPitPromptLapRef.current !== raceLapIndex) {
+            lastPitPromptLapRef.current = raceLapIndex;
+            notify("PIT WINDOW · move LEFT through the open entry and follow the yellow line.", "info");
+          }
+        }
         if (now - lastUi > 33) {
           lastUi = now;
           setSpeed(race.speed);
           setLapTime(race.lapTime);
           setNos(race.nos);
           setBoostActive(boost);
+          const pitApproach = race.progress >= 2 && !race.playerPitDone && !race.playerPitting && race.trackT >= .84 && race.trackT < .97;
           const cue = race.progress < 1
-            ? { label: "SOLO PRACTICE · STEER LEFT & RIGHT", tone: "go" }
+            ? { label: "PRACTICE · HOLD GAS + STEER LEFT / RIGHT", tone: "go" }
             : race.progress < 2
-              ? { label: "QUALIFYING · SET YOUR GRID TIME", tone: "go" }
-              : upcomingBend > 0.62 && race.speed > 105
+              ? { label: "QUALIFYING · HOLD GAS · SET YOUR GRID TIME", tone: "go" }
+              : pitApproach
+                ? { label: "PIT IN · MOVE LEFT THROUGH THE OPEN ENTRY", tone: "pit" }
+                : upcomingBend > 0.62 && race.speed > 105
                 ? { label: "BRAKE POINT · LIFT NOW", tone: "brake" }
                 : upcomingBend > 0.34
                   ? { label: (upcomingTurn < 0 ? "TURN LEFT" : "TURN RIGHT") + " · PREPARE", tone: "turn" }
@@ -944,24 +967,25 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
         {toast && <div className={"warmup-toast " + toast.kind} role="status">{toast.text}</div>}
         {phase === "finished" && raceResult && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.position === 1 ? "YOU BEAT KAGO!" : "KAGO TAKES THE WIN"}</strong><p>{fmt(raceResult.elapsed)} · 2 scored laps · {raceResult.difficulty}</p><button type="button" onClick={startRace}>RACE AGAIN ↗</button></div>}
-        <div className="warmup-3d-overlay" hidden={phase === "running" || phase === "finished"} aria-live="polite">
+        <div className={"warmup-3d-overlay" + (phase === "ready" ? " is-interactive" : "")} hidden={phase === "running" || phase === "finished"} aria-live="polite">
           <span>VULA RACING · KAGO CHALLENGE</span>
           <strong>{phase === "ready" ? "PIT GARAGE · RACE PREP" : phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>
           {phase === "ready" ? <>
             <p>Choose your starting tyres, then take a quiet solo practice lap. Your qualifying lap sets the grid; Kago joins only when the race begins.</p>
             <div className="warmup-pit-tyres" aria-label="Starting tyre selection">
-              {(["Soft", "Medium", "Hard"] as const).map((tyre) => <button type="button" key={tyre} className={"warmup-pit-tyre " + tyre.toLowerCase() + (tyreChoice === tyre ? " selected" : "")} aria-pressed={tyreChoice === tyre} onClick={() => setTyreChoice(tyre)}><strong>{tyre}</strong><small>{tyre === "Soft" ? "More grip · shorter life" : tyre === "Medium" ? "Balanced starting choice" : "Less peak grip · durable"}</small></button>)}
+              {(["Soft", "Medium", "Hard"] as const).map((tyre) => <button type="button" key={tyre} className={"warmup-pit-tyre " + tyre.toLowerCase() + (tyreChoice === tyre ? " selected" : "")} aria-pressed={tyreChoice === tyre} onClick={() => setTyreChoice(tyre)}><strong>{tyre}</strong><small>{tyre === "Soft" ? "Soft compound · visual choice" : tyre === "Medium" ? "Balanced compound · visual choice" : "Hard compound · visual choice"}</small></button>)}
             </div>
             <div className="warmup-pit-brief"><b>ENGINEER</b><span>{tyreChoice} selected. NOS is your only race resource: spend it on straights, then lift to recharge.</span></div>
             <div className="warmup-pit-check"><span>✓ Car systems ready</span><span>✓ Kago briefing loaded</span><span>✓ Solo practice · qualifying · two race laps</span></div>
           </> : <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>}
         </div>
-      </div>
-      {raceRef.current.playerPitServiced && raceRef.current.playerPitServiceRemaining > 3 && <div className="warmup-pit-service-overlay" role="dialog" aria-label="Pit stop tyre service">
+        {raceRef.current.playerPitServiced && raceRef.current.playerPitServiceRemaining > 3 && <div className="warmup-pit-service-overlay" role="dialog" aria-modal="true" aria-label="Pit stop tyre service">
           <span>PIT CREW · SERVICE BOX</span><strong>Choose your race tyres</strong>
-          <p>Your mandatory stop is complete once the crew fits your selected compound.</p>
-          <div>{(["Soft", "Medium", "Hard"] as const).map(tyre => <button type="button" key={tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => { setTyreChoice(tyre); raceRef.current.playerPitServiceRemaining = 2.8; notify(tyre.toUpperCase() + " TYRES FITTED · GO GO GO!", "success"); }}>{tyre}</button>)}</div>
+          <p>Select a compound. The crew will fit it before releasing you back onto the circuit.</p>
+          <div>{(["Soft", "Medium", "Hard"] as const).map(tyre => <button type="button" key={tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => { setTyreChoice(tyre); raceRef.current.playerPitServiceRemaining = 2.8; notify(`${tyre.toUpperCase()} SELECTED · pit crew fitting tyres.`, "info"); }}>{tyre}</button>)}</div>
         </div>}
+        {raceRef.current.playerPitting && raceRef.current.playerPitServiced && raceRef.current.playerPitServiceRemaining > 0 && raceRef.current.playerPitServiceRemaining <= 3 && <div className="warmup-pit-service-progress" role="status"><strong>PIT CREW · FITTING {tyreChoice.toUpperCase()} TYRES</strong><span>{raceRef.current.playerPitServiceRemaining.toFixed(1)}s</span></div>}
+      </div>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
         <div className="warmup-steering" aria-label="Analog steering">
@@ -986,7 +1010,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         </div>
         <div className="warmup-actions">{phase === "paused" && onSave && <button type="button" className="vula-button secondary" onClick={() => onSave({ race: { ...raceRef.current }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString() })}>Save game</button>}{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start driving ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Drive again ↻</button>}<button type="button" className="vula-button secondary" onClick={() => reset(false)}>Restart ↻</button>{onExit && <button type="button" className="vula-button secondary" onClick={onExit}>Racing menu</button>}</div>
       </div>
-      <p className="warmup-help">Phone: steer left or right with the thumbstick, hold GAS to accelerate and BRAKE to slow down. Drive through the marked pit entry when the engineer calls you in; select tyres at the service box, then accelerate to rejoin. Move the circular thumbstick with your left thumb; BRAKE is left and GAS is right under your right thumb. Tap NOS once for a burst, tap again to stop; lifting off the gas recharges it faster. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause.</p>
+      <p className="warmup-help">Phone: hold GAS with your right thumb while sweeping the left thumbstick left and right during solo practice. BRAKE slows you before corners. When the engineer calls PIT IN, steer left through the open marked entry; choose tyres at the service box, wait for GO GO GO, then accelerate to rejoin. Tap NOS once for a burst, tap again to stop; lifting off the gas recharges it faster. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause.</p>
     </section>
     {!embedded && <footer className="vula-footer"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></Link><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></footer>}
   </div>;
