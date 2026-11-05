@@ -145,6 +145,74 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
     const track = createRacingTrack();
     const road = new THREE.Mesh(ribbon(track, 12, 600, .015), new THREE.MeshStandardMaterial({ color: "#30383e", roughness: .94, metalness: .02, side: THREE.DoubleSide }));
     road.receiveShadow = true; scene.add(road);
+
+    // Dedicated pit lane: branches off the main straight, runs parallel to the
+    // circuit past a marked service box, then merges back onto the racing line.
+    const pitSamples: THREE.Vector3[] = [];
+    const pitStartT = .91;
+    const pitEndT = .105;
+    const pitSpan = pitEndT + 1 - pitStartT;
+    for (let i = 0; i <= 42; i++) {
+      const t = (pitStartT + pitSpan * i / 42) % 1;
+      const point = track.getPointAt(t);
+      const tangent = track.getTangentAt(t).normalize();
+      const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+      const blend = Math.min(1, i / 7, (42 - i) / 7);
+      point.addScaledVector(side, -13 * Math.max(0, blend));
+      pitSamples.push(point);
+    }
+    const pitLane = new THREE.CatmullRomCurve3(pitSamples, false, "centripetal", .35);
+    const pitRoad = new THREE.Mesh(
+      ribbon(pitLane, 7.2, 220, .035),
+      new THREE.MeshStandardMaterial({ color: "#252d32", roughness: .96, side: THREE.DoubleSide }),
+    );
+    pitRoad.receiveShadow = true;
+    scene.add(pitRoad);
+
+    const pitMarkings = new THREE.Group();
+    const pitLineMat = new THREE.MeshBasicMaterial({ color: "#f5f0d9" });
+    const pitDashMat = new THREE.MeshBasicMaterial({ color: "#f4c64e" });
+    for (let i = 2; i < 40; i += 2) {
+      const t = i / 42;
+      const p = pitLane.getPointAt(t);
+      const tangent = pitLane.getTangentAt(t).normalize();
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(.16, .035, 1.15), pitLineMat);
+      stripe.position.set(p.x, .075, p.z);
+      stripe.rotation.y = Math.atan2(tangent.x, tangent.z);
+      pitMarkings.add(stripe);
+    }
+    scene.add(pitMarkings);
+
+    // A clearly visible service bay beside the pit lane.
+    const pitBoxPoint = pitLane.getPointAt(.52);
+    const pitBoxTangent = pitLane.getTangentAt(.52).normalize();
+    const pitBoxSide = new THREE.Vector3(-pitBoxTangent.z, 0, pitBoxTangent.x).normalize();
+    const bay = new THREE.Group();
+    const bayBase = new THREE.Mesh(
+      new THREE.BoxGeometry(11, .09, 8),
+      new THREE.MeshStandardMaterial({ color: "#d8d7ca", roughness: .9 }),
+    );
+    bayBase.position.y = .09;
+    bay.add(bayBase);
+    for (const offset of [-4.7, 4.7]) {
+      const line = new THREE.Mesh(new THREE.BoxGeometry(.13, .04, 7.5), pitDashMat);
+      line.position.set(offset, .17, 0);
+      bay.add(line);
+    }
+    const canopy = new THREE.Mesh(
+      new THREE.BoxGeometry(10.5, .22, 1.1),
+      new THREE.MeshStandardMaterial({ color: "#d83a32", roughness: .72 }),
+    );
+    canopy.position.set(0, 3.4, -3.1);
+    bay.add(canopy);
+    for (const x of [-4.8, 4.8]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(.18, 3.3, .18), new THREE.MeshStandardMaterial({ color: "#e7e5d9" }));
+      post.position.set(x, 1.7, -3.1);
+      bay.add(post);
+    }
+    bay.position.set(pitBoxPoint.x, .04, pitBoxPoint.z);
+    bay.rotation.y = Math.atan2(pitBoxTangent.x, pitBoxTangent.z);
+    scene.add(bay);
 // Fixed visual references before significant bends: brake board, turn-in chevrons and apex beacon.
     let lastBoardAt = -1;
     for (let i = 0; i < 180; i++) {
