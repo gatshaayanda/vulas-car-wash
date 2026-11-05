@@ -534,11 +534,14 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         let botNearestT = botCurrentT, botNearestDistance = Number.POSITIVE_INFINITY;
         let botNearestPoint = botTrack.getPointAt(botCurrentT), botNearestTangent = botTrack.getTangentAt(botCurrentT).normalize();
         if (race.botPitting) {
+          const pitSearchCenter = race.botPitProgress;
+          let pitNearestT = pitSearchCenter;
           for (let i = -48; i <= 48; i++) {
-            const sampleT = clamp(race.botPitProgress + i / 1200, 0, 1), p = botPitLane.getPointAt(sampleT);
+            const sampleT = clamp(pitSearchCenter + i / 1200, 0, 1), p = botPitLane.getPointAt(sampleT);
             const dx = race.botWorldX - p.x, dz = race.botWorldZ - p.z, d = dx * dx + dz * dz;
-            if (d < botNearestDistance) { botNearestDistance = d; race.botPitProgress = sampleT; botNearestPoint = p; botNearestTangent = botPitLane.getTangentAt(sampleT).normalize(); }
+            if (d < botNearestDistance) { botNearestDistance = d; pitNearestT = sampleT; botNearestPoint = p; botNearestTangent = botPitLane.getTangentAt(sampleT).normalize(); }
           }
+          race.botPitProgress = pitNearestT;
           if (!race.botPitServiced && race.botPitProgress >= .49) {
             race.botPitServiced = true;
             race.botPitServiceRemaining = 2.8;
