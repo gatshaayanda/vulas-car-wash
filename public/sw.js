@@ -48,8 +48,8 @@ self.addEventListener("notificationclick", (event) => {
   }));
 });
 
-const CACHE_VERSION = "vula-shell-v17";
-const GAME_CACHE = "vula-game-v17";
+const CACHE_VERSION = "vula-shell-v18";
+const GAME_CACHE = "vula-game-v18";
 const MEDIA_CACHE = "vula-media-v1";
 const SHELL_CACHE = CACHE_VERSION;
 const STATIC_LIMIT = 160;
@@ -99,7 +99,7 @@ async function precacheShell() {
 
   // Do not activate an update with an incomplete app bundle: keep the active
   // worker and retry on a later visit if any referenced JS/CSS cannot be cached.
-  await Promise.all([...discovered].map((path) => fetchAndCache(path, SHELL_CACHE, { required: true })));
+  await Promise.all([...discovered].map((path) => { const isGameChunk = /^\/_next\/static\/chunks\/.*\.js(?:\?.*)?$/i.test(path); return fetchAndCache(path, isGameChunk ? GAME_CACHE : SHELL_CACHE, { required: true }); }));
   await trimCache(SHELL_CACHE, STATIC_LIMIT + PUBLIC_PAGE_LIMIT);
 }
 
@@ -161,8 +161,8 @@ self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
     const obsolete = new Set([
-      "vula-shell-v1", "vula-shell-v2", "vula-shell-v3", "vula-shell-v4", "vula-shell-v5", "vula-shell-v6", "vula-shell-v7", "vula-shell-v8", "vula-shell-v9", "vula-shell-v10", "vula-shell-v11", "vula-shell-v12", "vula-shell-v13", "vula-shell-v14", "vula-shell-v15", "vula-shell-v16",
-      "vula-game-v1", "vula-game-v2", "vula-game-v3", "vula-game-v4", "vula-game-v5", "vula-game-v6", "vula-game-v7", "vula-game-v8", "vula-game-v9", "vula-game-v10", "vula-game-v11", "vula-game-v12", "vula-game-v13", "vula-game-v14", "vula-game-v15", "vula-game-v16",
+      "vula-shell-v1", "vula-shell-v2", "vula-shell-v3", "vula-shell-v4", "vula-shell-v5", "vula-shell-v6", "vula-shell-v7", "vula-shell-v8", "vula-shell-v9", "vula-shell-v10", "vula-shell-v11", "vula-shell-v12", "vula-shell-v13", "vula-shell-v14", "vula-shell-v15", "vula-shell-v16", "vula-shell-v17",
+      "vula-game-v1", "vula-game-v2", "vula-game-v3", "vula-game-v4", "vula-game-v5", "vula-game-v6", "vula-game-v7", "vula-game-v8", "vula-game-v9", "vula-game-v10", "vula-game-v11", "vula-game-v12", "vula-game-v13", "vula-game-v14", "vula-game-v15", "vula-game-v16", "vula-game-v17",
       "theplug-shell-v1", "theplug-media-v1",
       "iteration13-shell-v1", "iteration13-media-v1"
     ]);
@@ -213,6 +213,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (/^\/_next\/static\/chunks\/.*\.js$/i.test(url.pathname)) { event.respondWith(cacheFirst(request, GAME_CACHE)); return; }
+
   if (url.pathname.startsWith("/_next/static/") || /\.(?:css|js|woff2?|ttf|otf|png|jpe?g|webp|svg|ico|avif)$/i.test(url.pathname)) {
     event.respondWith(cacheFirst(request, SHELL_CACHE));
     return;
@@ -247,7 +249,7 @@ async function cacheFirst(request, cacheName) {
     const response = await fetch(request);
     if (response.ok) {
       await cache.put(request, response.clone());
-      await trimCache(cacheName, cacheName === GAME_CACHE ? 120 : STATIC_LIMIT + PUBLIC_PAGE_LIMIT);
+      await trimCache(cacheName, cacheName === GAME_CACHE ? 320 : STATIC_LIMIT + PUBLIC_PAGE_LIMIT);
     }
     return response;
   } catch {
