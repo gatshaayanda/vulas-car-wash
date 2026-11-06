@@ -577,6 +577,9 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       }
       const controls = controlsRef.current;
       const currentPhase = phaseRef.current;
+      // Kago may be simulated invisibly for qualifying comparison, but leaves
+      // no visual trace until the actual race is underway.
+      const botRaceActive = !preview && currentPhase === "running" && race.progress >= 2 && race.lap >= 3;
       // Render the independent world-space vehicle state; track geometry is not a movement rail.
       const carWorld = new THREE.Vector3(race.worldX, .015, race.worldZ);
       // Keep the chase camera aligned to the car's nose. The sideways travel
@@ -599,7 +602,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       const botYaw = race.botInitialized ? race.botWorldYaw : Math.atan2(-botTangent.x, -botTangent.z);
       botCar.position.copy(botWorld);
       botCar.rotation.y = botYaw;
-      botCar.visible = preview || race.lap >= 3;
+      botCar.visible = preview || botRaceActive;
       botCar.rotation.z = clamp(-race.botDrift * .18, -.14, .14);
       botCar.rotation.x = clamp(race.botBrake * .08, 0, .08);
       const botFlame = botCar.userData.flame as THREE.Object3D | undefined;
@@ -608,7 +611,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
         botFlame.scale.setScalar(.78 + Math.sin(clock.elapsedTime * 37) * .22);
       }
       nameTag.position.set(botWorld.x, 3.0, botWorld.z);
-      nameTag.visible = preview || race.lap >= 3;
+      nameTag.visible = preview || botRaceActive;
       // Subtle suspension response: braking transfers load forward and cornering
       // rolls the body. These are visual cues driven by the physics state.
       car.rotation.x = clamp(-race.longitudinalLoad * 0.22, -0.075, 0.025);
@@ -676,7 +679,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       const botSlipIntensity = clamp((Math.abs(race.botDrift) - .12) / .5, 0, 1) * clamp((race.botSpeed - 5) / 8, 0, 1);
       const botRearTyres = [-1, 1].map(side => new THREE.Vector3(side * .94, .035, .8 * .72)
         .applyAxisAngle(new THREE.Vector3(0, 1, 0), botYaw).add(botWorld));
-      if (currentPhase === "running" && botSlipIntensity > .05 && effectClock - botLastEffectAt > .045) {
+      if (botRaceActive && botSlipIntensity > .05 && effectClock - botLastEffectAt > .045) {
         botLastEffectAt = effectClock;
         botRearTyres.forEach((point, index) => {
           const buffer = botSkidBuffers[index];
@@ -693,7 +696,19 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
           puff.mesh.visible = true; puff.life = .48 + botSlipIntensity * .35; puff.maxLife = puff.life;
           puff.velocity.set((Math.random() - .5) * .5 - race.botVelocityX * .025, .48 + botSlipIntensity * .45, (Math.random() - .5) * .5 - race.botVelocityZ * .025);
         });
-      } else if (botSlipIntensity < .05) botSkidBuffers.forEach(buffer => { buffer.previous = null; });
+      } else if (!botRaceActive || botSlipIntensity < .05) {
+        botSkidBuffers.forEach(buffer => {
+          buffer.previous = null;
+          if (!botRaceActive && buffer.count) {
+            buffer.count = 0;
+            buffer.geometry.setDrawRange(0, 0);
+          }
+        });
+      }
+      if (!botRaceActive) {
+        botSmokePool.forEach(puff => { puff.mesh.visible = false; puff.life = 0; });
+        botSkidBuffers.forEach(buffer => { buffer.previous = null; });
+      }
       botSmokePool.forEach(puff => {
         if (!puff.mesh.visible) return;
         puff.life -= frameDelta;
@@ -702,7 +717,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
         puff.mesh.scale.multiplyScalar(1 + frameDelta * 1.25);
         (puff.mesh.material as THREE.MeshBasicMaterial).opacity = .18 * (puff.life / puff.maxLife);
       });
-      if (race.botImpactAt > seenImpactAt) {
+      if (botRaceActive && race.botImpactAt > seenImpactAt) {
         seenImpactAt = race.botImpactAt;
         const count = 8 + Math.round(race.botImpactStrength * 8);
         for (let i = 0; i < count; i++) {
