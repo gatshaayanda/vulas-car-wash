@@ -32,7 +32,9 @@ export function createRacingPitLane(track: THREE.CatmullRomCurve3) {
     // steering/heading kink at both ends of the branch.
     const edge = Math.max(0, Math.min(1, i / transitionLength, (divisions - i) / transitionLength));
     const blend = edge * edge * (3 - 2 * edge);
-    point.addScaledVector(side, -13 * blend);
+    // The branch leaves the outer edge of the racing surface, runs in its own
+    // parallel pit corridor, then blends back onto the circuit at the exit.
+    point.addScaledVector(side, -6.6 - 6.6 * blend);
     samples.push(point);
   }
   const pitLane = new THREE.CatmullRomCurve3(samples, false, "centripetal", .35);

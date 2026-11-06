@@ -48,8 +48,8 @@ self.addEventListener("notificationclick", (event) => {
   }));
 });
 
-const CACHE_VERSION = "vula-shell-v20";
-const GAME_CACHE = "vula-game-v20";
+const CACHE_VERSION = "vula-shell-v21";
+const GAME_CACHE = "vula-game-v21";
 const MEDIA_CACHE = "vula-media-v1";
 const SHELL_CACHE = CACHE_VERSION;
 const STATIC_LIMIT = 160;
@@ -161,8 +161,8 @@ self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
     const obsolete = new Set([
-      "vula-shell-v1", "vula-shell-v2", "vula-shell-v3", "vula-shell-v4", "vula-shell-v5", "vula-shell-v6", "vula-shell-v7", "vula-shell-v8", "vula-shell-v9", "vula-shell-v10", "vula-shell-v11", "vula-shell-v12", "vula-shell-v13", "vula-shell-v14", "vula-shell-v15", "vula-shell-v16", "vula-shell-v17", "vula-shell-v18", "vula-shell-v19",
-      "vula-game-v1", "vula-game-v2", "vula-game-v3", "vula-game-v4", "vula-game-v5", "vula-game-v6", "vula-game-v7", "vula-game-v8", "vula-game-v9", "vula-game-v10", "vula-game-v11", "vula-game-v12", "vula-game-v13", "vula-game-v14", "vula-game-v15", "vula-game-v16", "vula-game-v17", "vula-game-v18", "vula-game-v19",
+      "vula-shell-v1", "vula-shell-v2", "vula-shell-v3", "vula-shell-v4", "vula-shell-v5", "vula-shell-v6", "vula-shell-v7", "vula-shell-v8", "vula-shell-v9", "vula-shell-v10", "vula-shell-v11", "vula-shell-v12", "vula-shell-v13", "vula-shell-v14", "vula-shell-v15", "vula-shell-v16", "vula-shell-v17", "vula-shell-v18", "vula-shell-v19", "vula-shell-v20",
+      "vula-game-v1", "vula-game-v2", "vula-game-v3", "vula-game-v4", "vula-game-v5", "vula-game-v6", "vula-game-v7", "vula-game-v8", "vula-game-v9", "vula-game-v10", "vula-game-v11", "vula-game-v12", "vula-game-v13", "vula-game-v14", "vula-game-v15", "vula-game-v16", "vula-game-v17", "vula-game-v18", "vula-game-v19", "vula-game-v20",
       "theplug-shell-v1", "theplug-media-v1",
       "iteration13-shell-v1", "iteration13-media-v1"
     ]);

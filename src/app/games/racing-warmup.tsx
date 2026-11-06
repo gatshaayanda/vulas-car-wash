@@ -33,6 +33,30 @@ function settlePlayerCar(race: Race) {
   race.lateral = 0; race.lateralVelocity = 0; race.heading = 0; race.drift = 0;
   race.longitudinalLoad = 0; race.lateralG = 0; race.wheelLock = 0;
 }
+
+function createQuickRaceState(): Race {
+  const race = newRace();
+  const track = createRacingTrack();
+  const gridPoint = track.getPointAt(0);
+  const tangent = track.getTangentAt(0).normalize();
+  const sideX = -tangent.z, sideZ = tangent.x;
+  const yaw = Math.atan2(-tangent.x, -tangent.z);
+  race.worldX = gridPoint.x + sideX * 2.45;
+  race.worldZ = gridPoint.z + sideZ * 2.45;
+  race.worldYaw = yaw;
+  settlePlayerCar(race);
+  race.progress = 2; race.trackT = 0; race.lap = 3;
+  race.playerGarageExit = false; race.playerOutLap = false; race.playerPitting = false;
+  race.playerPitDone = false; race.playerPitProgress = 0; race.playerPitServiced = false;
+  race.botWorldX = gridPoint.x - sideX * 2.45;
+  race.botWorldZ = gridPoint.z - sideZ * 2.45;
+  race.botWorldYaw = yaw; race.botVelocityX = 0; race.botVelocityZ = 0;
+  race.botSpeed = 0; race.botProgress = 2; race.botInitialized = true;
+  race.botPitDone = false; race.botPitting = false; race.botPitProgress = 0;
+  race.botPitServiceRemaining = 0; race.botPitServiced = false;
+  race.botLineOffset = -2.45; race.elapsed = 0; race.lapTime = 0;
+  return race;
+}
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -41,14 +65,15 @@ function fmt(seconds: number | null): string {
 type LocalRaceSave = { race: Race; difficulty: "Easy" | "Normal" | "Hard"; savedAt: string };
 type RaceResult = { id: string; completedAt: string; difficulty: "Easy" | "Normal" | "Hard"; elapsed: number; bestLap: number | null; position: 1 | 2; laps: number };
 
-export default function RacingWarmup({ embedded = false, initialSave, onSave, onComplete, onExit }: { embedded?: boolean; initialSave?: LocalRaceSave | null; onSave?: (save: LocalRaceSave) => void; onComplete?: (result: RaceResult) => void; onExit?: () => void }) {
+export default function RacingWarmup({ embedded = false, initialSave, onSave, onComplete, onExit, quickStart = false }: { embedded?: boolean; initialSave?: LocalRaceSave | null; onSave?: (save: LocalRaceSave) => void; onComplete?: (result: RaceResult) => void; onExit?: () => void; quickStart?: boolean }) {
   const [expanded, setExpanded] = useState(!embedded);
-  const raceRef = useRef<Race>(initialSave?.race ? { ...newRace(), ...initialSave.race, playerGarageExit: initialSave.race.playerGarageExit ?? false, playerOutLap: initialSave.race.playerOutLap ?? false } : newRace());
+  const quickStartRef = useRef(quickStart);
+  const raceRef = useRef<Race>(initialSave?.race ? { ...newRace(), ...initialSave.race, playerGarageExit: initialSave.race.playerGarageExit ?? false, playerOutLap: initialSave.race.playerOutLap ?? false } : quickStart ? createQuickRaceState() : newRace());
   const trackRef = useRef<ReturnType<typeof createRacingTrack> | null>(null);
   if (!trackRef.current) trackRef.current = createRacingTrack();
   const controlsRef = useRef<Controls>({ steer: 0, accelerate: false, brake: false, boost: false });
-  const phaseRef = useRef<Phase>(initialSave ? "paused" : "ready");
-  const [phase, setPhase] = useState<Phase>(initialSave ? "paused" : "ready");
+  const phaseRef = useRef<Phase>(initialSave ? "paused" : quickStart ? "countdown" : "ready");
+  const [phase, setPhase] = useState<Phase>(initialSave ? "paused" : quickStart ? "countdown" : "ready");
   const completedRef = useRef(false);
   const [countdown, setCountdown] = useState(3);
   const [raceResult, setRaceResult] = useState<RaceResult | null>(null);
@@ -58,7 +83,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [rivalGap, setRivalGap] = useState(0);
   const [lapTime, setLapTime] = useState(initialSave?.race.lapTime ?? 0);
   const [bestLap, setBestLap] = useState<number | null>(initialSave?.race.bestLap ?? null);
-  const [lap, setLap] = useState(initialSave?.race.lap ?? 1);
+  const [lap, setLap] = useState(initialSave?.race.lap ?? (quickStart ? 3 : 1));
   const [nos, setNos] = useState(100);
   const [tyreChoice, setTyreChoice] = useState<"Soft" | "Medium" | "Hard">("Medium");
   const [signal, setSignal] = useState({ label: "GREEN LIGHT · BUILD SPEED", tone: "go" });
@@ -90,11 +115,11 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   useEffect(() => { if (!embedded) document.title = businessName + " · Racing warm-up"; }, [businessName, embedded]);
 
   const reset = useCallback((start: boolean) => {
-    raceRef.current = newRace();
+    raceRef.current = quickStartRef.current ? createQuickRaceState() : newRace();
     botQualifyingElapsedRef.current = 0; botQualifyingTimeRef.current = null; lastPitPromptLapRef.current = -1; garageRollCelebratedRef.current = false;
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-    setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setBoostActive(false); setRivalGap(0); setRaceResult(null);
+    setSpeed(0); setLapTime(0); setBestLap(null); setLap(quickStartRef.current ? 3 : 1); setNos(100); setBoostActive(false); setRivalGap(0); setRaceResult(null);
     setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
   }, []);
   const startRace = useCallback(() => { completedRef.current = false; reset(true); }, [reset]);
@@ -459,7 +484,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         } else if (race.playerPitting) {
           race.playerPitProgress = nearestT;
           const pitSpeed = Math.hypot(race.velocityX, race.velocityZ);
-          if (!race.playerPitServiced && race.playerPitProgress >= .49 && race.playerPitProgress <= .62 && pitSpeed < 1.35) {
+          if (!race.playerPitServiced && race.playerPitProgress >= .45 && race.playerPitProgress <= .68 && pitSpeed < 1.35) {
             race.playerPitServiced = true; race.playerPitServiceRemaining = 999;
             settlePlayerCar(race);
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
@@ -877,26 +902,32 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           setBoostActive(boost);
           const pitApproach = race.progress >= 2 && !race.playerPitDone && !race.playerPitting && race.trackT >= .84 && race.trackT < .97;
           const cue = race.playerGarageExit
-            ? { label: controlsRef.current.accelerate ? "FOLLOW THE YELLOW LINE →" : "PRESS & HOLD GAS ↑", tone: "go" }
+            ? { label: controlsRef.current.accelerate ? "FOLLOW THE PIT ROAD →" : "HOLD GAS TO LEAVE GARAGE", tone: "go" }
             : race.playerPitting && race.playerPitServiceRemaining > 0
               ? { label: "PIT CREW WORKING · WAIT A MOMENT", tone: "pit" }
-              : race.playerPitting
-                ? { label: controlsRef.current.accelerate ? "FOLLOW THE PIT EXIT →" : "GO GO GO! HOLD GAS ↑", tone: "go" }
-                : race.playerOutLap
-                  ? { label: "FOLLOW THE TRACK → START", tone: "go" }
-                  : race.speed < 10 && !controlsRef.current.accelerate && !controlsRef.current.brake
-                    ? { label: "PRESS & HOLD GAS ↑", tone: "go" }
+              : race.playerPitting && !race.playerPitServiced
+                ? race.playerPitProgress < .42
+                  ? { label: "FOLLOW PIT ROAD TO THE BOX →", tone: "pit" }
+                  : race.playerPitProgress <= .70
+                    ? { label: race.speed > 28 ? "BRAKE · STOP IN THE PIT BOX ↓" : "STOP IN THE PIT BOX", tone: "pit" }
+                    : { label: "PIT BOX PASSED · TURN BACK TO STOP", tone: "pit" }
+                : race.playerPitting
+                  ? { label: controlsRef.current.accelerate ? "FOLLOW PIT ROAD TO EXIT →" : "HOLD GAS TO LEAVE PIT", tone: "go" }
+                  : race.playerOutLap
+                    ? { label: "FOLLOW THE ROAD TO START →", tone: "go" }
                     : pitApproach
-                      ? { label: "PIT STOP! TURN LEFT ←", tone: "pit" }
-                      : upcomingBend > 0.62 && race.speed > 105
-                        ? { label: "BRAKE NOW ↓", tone: "brake" }
-                        : upcomingBend > 0.34
-                          ? { label: upcomingTurn < 0 ? "STEER LEFT ←" : "STEER RIGHT →", tone: "turn" }
-                          : race.progress < 1
-                            ? { label: "PRACTICE · HOLD GAS + FOLLOW THE ARROWS", tone: "go" }
-                            : race.progress < 2
-                              ? { label: "FAST LAP! HOLD GAS + FOLLOW THE ARROWS", tone: "go" }
-                              : { label: "RACE ON! YOU’VE GOT THIS!", tone: "go" };
+                      ? { label: race.trackT < .895 ? "PIT AHEAD · KEEP LEFT ←" : "TURN LEFT INTO PIT ←", tone: "pit" }
+                      : race.speed < 10 && !controlsRef.current.accelerate && !controlsRef.current.brake
+                        ? { label: "PRESS & HOLD GAS ↑", tone: "go" }
+                        : upcomingBend > 0.62 && race.speed > 105
+                          ? { label: "BRAKE BEFORE THE CORNER ↓", tone: "brake" }
+                          : upcomingBend > 0.34
+                            ? { label: upcomingTurn < 0 ? "STEER LEFT ←" : "STEER RIGHT →", tone: "turn" }
+                            : race.progress < 1
+                              ? { label: race.speed < 10 ? "HOLD GAS TO DRIVE" : "PRACTICE LAP · KEEP GOING", tone: "go" }
+                              : race.progress < 2
+                                ? { label: "QUALIFYING · SET YOUR LAP", tone: "go" }
+                                : { label: "RACE ON · KEEP GOING", tone: "go" };
           if (cue.tone === "brake" && lastSignal.current !== "brake") notify("🛑 BRAKE NOW! PRESS THE BRAKE BUTTON!", "info");
           if (race.playerGarageExit && controlsRef.current.accelerate && race.speed > 5 && !garageRollCelebratedRef.current) {
             garageRollCelebratedRef.current = true;
@@ -979,7 +1010,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   if (embedded && !expanded) return <div className="race-inline-promo"><div><p className="vula-eyebrow">VULA RACING · QUICK BREAK</p><h2>Take a quick lap.</h2><p>A little circuit practice while you wait. Your wash booking stays right where you left it.</p></div><button type="button" className="vula-button primary" onClick={() => setExpanded(true)}>Play now ↗</button></div>;
 
   return <div className={"vula race-hub" + (embedded ? " race-hub-embedded" : "")}>
-    {!embedded && <><div className="vula-status"><span className="status-dot online" />Vula Racing · solo circuit practice</div><header className="vula-nav"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Racing warm-up</small></span></Link><nav><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></nav></header><section className="vula-section warmup-intro"><p className="vula-eyebrow">VULA RACING · SOLO PRACTICE</p><h1>Find your racing line.</h1><p>Follow the recommended line: brake before turn-in, ease off through the apex, then build throttle on exit. Save NOS for straights.</p></section></>}
+    {!embedded && <><div className="vula-status"><span className="status-dot online" />Vula Racing · solo circuit practice</div><header className="vula-nav"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Racing warm-up</small></span></Link><nav><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></nav></header><section className="vula-section warmup-intro"><p className="vula-eyebrow">VULA RACING · SOLO PRACTICE</p><h1>Find your racing line.</h1><p>Hold GAS to build speed. Use the left stick to steer, brake before tight corners, and save NOS for straights.</p></section></>}
     {embedded && <div className="race-inline-heading"><div><p className="vula-eyebrow">VULA RACING · CIRCUIT PRACTICE</p><h2>Find your racing line.</h2><p>One more lap? Smooth corners, clean exits, well-timed NOS.</p></div><button type="button" className="vula-button secondary" onClick={() => { if (phaseRef.current === "running") pauseRace(); setExpanded(false); }}>Close game ×</button></div>}
     <section className="vula-section warmup-game">
       <div className="warmup-opponent-menu"><div><span>RACE OPPONENT</span><strong>Kago · The Attacker</strong><small>Offline AI rival · runs on this circuit</small></div><label>Difficulty<select value={botDifficulty} disabled={phase === "running" || phase === "countdown"} onChange={event => { const next = event.target.value as "Easy" | "Normal" | "Hard"; botDifficultyRef.current = next; setBotDifficulty(next); }}><option>Easy</option><option>Normal</option><option>Hard</option></select></label></div>
@@ -993,7 +1024,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           <span>🏁 VULA RACING · LET’S PLAY!</span>
           <strong>{phase === "ready" ? "PIT GARAGE · RACE PREP" : phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "pit" ? "PIT STOP" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>
           {phase === "ready" ? <>
-            <p>Pick your tyres. Then press and HOLD the big green GAS button to drive out. Follow the yellow line to the track. You can practise all by yourself first!</p>
+            <p>Pick your tyres, then hold the green GAS button to leave the garage. Follow the pit road to the circuit. Kago joins when you are ready to race.</p>
             <div className="warmup-pit-tyres" aria-label="Starting tyre selection">
               {(["Soft", "Medium", "Hard"] as const).map((tyre) => <button type="button" key={tyre} className={"warmup-pit-tyre " + tyre.toLowerCase() + (tyreChoice === tyre ? " selected" : "")} aria-pressed={tyreChoice === tyre} onClick={() => setTyreChoice(tyre)}><strong>{tyre}</strong><small>{tyre === "Soft" ? "Soft compound · visual choice" : tyre === "Medium" ? "Balanced compound · visual choice" : "Hard compound · visual choice"}</small></button>)}
             </div>

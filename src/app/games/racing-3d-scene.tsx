@@ -146,12 +146,13 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
     const road = new THREE.Mesh(ribbon(track, 12, 600, .015), new THREE.MeshStandardMaterial({ color: "#30383e", roughness: .94, metalness: .02, side: THREE.DoubleSide }));
     road.receiveShadow = true; scene.add(road);
 
-    // Dedicated pit lane: branches off the main straight, runs parallel to the
-    // circuit past a marked service box, then merges back onto the racing line.
+    // Integrated pit road: the entry and exit peel from the circuit edge rather
+    // than cutting diagonally across the racing surface. The same curve drives
+    // rendering, player movement, Kago's AI and the service-box location.
     const pitLane = createRacingPitLane(track);
     const pitRoad = new THREE.Mesh(
-      ribbon(pitLane, 7.2, 480, .035),
-      new THREE.MeshStandardMaterial({ color: "#252d32", roughness: .96, side: THREE.DoubleSide }),
+      ribbon(pitLane, 7.2, 520, .026),
+      new THREE.MeshStandardMaterial({ color: "#30383e", roughness: .94, metalness: .02, side: THREE.DoubleSide }),
     );
     pitRoad.receiveShadow = true;
     scene.add(pitRoad);
@@ -159,14 +160,44 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
     const pitMarkings = new THREE.Group();
     const pitLineMat = new THREE.MeshBasicMaterial({ color: "#f5f0d9" });
     const pitDashMat = new THREE.MeshBasicMaterial({ color: "#f4c64e" });
-    for (let i = 2; i < 82; i += 2) {
-      const t = i / 84;
+    for (let i = 1; i < 168; i++) {
+      const t = i / 168;
       const p = pitLane.getPointAt(t);
       const tangent = pitLane.getTangentAt(t).normalize();
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(.16, .035, 1.15), pitLineMat);
-      stripe.position.set(p.x, .075, p.z);
-      stripe.rotation.y = Math.atan2(tangent.x, tangent.z);
-      pitMarkings.add(stripe);
+      const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+      if (i % 2 === 0) {
+        for (const edge of [-1, 1]) {
+          const line = new THREE.Mesh(new THREE.BoxGeometry(.13, .035, 1.05), pitLineMat);
+          line.position.set(p.x + side.x * edge * 3.43, .064, p.z + side.z * edge * 3.43);
+          line.rotation.y = Math.atan2(tangent.x, tangent.z);
+          pitMarkings.add(line);
+        }
+      }
+      if (i % 4 === 0) {
+        const dash = new THREE.Mesh(new THREE.BoxGeometry(.14, .035, 2.1), pitDashMat);
+        dash.position.set(p.x, .066, p.z);
+        dash.rotation.y = Math.atan2(tangent.x, tangent.z);
+        pitMarkings.add(dash);
+      }
+    }
+    // Entry and exit are visibly marked across the road, with the service box
+    // painted between them on the inner working lane.
+    for (const t of [0, .995]) {
+      const p = pitLane.getPointAt(t);
+      const tangent = pitLane.getTangentAt(t).normalize();
+      const line = new THREE.Mesh(new THREE.BoxGeometry(7.0, .045, .18), pitLineMat);
+      line.position.set(p.x, .082, p.z);
+      line.rotation.y = Math.atan2(tangent.x, tangent.z);
+      pitMarkings.add(line);
+    }
+    // Painted stop-box lines sit on the lane itself; the garage apron is alongside it.
+    for (const t of [.46, .66]) {
+      const p = pitLane.getPointAt(t);
+      const tangent = pitLane.getTangentAt(t).normalize();
+      const stopLine = new THREE.Mesh(new THREE.BoxGeometry(6.7, .045, .18), pitDashMat);
+      stopLine.position.set(p.x, .082, p.z);
+      stopLine.rotation.y = Math.atan2(tangent.x, tangent.z);
+      pitMarkings.add(stopLine);
     }
     scene.add(pitMarkings);
 
@@ -193,40 +224,83 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
     const pitSignTexture = new THREE.CanvasTexture(pitSignCanvas);
     const pitSignFace = new THREE.Mesh(new THREE.PlaneGeometry(4.05, 1.26), new THREE.MeshBasicMaterial({ map: pitSignTexture, side: THREE.DoubleSide }));
     pitSignFace.position.set(0, 1.72, .1); pitSign.add(pitSignFace);
-    pitSign.position.set(pitEntryPoint.x + pitEntrySide.x * 4.2, .04, pitEntryPoint.z + pitEntrySide.z * 4.2);
+    // Place the sign outside the pit-road shoulder, not over the racing surface.
+    pitSign.position.set(pitEntryPoint.x - pitEntrySide.x * 5.0, .04, pitEntryPoint.z - pitEntrySide.z * 5.0);
     pitSign.rotation.y = Math.atan2(pitEntryTangent.x, pitEntryTangent.z);
     scene.add(pitSign);
 
-    // A clearly visible service bay beside the pit lane.
+    // The pit crew works from a real apron beside the lane. The service canopy,
+    // marked stalls and equipment sit clear of the drivable road so nothing
+    // blocks the player or Kago while entering, stopping and leaving the box.
     const pitBoxPoint = pitLane.getPointAt(.52);
     const pitBoxTangent = pitLane.getTangentAt(.52).normalize();
     const pitBoxSide = new THREE.Vector3(-pitBoxTangent.z, 0, pitBoxTangent.x).normalize();
     const bay = new THREE.Group();
     const bayBase = new THREE.Mesh(
-      new THREE.BoxGeometry(11, .09, 8),
+      new THREE.BoxGeometry(12, .09, 12),
       new THREE.MeshStandardMaterial({ color: "#d8d7ca", roughness: .9 }),
     );
     bayBase.position.y = .09;
     bay.add(bayBase);
     for (const offset of [-4.7, 4.7]) {
-      const line = new THREE.Mesh(new THREE.BoxGeometry(.13, .04, 7.5), pitDashMat);
+      const line = new THREE.Mesh(new THREE.BoxGeometry(.13, .04, 10.5), pitDashMat);
       line.position.set(offset, .17, 0);
       bay.add(line);
+    }
+    for (const z of [-3.1, 3.1]) {
+      const crossLine = new THREE.Mesh(new THREE.BoxGeometry(9.4, .035, .13), pitLineMat);
+      crossLine.position.set(0, .17, z);
+      bay.add(crossLine);
     }
     const canopy = new THREE.Mesh(
       new THREE.BoxGeometry(10.5, .22, 1.1),
       new THREE.MeshStandardMaterial({ color: "#d83a32", roughness: .72 }),
     );
-    canopy.position.set(0, 3.4, -3.1);
+    canopy.position.set(0, 3.4, -4.1);
     bay.add(canopy);
     for (const x of [-4.8, 4.8]) {
-      const post = new THREE.Mesh(new THREE.BoxGeometry(.18, 3.3, .18), new THREE.MeshStandardMaterial({ color: "#e7e5d9" }));
-      post.position.set(x, 1.7, -3.1);
-      bay.add(post);
+      for (const z of [-4.1, -1.2]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(.18, 3.3, .18), new THREE.MeshStandardMaterial({ color: "#e7e5d9" }));
+        post.position.set(x, 1.7, z);
+        bay.add(post);
+      }
     }
-    bay.position.set(pitBoxPoint.x, .04, pitBoxPoint.z);
+    const pitBoardCanvas = document.createElement("canvas");
+    pitBoardCanvas.width = 512; pitBoardCanvas.height = 128;
+    const pitBoardContext = pitBoardCanvas.getContext("2d");
+    if (pitBoardContext) {
+      pitBoardContext.fillStyle = "#172820"; pitBoardContext.fillRect(0, 0, 512, 128);
+      pitBoardContext.fillStyle = "#f4c64e"; pitBoardContext.font = "900 62px system-ui";
+      pitBoardContext.textAlign = "center"; pitBoardContext.textBaseline = "middle";
+      pitBoardContext.fillText("PIT CREW", 256, 66);
+    }
+    const pitBoard = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 1.15), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(pitBoardCanvas), side: THREE.DoubleSide }));
+    pitBoard.position.set(0, 2.25, -4.68);
+    bay.add(pitBoard);
+    bay.position.set(pitBoxPoint.x - pitBoxSide.x * 8.5, .04, pitBoxPoint.z - pitBoxSide.z * 8.5);
     bay.rotation.y = Math.atan2(pitBoxTangent.x, pitBoxTangent.z);
     scene.add(bay);
+
+    // A continuous outer pit wall makes the pit lane read as a real circuit
+    // facility. The inner boundary is the circuit's existing pit wall; both
+    // entry and exit remain open for a natural merge.
+    const pitOuterRail = new THREE.Group();
+    for (let i = 10; i < 158; i += 3) {
+      const t = i / 168;
+      if (t < .07 || t > .93) continue;
+      const p = pitLane.getPointAt(t);
+      const tangent = pitLane.getTangentAt(t).normalize();
+      const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(.22, .62, 2.9), barrierMat);
+      // Keep the wall behind the garage apron, not between the garages and pit road.
+      rail.position.set(p.x - side.x * 14.8, .58, p.z - side.z * 14.8);
+      rail.rotation.y = Math.atan2(tangent.x, tangent.z);
+      rail.castShadow = true; rail.receiveShadow = true; pitOuterRail.add(rail);
+      const post = new THREE.Mesh(new THREE.BoxGeometry(.25, .9, .18), darkBarrier);
+      post.position.set(rail.position.x, .45, rail.position.z);
+      post.rotation.y = rail.rotation.y; pitOuterRail.add(post);
+    }
+    scene.add(pitOuterRail);
 // Fixed visual references before significant bends: brake board, turn-in chevrons and apex beacon.
     let lastBoardAt = -1;
     for (let i = 0; i < 180; i++) {
@@ -297,6 +371,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       const p = track.getPointAt(t), tangent = track.getTangentAt(t).normalize();
       const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
       const sign = i % 2 ? 1 : -1;
+      // Clear the outside of the pit complex for the service apron and garages.
+      if (sign === -1 && (t >= .89 || t <= .12)) continue;
       const distance = 17 + (i % 4) * 2.2;
       const x = p.x + side.x * sign * distance, z = p.z + side.z * sign * distance;
       const tree = new THREE.Group();

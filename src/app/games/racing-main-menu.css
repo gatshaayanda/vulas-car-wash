@@ -33,7 +33,7 @@
 .racing-menu-sectionhead>span{font-size:8px;color:#9aabad;letter-spacing:.14em}
 .racing-menu-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .racing-menu-actions button{min-height:56px;border:1px solid #ffffff24;background:#17242a;color:#f4f7f2;border-radius:7px;padding:11px 12px;text-align:left;font-size:13px;font-weight:850;display:flex;align-items:center;justify-content:space-between;cursor:pointer}
-.racing-menu-actions button:first-child{grid-column:1/-1;min-height:62px;background:var(--lime);color:#101810;border-color:var(--lime);font-size:18px;padding:14px 16px}
+.racing-menu-actions button:first-child{grid-column:1/-1;min-height:62px;background:var(--lime);color:#101810;border-color:var(--lime);font-size:18px;padding:14px 16px}.racing-menu-actions button:first-child span{font-size:20px}.racing-menu-actions button:focus-visible{outline:3px solid #fff;outline-offset:3px}
 .racing-menu-actions button:active,.racing-menu-panel button:active{transform:scale(.985)}
 .racing-menu-notice{color:var(--lime);font-size:12px}
 .racing-menu-panel{margin-top:12px;padding:13px;border:1px solid #ffffff24;border-radius:8px;background:#111d23}
