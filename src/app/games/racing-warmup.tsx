@@ -891,7 +891,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             const result: RaceResult = { id: "race-" + Date.now(), completedAt: new Date().toISOString(), difficulty: botDifficultyRef.current, elapsed: race.elapsed, bestLap: race.bestLap ?? (completedLapValid ? completedLapTime : null), position, laps: 2 };
             setRaceResult(result);
             phaseRef.current = "finished"; setPhase("finished");
-            
+            if (position === 1) notify("🏆 PIT CREW · YOU BEAT KAGO! RACE WINNER!", "success");
             onComplete?.(result);
             }
           }
