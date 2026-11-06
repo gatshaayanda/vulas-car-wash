@@ -151,7 +151,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
     // rendering, player movement, Kago's AI and the service-box location.
     const pitLane = createRacingPitLane(track);
     const pitRoad = new THREE.Mesh(
-      ribbon(pitLane, 7.2, 520, .026),
+      ribbon(pitLane, 7.2, 520, .016),
       new THREE.MeshStandardMaterial({ color: "#30383e", roughness: .94, metalness: .02, side: THREE.DoubleSide }),
     );
     pitRoad.receiveShadow = true;

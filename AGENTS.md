@@ -188,3 +188,14 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Initialize the 3D chase camera on the car's first rendered frame; do not ease it in from the world origin. Keep subsequent camera follow smoothing.
 
 - Pit-box service detection is forgiving across the painted stop box (progress .45–.68) but still requires the player to physically brake to a near stop; the on-screen cue must say whether to follow the lane, brake/stop, or drive out.
+
+
+## Integrated pit-world and quick-race standard — 2026-11-06
+
+- Golden baseline for this iteration: `golden-baseline/vula-racing-2026-11-06` at `0d440cd3a63220ee99559abe13fffb45e61180cf`. Preserve this branch as the rollback point; do not rewrite or delete it.
+- The pit lane is part of the visible, drivable circuit world, not a detached garage driveway. Its entry must peel from the outer edge of the main track, follow a parallel lane, and merge back onto the track at the exit. The shared `createRacingPitLane` curve is the single source for road mesh, markings, pit barriers, player projection and Kago AI navigation.
+- Keep the main-track pit-wall openings aligned with the entry and exit connectors. Add an outer pit boundary and a service apron/garage beside the lane; never put a canopy, posts, service platform or wall across the drivable lane. The service box must be painted on the lane and physically reachable.
+- Player and Kago use the same continuous pit-road geometry. The player manually steers into the lane, brakes and stops in the painted service box, uses the compact in-game tyre menu, then manually drives out. No teleport, spline steering, auto-driving, artificial speed cap or velocity replacement. Kago may navigate the same route using its own AI and stop for service.
+- Guidance is one clear action at a time: garage exit, track driving, upcoming corner, pit approach, pit entry, service stop, and pit exit. Avoid simultaneous instructions, contradictory arrows, unexplained jargon or directions referring to visual arrows that do not exist. Use short, child-readable prompts and contextual cues only when the player reaches the relevant situation.
+- Keep the optional `Skip to Race` route on the main menu. It starts a normal two-lap race against Kago on the grid, bypassing garage/practice/qualifying, while preserving the mandatory physical pit stop, AI, results and local-save behaviour. New Game and Continue retain their existing learning/save flows.
+- When pit geometry, game flow or player-facing instructions change, bump both service-worker shell and game cache versions. Keep API and private customer data out of public caches.

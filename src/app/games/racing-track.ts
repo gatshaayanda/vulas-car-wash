@@ -39,7 +39,7 @@ export function createRacingPitLane(track: THREE.CatmullRomCurve3) {
   }
   const pitLane = new THREE.CatmullRomCurve3(samples, false, "centripetal", .35);
   // More arc-length samples prevent small position/tangent steps during the
-  // frame-by-frame guided drive from the garage and through the service lane.
+  // frame-by-frame world-space drive from the garage and through the service lane.
   pitLane.arcLengthDivisions = 2048;
   pitLane.updateArcLengths();
   return pitLane;
