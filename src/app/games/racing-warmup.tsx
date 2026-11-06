@@ -155,7 +155,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       previous = now;
       if (phaseRef.current === "running" && dt > 0) {
         const controls = controlsRef.current;
-        if (!race.playerPitDone && !race.playerPitting && !race.playerGarageExit) {
+        if (!race.playerPitting && !race.playerGarageExit) {
           let nearestPitDistance = Number.POSITIVE_INFINITY, nearestPitT = 0;
           for (let sample = 0; sample <= 100; sample++) {
             const sampleT = sample / 100, point = RACING_PIT_LANE.getPointAt(sampleT);
@@ -164,7 +164,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           }
           if (nearestPitDistance < 7.2) {
             race.playerPitting = true; race.playerPitProgress = nearestPitT;
-            race.playerPitServiced = false; race.playerPitServiceRemaining = 0;
+            race.playerPitServiced = race.playerPitDone; race.playerPitServiceRemaining = 0;
             
           }
         }
@@ -430,7 +430,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // One consistent swept-frame safety envelope, inside the visible rail
         // centreline at 8.4 units. Keep the car on the road without crash/respawn.
         const safeOffset = trackSafetyOffset;
-        const pitEntryAttempt = !race.playerPitDone && !race.playerPitting && !race.playerGarageExit
+        const pitEntryAttempt = !race.playerPitting && !race.playerGarageExit
           && (() => { let nearest = Number.POSITIVE_INFINITY; for (let sample = 0; sample <= 100; sample++) { const point = RACING_PIT_LANE.getPointAt(sample / 100); nearest = Math.min(nearest, Math.hypot(race.worldX - point.x, race.worldZ - point.z)); } return nearest < 7.2; })();
         if (!pitEntryAttempt && (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset)) {
           const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
