@@ -27,14 +27,22 @@ export function createRacingPitLane(track: THREE.CatmullRomCurve3) {
     const point = track.getPointAt(t);
     const tangent = track.getTangentAt(t).normalize();
     const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-    // Smoothstep keeps the pit lane tangent continuous where it leaves and
-    // rejoins the racing line; the previous linear ramp introduced a visible
-    // steering/heading kink at both ends of the branch.
-    const edge = Math.max(0, Math.min(1, i / transitionLength, (divisions - i) / transitionLength));
-    const blend = edge * edge * (3 - 2 * edge);
-    // The branch leaves the outer edge of the racing surface, runs in its own
-    // parallel pit corridor, then blends back onto the circuit at the exit.
-    point.addScaledVector(side, -6.6 - 6.6 * blend);
+    // The entry begins at the outside edge of the racing surface, opens
+    // outward into a parallel working lane, then returns all the way to the
+    // circuit centreline at the exit. The exit must not finish one lane-width
+    // outside the track: that left an invisible collision boundary at rejoin.
+    const smoothstep = (value: number) => {
+      const x = Math.max(0, Math.min(1, value));
+      return x * x * (3 - 2 * x);
+    };
+    const entryBlend = smoothstep(i / transitionLength);
+    const exitBlend = smoothstep((divisions - i) / transitionLength);
+    const lateralOffset = i < transitionLength
+      ? -6.6 - 6.6 * entryBlend
+      : i > divisions - transitionLength
+        ? -13.2 * exitBlend
+        : -13.2;
+    point.addScaledVector(side, lateralOffset);
     samples.push(point);
   }
   const pitLane = new THREE.CatmullRomCurve3(samples, false, "centripetal", .35);
