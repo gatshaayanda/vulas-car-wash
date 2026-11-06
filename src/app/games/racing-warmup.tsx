@@ -126,7 +126,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     botQualifyingElapsedRef.current = 0; botQualifyingTimeRef.current = null; lastPitPromptLapRef.current = -1;
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-    setSpeed(0); setLapTime(0); setBestLap(null); setLap(quickStartRef.current ? 3 : 1); setNos(100); setBoostActive(false); setRivalGap(0); setRaceResult(null);\n    if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = null; setToast(null);
+    setSpeed(0); setLapTime(0); setBestLap(null); setLap(quickStartRef.current ? 3 : 1); setNos(100); setBoostActive(false); setRivalGap(0); setRaceResult(null);
+    if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = null; setToast(null);
     setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
   }, []);
   const startRace = useCallback(() => { completedRef.current = false; reset(true); }, [reset]);
@@ -339,8 +340,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           const sampleZ = sweepStartZ + sweepDz * fraction;
           let nearestDistanceSq = Number.POSITIVE_INFINITY;
           let nearestX = 0, nearestZ = 0, nearestTangentX = 0, nearestTangentZ = -1;
-          for (let offset = -72; offset <= 72; offset++) {
-            const sample = onPitRoute ? Math.round(clamp(race.playerPitProgress + offset / sweepSamples, 0, 1) * sweepSamples) : ((sweepCentre + offset) % sweepSamples + sweepSamples) % sweepSamples;
+          for (let offset = -144; offset <= 144; offset++) {
+            const sample = onPitRoute ? Math.round(clamp(nearestPitT + offset / sweepSamples, 0, 1) * sweepSamples) : ((sweepCentre + offset) % sweepSamples + sweepSamples) % sweepSamples;
             const sampleT = sample / sweepSamples;
             const point = playerSafetyTrack.getPointAt(sampleT);
             const dx = sampleX - point.x, dz = sampleZ - point.z;
