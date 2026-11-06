@@ -767,7 +767,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
               race.damage = Math.min(99, clamp(race.damage + (impactKmh - 18) * (impactKmh > 75 ? 0.34 : 0.14), 0, 100));
               notify(impactKmh > 75 ? "Heavy contact with Kago · speed lost" : "Kago contact · cars separated", impactKmh > 75 ? "error" : "info");
             }
-            race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, race.playerPitting ? 122 : 290);
+            race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, 290);
           }
         }
         }
