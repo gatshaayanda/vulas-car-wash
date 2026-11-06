@@ -234,3 +234,12 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - The pit is an open part of the drivable world, not a gated one-way tunnel. The player can approach and enter the pit area from any side and at any time during driving. Do not require a particular main-track progress window or a single approach vector to recognize pit access. Once inside, do not clamp the player against the narrow pit spline or an invisible exit boundary; preserve ordinary world-space driving and steering through the pit apron and back onto the circuit. Keep the service box reachable and the physical stop/service interaction intact.
 - A boundary solver may protect the outer playable world, but must not create a forcefield between the circuit, pit apron, service area and exit. Verify the full path in both directions and from lateral approaches before claiming pit access is fixed.
 - Bump both service-worker shell/game cache versions after runtime changes. Do not claim device gameplay QA unless actually run.
+
+
+## Regression correction — menu opponent, race notifications and open pit apron (2026-11-07)
+
+- Kago must not appear in the main-menu 3D preview. The preview is a solo player-car circuit shot; Kago's car, name tag, boost flame, smoke, skidmarks and impact effects are all restricted to the actual scored race phase. Never use the preview flag as permission to show the opponent.
+- Race toasts are session-scoped. Do not display or retain pit-crew/race-control toasts in the menu, garage-ready screen, grid, countdown or paused state. Clear stale notifications on reset and phase transitions. Preserve the earned victory toast and active pit/race event messages.
+- Render race toasts above the circuit map.
+- Pit access is an open-world area, not a narrow one-way spline corridor. The player may approach the pit apron from any direction at any time. The main-circuit boundary solver must yield across the full pit apron; the pit spline is for navigation/progress/service reference, not a forcefield. A player may leave the pit apron from any direction; leaving without service does not satisfy the mandatory race stop.
+- Bump both offline shell and game cache versions for racing runtime changes. Report only build/deployment and gameplay checks actually completed.
