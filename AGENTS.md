@@ -224,3 +224,13 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Toasts during the race should otherwise be concise, useful pit-crew or race-control updates about track conditions, pit entry/service/exit, Kago's meaningful race events, and lap validity. Do not toast routine control confirmations, NOS toggles/depletion, or ordinary contact.
 - Prefix operational messages with `PIT CREW` or `RACE CONTROL` so the source is clear.
 - Bump both service-worker shell and game cache versions whenever racing runtime files change.
+
+
+## Open-circuit phase, map and pit access correction — 2026-11-07
+
+- The player journey is three distinct experiences: **warm-up** (solo free driving to learn the environment), **qualifying** (solo timed performance), then **race** (Kago joins as a physical opponent). Do not treat warm-up or qualifying as a race grid, and do not show or simulate visible opponent presence in either phase. The Skip to Race action intentionally bypasses warm-up and qualifying and starts directly in the scored race; it must not invoke save/load prompts.
+- The in-game circuit map shows the circuit, pit layout and **the player's car only**. Never draw an opponent car, marker, dot, legend entry or opponent telemetry on that map, even when Kago is active in the 3D race world.
+- Pit crew/race-control toasts must stack above the in-game map. Keep them readable and event-driven; preserve the earned victory celebration for beating Kago.
+- The pit is an open part of the drivable world, not a gated one-way tunnel. The player can approach and enter the pit area from any side and at any time during driving. Do not require a particular main-track progress window or a single approach vector to recognize pit access. Once inside, do not clamp the player against the narrow pit spline or an invisible exit boundary; preserve ordinary world-space driving and steering through the pit apron and back onto the circuit. Keep the service box reachable and the physical stop/service interaction intact.
+- A boundary solver may protect the outer playable world, but must not create a forcefield between the circuit, pit apron, service area and exit. Verify the full path in both directions and from lateral approaches before claiming pit access is fixed.
+- Bump both service-worker shell/game cache versions after runtime changes. Do not claim device gameplay QA unless actually run.
