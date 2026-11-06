@@ -32,17 +32,11 @@ export default function RacingTrackMap({ raceRef }: Props) {
     const update = () => {
       const race = raceRef.current;
       const player = playerMarker.current;
-      const rival = rivalMarker.current;
-      if (player) {
+if (player) {
         player.setAttribute("cx", mapX(race.worldX).toFixed(1));
         player.setAttribute("cy", mapY(race.worldZ).toFixed(1));
       }
-      if (rival) {
-        const rivalX = race.botInitialized ? race.botWorldX : 3;
-        const rivalZ = race.botInitialized ? race.botWorldZ : 70;
-        rival.setAttribute("cx", mapX(rivalX).toFixed(1));
-        rival.setAttribute("cy", mapY(rivalZ).toFixed(1));
-      }
+
       frame = window.requestAnimationFrame(update);
     };
     frame = window.requestAnimationFrame(update);
@@ -64,7 +58,6 @@ export default function RacingTrackMap({ raceRef }: Props) {
         <text x={mapX(pitExitPoint.x)+6} y={mapY(pitExitPoint.z)+9} className="racing-track-map-pit-label">OUT</text>
         <circle cx={mapX(RACING_TRACK_POINTS[0][0])} cy={mapY(RACING_TRACK_POINTS[0][2])} r="3" className="racing-track-map-start" />
         <circle ref={playerMarker} cx={mapX(0)} cy={mapY(72)} r="6" className="racing-track-map-player" />
-        <circle ref={rivalMarker} cx={mapX(3)} cy={mapY(70)} r="6" className="racing-track-map-rival" />
       </svg>
       <div className="racing-track-map-legend">
         <span><i className="player-dot" />YOU</span>
