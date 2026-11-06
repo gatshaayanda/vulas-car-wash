@@ -322,9 +322,11 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
           if (distance < nearestPitDistance) { nearestPitDistance = distance; nearestPitT = sampleT; }
         }
-        const onPitRoute = race.playerPitting || race.playerGarageExit || nearestPitDistance < 25;
-        const trackSafetyOffset = onPitRoute ? 25 : 7.15;
-        const playerSafetyTrack = onPitRoute ? RACING_PIT_LANE : trackRef.current!;
+        const onPitRoute = race.playerPitting || race.playerGarageExit;
+        const pitApronOpen = nearestPitDistance < 25;
+        const usePitSafetyTrack = onPitRoute || pitApronOpen;
+        const trackSafetyOffset = usePitSafetyTrack ? 25 : 7.15;
+        const playerSafetyTrack = usePitSafetyTrack ? RACING_PIT_LANE : trackRef.current!;
         const sweepDx = race.worldX - sweepStartX;
         const sweepDz = race.worldZ - sweepStartZ;
         const sweepDistance = Math.hypot(sweepDx, sweepDz);
@@ -333,7 +335,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // While the player is in the garage exit or pit lane, search around the
         // pit spline progress. Using main-track progress (zero at race start)
         // makes the safety sweep clamp the car toward the wrong pit-lane segment.
-        const sweepCentre = Math.round((onPitRoute ? nearestPitT : race.trackT) * sweepSamples);
+        const sweepCentre = Math.round((usePitSafetyTrack ? nearestPitT : race.trackT) * sweepSamples);
         for (let step = 1; step <= sweepSteps; step++) {
           const fraction = step / sweepSteps;
           const sampleX = sweepStartX + sweepDx * fraction;
@@ -341,7 +343,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           let nearestDistanceSq = Number.POSITIVE_INFINITY;
           let nearestX = 0, nearestZ = 0, nearestTangentX = 0, nearestTangentZ = -1;
           for (let offset = -144; offset <= 144; offset++) {
-            const sample = onPitRoute ? Math.round(clamp(nearestPitT + offset / sweepSamples, 0, 1) * sweepSamples) : ((sweepCentre + offset) % sweepSamples + sweepSamples) % sweepSamples;
+            const sample = usePitSafetyTrack ? Math.round(clamp(nearestPitT + offset / sweepSamples, 0, 1) * sweepSamples) : ((sweepCentre + offset) % sweepSamples + sweepSamples) % sweepSamples;
             const sampleT = sample / sweepSamples;
             const point = playerSafetyTrack.getPointAt(sampleT);
             const dx = sampleX - point.x, dz = sampleZ - point.z;
@@ -449,7 +451,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // One consistent swept-frame safety envelope, inside the visible rail
         // centreline at 8.4 units. Keep the car on the road without crash/respawn.
         const safeOffset = trackSafetyOffset;
-        const pitApronOpen = nearestPitDistance < 25;
         if (!pitApronOpen && (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset)) {
           const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
           const correctionX = distanceFromCentre > safeOffset
