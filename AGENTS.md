@@ -215,3 +215,12 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Enable Kago's vehicle and race effects only once the actual race is running (race progress >= 2 and scored-race lap >= 3). Clear stale bot skid buffers and smoke particles while inactive so earlier race effects cannot linger.
 - Keep qualifying-time calculation internal; do not expose the hidden benchmark as a visible opponent or tracker during practice/qualifying.
 - Bump both service-worker cache versions whenever the race scene changes.
+
+
+## Race toast discipline — 2026-11-06
+
+- Remove all instructional, celebratory and button-confirmation toasts from the driving session. The compact persistent signal chip may continue to show one contextual driving cue; do not duplicate it with pop-up coaching.
+- Toasts are reserved for concise, useful pit-crew or race-control updates about the track, pit entry/service/exit, track-limit status, and Kago's meaningful race events (especially his pit stop). Prefix these messages with `PIT CREW` or `RACE CONTROL` so the source is clear.
+- Do not toast routine race starts/countdowns, throttle/steering/braking guidance, NOS toggles or depletion, ordinary barrier/car contact, practice/qualifying milestones, personal-best celebrations, grid praise, or finish celebrations. The dedicated results UI handles race completion.
+- Avoid duplicate pit-entry prompts: use the single approach notification and keep the on-screen signal chip as the live contextual cue.
+- Bump both service-worker shell and game cache versions whenever racing runtime files change.
