@@ -471,15 +471,20 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         const previousProgress = race.progress;
         if (race.playerGarageExit) {
           race.playerPitProgress = nearestT; race.trackT = 0; race.progress = 0;
-          if (race.playerPitProgress >= .985) {
+          if (race.playerPitProgress >= .90) {
             let joinT = .105, joinDistance = Number.POSITIVE_INFINITY;
             for (let i = 0; i < 1920; i++) {
               const t = i / 1920, point = trackRef.current!.getPointAt(t);
               const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
               if (distance < joinDistance) { joinDistance = distance; joinT = t; }
             }
-            race.playerGarageExit = false; race.playerOutLap = true; race.trackT = joinT;
-            notify("PIT EXIT! FOLLOW THE TRACK TO THE START LINE!", "success");
+            // Release pit-lane collision ownership as soon as the open merge
+            // reaches the circuit. Do not keep projecting/clamping the car to
+            // the finite pit spline after it has physically rejoined the road.
+            if (joinDistance <= 4.8) {
+              race.playerGarageExit = false; race.playerOutLap = true; race.trackT = joinT;
+              notify("PIT EXIT! FOLLOW THE TRACK TO THE START LINE!", "success");
+            }
           }
         } else if (race.playerPitting) {
           race.playerPitProgress = nearestT;
@@ -491,16 +496,22 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             setBoostActive(false); phaseRef.current = "pit"; setPhase("pit");
             notify("PIT STOP! CAR STOPPED. PICK YOUR TYRES.", "info");
           }
-          if (race.playerPitProgress >= .985 && race.playerPitServiced && race.playerPitServiceRemaining <= 0) {
+          if (race.playerPitProgress >= .90 && race.playerPitServiced && race.playerPitServiceRemaining <= 0) {
             let joinT = .105, joinDistance = Number.POSITIVE_INFINITY;
             for (let i = 0; i < 1920; i++) {
               const t = i / 1920, point = trackRef.current!.getPointAt(t);
               const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
               if (distance < joinDistance) { joinDistance = distance; joinT = t; }
             }
-            race.playerPitting = false; race.playerPitDone = true;
-            race.trackT = joinT; race.progress = 3 + joinT;
-            notify("PIT STOP DONE! KEEP GOING!", "success");
+            // The pit curve now ends on the circuit centreline. Transfer back
+            // to the canonical circuit boundary as soon as the merge is reached.
+            if (joinDistance <= 4.8) {
+              race.playerPitting = false; race.playerPitDone = true;
+              race.trackT = joinT; race.progress = 3 + joinT;
+              notify("PIT STOP DONE! KEEP GOING!", "success");
+            } else {
+              race.progress = 2.91;
+            }
           } else {
             race.progress = 2.91;
           }
