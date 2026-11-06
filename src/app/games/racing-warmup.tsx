@@ -98,10 +98,19 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   phaseRef.current = phase;
 
   const notify = useCallback((text: string, kind: "success" | "error" | "info" = "success") => {
+    const activePhase = phaseRef.current;
+    if (activePhase !== "running" && activePhase !== "pit" && activePhase !== "finished") return;
     setToast({ text, kind });
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 3200);
   }, []);
+  useEffect(() => {
+    if (phase === "ready" || phase === "grid" || phase === "countdown" || phase === "paused") {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      toastTimer.current = null;
+      setToast(null);
+    }
+  }, [phase]);
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
   useEffect(() => {
     const stop = subscribeSettings(settings => {
@@ -117,7 +126,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     botQualifyingElapsedRef.current = 0; botQualifyingTimeRef.current = null; lastPitPromptLapRef.current = -1;
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-    setSpeed(0); setLapTime(0); setBestLap(null); setLap(quickStartRef.current ? 3 : 1); setNos(100); setBoostActive(false); setRivalGap(0); setRaceResult(null);
+    setSpeed(0); setLapTime(0); setBestLap(null); setLap(quickStartRef.current ? 3 : 1); setNos(100); setBoostActive(false); setRivalGap(0); setRaceResult(null);\n    if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = null; setToast(null);
     setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
   }, []);
   const startRace = useCallback(() => { completedRef.current = false; reset(true); }, [reset]);
@@ -303,8 +312,17 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // Sweep the car's complete frame movement in short substeps against the
         // same closed track envelope. This catches thin endpoint gaps and fast
         // corner exits even when a rendered frame is delayed.
-        const onPitRoute = race.playerPitting || race.playerGarageExit;
-        const trackSafetyOffset = onPitRoute ? 20 : 7.15;
+        // Treat the whole pit apron as open world. The circuit's ordinary
+        // edge solver must not fence off a lateral approach to the pit road.
+        let nearestPitDistance = Number.POSITIVE_INFINITY, nearestPitT = race.playerPitProgress;
+        for (let sample = 0; sample <= 192; sample++) {
+          const sampleT = sample / 192;
+          const point = RACING_PIT_LANE.getPointAt(sampleT);
+          const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
+          if (distance < nearestPitDistance) { nearestPitDistance = distance; nearestPitT = sampleT; }
+        }
+        const onPitRoute = race.playerPitting || race.playerGarageExit || nearestPitDistance < 25;
+        const trackSafetyOffset = onPitRoute ? 25 : 7.15;
         const playerSafetyTrack = onPitRoute ? RACING_PIT_LANE : trackRef.current!;
         const sweepDx = race.worldX - sweepStartX;
         const sweepDz = race.worldZ - sweepStartZ;
@@ -314,7 +332,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // While the player is in the garage exit or pit lane, search around the
         // pit spline progress. Using main-track progress (zero at race start)
         // makes the safety sweep clamp the car toward the wrong pit-lane segment.
-        const sweepCentre = Math.round((onPitRoute ? race.playerPitProgress : race.trackT) * sweepSamples);
+        const sweepCentre = Math.round((onPitRoute ? nearestPitT : race.trackT) * sweepSamples);
         for (let step = 1; step <= sweepSteps; step++) {
           const fraction = step / sweepSteps;
           const sampleX = sweepStartX + sweepDx * fraction;
@@ -430,9 +448,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // One consistent swept-frame safety envelope, inside the visible rail
         // centreline at 8.4 units. Keep the car on the road without crash/respawn.
         const safeOffset = trackSafetyOffset;
-        const pitEntryAttempt = !race.playerPitting && !race.playerGarageExit
-          && (() => { let nearest = Number.POSITIVE_INFINITY; for (let sample = 0; sample <= 100; sample++) { const point = RACING_PIT_LANE.getPointAt(sample / 100); nearest = Math.min(nearest, Math.hypot(race.worldX - point.x, race.worldZ - point.z)); } return nearest < 7.2; })();
-        if (!pitEntryAttempt && (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset)) {
+        const pitApronOpen = nearestPitDistance < 25;
+        if (!pitApronOpen && (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset)) {
           const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
           const correctionX = distanceFromCentre > safeOffset
             ? outwardX
@@ -493,7 +510,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             setBoostActive(false); phaseRef.current = "pit"; setPhase("pit");
             notify("PIT CREW · Car stopped. Choose your tyres.", "info");
           }
-          if (race.playerPitProgress >= .90 && race.playerPitServiced && race.playerPitServiceRemaining <= 0) {
+          if (race.playerPitProgress >= .82 && race.playerPitServiceRemaining <= 0) {
             let joinT = .105, joinDistance = Number.POSITIVE_INFINITY;
             for (let i = 0; i < 1920; i++) {
               const t = i / 1920, point = trackRef.current!.getPointAt(t);
@@ -502,10 +519,18 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             }
             // The pit curve now ends on the circuit centreline. Transfer back
             // to the canonical circuit boundary as soon as the merge is reached.
-            if (joinDistance <= 4.8) {
-              race.playerPitting = false; race.playerPitDone = true;
-              race.trackT = joinT; race.progress = 3 + joinT;
-              notify("PIT CREW · Service complete. Rejoin the circuit.", "success");
+            if (joinDistance <= 10.5) {
+              race.playerPitting = false;
+              race.trackT = joinT;
+              if (race.playerPitServiced) {
+                race.playerPitDone = true;
+                race.progress = 3 + joinT;
+                notify("PIT CREW · Service complete. Rejoin the circuit.", "success");
+              } else {
+                // Leaving the open pit area is always allowed. The mandatory
+                // stop remains outstanding, so the race cannot be completed yet.
+                race.progress = 2.91;
+              }
             } else {
               race.progress = 2.91;
             }
