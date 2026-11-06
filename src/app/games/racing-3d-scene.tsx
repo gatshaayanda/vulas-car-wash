@@ -285,18 +285,20 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
     // facility. The inner boundary is the circuit's existing pit wall; both
     // entry and exit remain open for a natural merge.
     const pitOuterRail = new THREE.Group();
+    const pitOuterBarrierMaterial = new THREE.MeshStandardMaterial({ color: "#dce2df", roughness: .65 });
+    const pitOuterPostMaterial = new THREE.MeshStandardMaterial({ color: "#283b43", roughness: .75 });
     for (let i = 10; i < 158; i += 3) {
       const t = i / 168;
       if (t < .07 || t > .93) continue;
       const p = pitLane.getPointAt(t);
       const tangent = pitLane.getTangentAt(t).normalize();
       const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(.22, .62, 2.9), barrierMat);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(.22, .62, 2.9), pitOuterBarrierMaterial);
       // Keep the wall behind the garage apron, not between the garages and pit road.
       rail.position.set(p.x - side.x * 14.8, .58, p.z - side.z * 14.8);
       rail.rotation.y = Math.atan2(tangent.x, tangent.z);
       rail.castShadow = true; rail.receiveShadow = true; pitOuterRail.add(rail);
-      const post = new THREE.Mesh(new THREE.BoxGeometry(.25, .9, .18), darkBarrier);
+      const post = new THREE.Mesh(new THREE.BoxGeometry(.25, .9, .18), pitOuterPostMaterial);
       post.position.set(rail.position.x, .45, rail.position.z);
       post.rotation.y = rail.rotation.y; pitOuterRail.add(post);
     }
