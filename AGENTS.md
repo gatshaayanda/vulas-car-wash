@@ -180,3 +180,9 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Keep the pit spline continuously tangent through entry and merge using a smoothstep offset ramp, dense Catmull-Rom control points and high arc-length sampling. The same curve is the source for pit road mesh, markings, minimap, movement, and service-box placement.
 - Preserve normal racing physics. Pit-lane guidance may constrain the car to the shared spline, but collision sampling must follow `playerPitProgress` for both `playerGarageExit` and `playerPitting`.
 - Bump the offline shell/game cache versions when changing racing runtime files so the new smoothness fix is available after an online visit and subsequent offline QA.
+
+
+## Racing start and service-box stability
+
+- Before a race grid countdown or after a physical pit service stop, clear all transient player motion state together: world velocity/speed, steering, throttle, brake pressure, lateral velocity/offset, heading, drift, longitudinal/lateral load and wheel lock. Reset held controls at the same transition. Do not let stale qualifying or braking inputs carry into the next start or pit exit.
+- Initialize the 3D chase camera on the car's first rendered frame; do not ease it in from the world origin. Keep subsequent camera follow smoothing.

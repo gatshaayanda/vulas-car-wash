@@ -474,6 +474,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
     // simulation. Avoid a second render-loop wall solver that can disagree with
     // the track projection at segment joins and tight corner endpoints.
     const clock = new THREE.Clock();
+    let cameraInitialized = false;
     let raf = 0;
     const resize = () => {
       const w = Math.max(1, host.clientWidth), h = Math.max(1, host.clientHeight);
@@ -545,8 +546,16 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       const cameraPosition = preview
         ? new THREE.Vector3(carWorld.x - forward.x * 5.1, 3.25, carWorld.z - forward.z * 5.1)
         : new THREE.Vector3(carWorld.x - forward.x * 8.4, 4.7, carWorld.z - forward.z * 8.4);
-      camera.position.lerp(cameraPosition, 1 - Math.exp(-frameDelta * 4.2));
-      camera.lookAt(cameraTarget);
+      if (!cameraInitialized) {
+        // Start already framed on the stationary car. Interpolating from the
+        // camera's default world origin makes the opening seconds feel unstable.
+        camera.position.copy(cameraPosition);
+        camera.lookAt(cameraTarget);
+        cameraInitialized = true;
+      } else {
+        camera.position.lerp(cameraPosition, 1 - Math.exp(-frameDelta * 4.2));
+        camera.lookAt(cameraTarget);
+      }
       if (preview) camera.fov = 43;
       // Rear tyres leave short, fading-in-place rubber traces while the car is
       // genuinely sliding. Bounded buffers prevent unbounded geometry growth.

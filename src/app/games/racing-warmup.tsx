@@ -27,6 +27,12 @@ export const newRace = (): Race => {
   const garageYaw = Math.atan2(-garageTangent.x, -garageTangent.z);
   return { progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: garagePoint.x, worldZ: garagePoint.z, worldYaw: garageYaw, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 17.9, botWorldX: 0, botWorldZ: 0, botWorldYaw: 0, botVelocityX: 0, botVelocityZ: 0, botSteering: 0, botThrottle: 0, botBrake: 0, botDrift: 0, botNos: 100, botBoostActive: false, botInitialized: false, botImpactX: 0, botImpactZ: 0, botImpactAt: 0, botImpactStrength: 0, botLineOffset: -2.45, botNosCooldown: 0, botPitting: false, botPitDone: false, botPitProgress: 0, botPitServiceRemaining: 0, botPitServiced: false, playerPitRequested: false, playerGarageExit: true, playerOutLap: false, playerPitting: false, playerPitDone: false, playerPitProgress: .52, playerPitServiceRemaining: 0, playerPitServiced: false };
 };
+function settlePlayerCar(race: Race) {
+  race.velocityX = 0; race.velocityZ = 0; race.speed = 0;
+  race.steering = 0; race.throttle = 0; race.brakePressure = 0;
+  race.lateral = 0; race.lateralVelocity = 0; race.heading = 0; race.drift = 0;
+  race.longitudinalLoad = 0; race.lateralG = 0; race.wheelLock = 0;
+}
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -455,7 +461,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           const pitSpeed = Math.hypot(race.velocityX, race.velocityZ);
           if (!race.playerPitServiced && race.playerPitProgress >= .49 && race.playerPitProgress <= .62 && pitSpeed < 1.35) {
             race.playerPitServiced = true; race.playerPitServiceRemaining = 999;
-            race.velocityX = 0; race.velocityZ = 0; race.speed = 0;
+            settlePlayerCar(race);
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
             setBoostActive(false); phaseRef.current = "pit"; setPhase("pit");
             notify("PIT STOP! CAR STOPPED. PICK YOUR TYRES.", "info");
@@ -828,7 +834,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             const playerGridSide = playerOnPole ? 1 : -1;
             race.worldX = gridPoint.x + gridSideX * 2.45 * playerGridSide;
             race.worldZ = gridPoint.z + gridSideZ * 2.45 * playerGridSide;
-            race.worldYaw = gridYaw; race.velocityX = 0; race.velocityZ = 0; race.speed = 0;
+            race.worldYaw = gridYaw; settlePlayerCar(race);
             race.progress = 2; race.trackT = 0;
             race.botWorldX = gridPoint.x - gridSideX * 2.45 * playerGridSide;
             race.botWorldZ = gridPoint.z - gridSideZ * 2.45 * playerGridSide;
@@ -998,7 +1004,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         {phase === "pit" && raceRef.current.playerPitServiced && <div className="warmup-pit-service-overlay" role="dialog" aria-modal="true" aria-label="Pit stop tyre service">
           <span>🛠️ PIT CREW · SERVICE BOX</span><strong>PICK A TYRE</strong>
           <p>Choose Soft, Medium or Hard. The menu closes and you drive the car back onto the circuit.</p>
-          <div>{(["Soft", "Medium", "Hard"] as const).map(tyre => <button type="button" key={tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => { setTyreChoice(tyre); raceRef.current.playerPitServiceRemaining = 0; controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false }; raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running"); notify(`${tyre.toUpperCase()} FITTED! HOLD GAS TO REJOIN THE TRACK.`, "success"); }}>{tyre}</button>)}</div>
+          <div>{(["Soft", "Medium", "Hard"] as const).map(tyre => <button type="button" key={tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => { setTyreChoice(tyre); raceRef.current.playerPitServiceRemaining = 0; settlePlayerCar(raceRef.current); controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false }; raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running"); notify(`${tyre.toUpperCase()} FITTED! HOLD GAS TO REJOIN THE TRACK.`, "success"); }}>{tyre}</button>)}</div>
         </div>}
         
       </div>
