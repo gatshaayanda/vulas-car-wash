@@ -55,11 +55,13 @@ export default function RacingMainMenu({ embedded = false }: { embedded?: boolea
     setData(next); setActiveSlotId(slot.id); setQuickStart(false); setSession(true); setNotice("");
   };
   const startQuickRace = () => {
-    if (data.slots.length >= 5) { setNotice("All five save slots are in use. Load a slot before starting another game."); return; }
-    const slot: SaveSlot = { id: `slot-${Date.now()}`, name: `Quick race ${data.slots.length + 1}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), state: null };
-    const next = { ...data, activeSlotId: slot.id, slots: [...data.slots, slot].slice(-5) };
-    if (!writeData(next)) { setNotice("Could not create a race save on this device."); return; }
-    setData(next); setActiveSlotId(slot.id); setQuickStart(true); setSession(true); setNotice("");
+    // Quick Race is a one-tap playable session, not a save-slot operation.
+    // It must work even when all save slots are occupied or storage is blocked.
+    setActiveSlotId(null);
+    setQuickStart(true);
+    setSession(true);
+    setView("home");
+    setNotice("");
   };
   const continueGame = () => {
     const slot = data.slots.find(item => item.id === data.activeSlotId) ?? data.slots[data.slots.length - 1];
