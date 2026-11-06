@@ -217,10 +217,10 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Bump both service-worker cache versions whenever the race scene changes.
 
 
-## Race toast discipline — 2026-11-06
+## Race toast discipline — 2026-11-07
 
-- Remove all instructional, celebratory and button-confirmation toasts from the driving session. The compact persistent signal chip may continue to show one contextual driving cue; do not duplicate it with pop-up coaching.
-- Toasts are reserved for concise, useful pit-crew or race-control updates about the track, pit entry/service/exit, track-limit status, and Kago's meaningful race events (especially his pit stop). Prefix these messages with `PIT CREW` or `RACE CONTROL` so the source is clear.
-- Do not toast routine race starts/countdowns, throttle/steering/braking guidance, NOS toggles or depletion, ordinary barrier/car contact, practice/qualifying milestones, personal-best celebrations, grid praise, or finish celebrations. The dedicated results UI handles race completion.
-- Avoid duplicate pit-entry prompts: use the single approach notification and keep the on-screen signal chip as the live contextual cue.
+- Remove repetitive instructional and celebratory coaching toasts during active driving. Keep the compact persistent signal chip for one contextual driving cue.
+- Preserve meaningful milestone and reward feedback. In particular, a player victory over Kago must trigger a clear celebratory victory toast as well as the dedicated results screen. Do not suppress earned celebrations in the name of reducing noise.
+- Toasts during the race should otherwise be concise, useful pit-crew or race-control updates about track conditions, pit entry/service/exit, Kago's meaningful race events, and lap validity. Do not toast routine control confirmations, NOS toggles/depletion, or ordinary contact.
+- Prefix operational messages with `PIT CREW` or `RACE CONTROL` so the source is clear.
 - Bump both service-worker shell and game cache versions whenever racing runtime files change.
