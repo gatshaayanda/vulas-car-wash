@@ -155,10 +155,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       previous = now;
       if (phaseRef.current === "running" && dt > 0) {
         const controls = controlsRef.current;
-        const playerTrackT = wrap(race.trackT, 1);
         if (!race.playerPitDone && !race.playerPitting && !race.playerGarageExit) {
           let nearestPitDistance = Number.POSITIVE_INFINITY, nearestPitT = 0;
-          for (let sample = 0; sample <= 30; sample++) {
+          for (let sample = 0; sample <= 100; sample++) {
             const sampleT = sample / 100, point = RACING_PIT_LANE.getPointAt(sampleT);
             const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
             if (distance < nearestPitDistance) { nearestPitDistance = distance; nearestPitT = sampleT; }
