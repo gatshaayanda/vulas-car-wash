@@ -453,7 +453,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         } else if (race.playerPitting) {
           race.playerPitProgress = nearestT;
           const pitSpeed = Math.hypot(race.velocityX, race.velocityZ);
-          if (!race.playerPitServiced && race.playerPitProgress >= .49 && pitSpeed < 1.35) {
+          if (!race.playerPitServiced && race.playerPitProgress >= .49 && race.playerPitProgress <= .62 && pitSpeed < 1.35) {
             race.playerPitServiced = true; race.playerPitServiceRemaining = 999;
             race.velocityX = 0; race.velocityZ = 0; race.speed = 0;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
@@ -997,7 +997,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         </div>
         {phase === "pit" && raceRef.current.playerPitServiced && <div className="warmup-pit-service-overlay" role="dialog" aria-modal="true" aria-label="Pit stop tyre service">
           <span>🛠️ PIT CREW · SERVICE BOX</span><strong>PICK A TYRE</strong>
-          <p>Select a compound. The crew will fit it before releasing you back onto the circuit.</p>
+          <p>Choose Soft, Medium or Hard. The menu closes and you drive the car back onto the circuit.</p>
           <div>{(["Soft", "Medium", "Hard"] as const).map(tyre => <button type="button" key={tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => { setTyreChoice(tyre); raceRef.current.playerPitServiceRemaining = 0; controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false }; raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running"); notify(`${tyre.toUpperCase()} FITTED! HOLD GAS TO REJOIN THE TRACK.`, "success"); }}>{tyre}</button>)}</div>
         </div>}
         
