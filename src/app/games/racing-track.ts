@@ -20,16 +20,27 @@ export function createRacingPitLane(track: THREE.CatmullRomCurve3) {
   const startT = .91;
   const endT = .105;
   const span = endT + 1 - startT;
-  for (let i = 0; i <= 42; i++) {
-    const t = (startT + span * i / 42) % 1;
+  const divisions = 84;
+  const transitionLength = 12;
+  for (let i = 0; i <= divisions; i++) {
+    const t = (startT + span * i / divisions) % 1;
     const point = track.getPointAt(t);
     const tangent = track.getTangentAt(t).normalize();
     const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-    const blend = Math.min(1, i / 7, (42 - i) / 7);
-    point.addScaledVector(side, -13 * Math.max(0, blend));
+    // Smoothstep keeps the pit lane tangent continuous where it leaves and
+    // rejoins the racing line; the previous linear ramp introduced a visible
+    // steering/heading kink at both ends of the branch.
+    const edge = Math.max(0, Math.min(1, i / transitionLength, (divisions - i) / transitionLength));
+    const blend = edge * edge * (3 - 2 * edge);
+    point.addScaledVector(side, -13 * blend);
     samples.push(point);
   }
-  return new THREE.CatmullRomCurve3(samples, false, "centripetal", .35);
+  const pitLane = new THREE.CatmullRomCurve3(samples, false, "centripetal", .35);
+  // More arc-length samples prevent small position/tangent steps during the
+  // frame-by-frame guided drive from the garage and through the service lane.
+  pitLane.arcLengthDivisions = 2048;
+  pitLane.updateArcLengths();
+  return pitLane;
 }
 
 export function getTrackTurn(track: THREE.CatmullRomCurve3, progress: number, sample = .006) {

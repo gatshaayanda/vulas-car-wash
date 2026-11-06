@@ -150,7 +150,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
     // circuit past a marked service box, then merges back onto the racing line.
     const pitLane = createRacingPitLane(track);
     const pitRoad = new THREE.Mesh(
-      ribbon(pitLane, 7.2, 220, .035),
+      ribbon(pitLane, 7.2, 480, .035),
       new THREE.MeshStandardMaterial({ color: "#252d32", roughness: .96, side: THREE.DoubleSide }),
     );
     pitRoad.receiveShadow = true;
@@ -159,8 +159,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
     const pitMarkings = new THREE.Group();
     const pitLineMat = new THREE.MeshBasicMaterial({ color: "#f5f0d9" });
     const pitDashMat = new THREE.MeshBasicMaterial({ color: "#f4c64e" });
-    for (let i = 2; i < 40; i += 2) {
-      const t = i / 42;
+    for (let i = 2; i < 82; i += 2) {
+      const t = i / 84;
       const p = pitLane.getPointAt(t);
       const tangent = pitLane.getTangentAt(t).normalize();
       const stripe = new THREE.Mesh(new THREE.BoxGeometry(.16, .035, 1.15), pitLineMat);

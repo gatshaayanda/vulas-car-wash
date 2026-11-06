@@ -166,9 +166,17 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 
 ## Racing PWA offline QA hardening — 2026-11-06
 
-- Keep the homepage/game navigation and the selected local Kenney racing model available offline after an online visit. The active caches are isolated as `vula-shell-v18` and `vula-game-v18`; bump both versions whenever offline shell or game runtime behaviour changes.
+- Keep the homepage/game navigation and the selected local Kenney racing model available offline after an online visit. The active caches are isolated as `vula-shell-v19` and `vula-game-v19`; bump both versions whenever offline shell or game runtime behaviour changes.
 - Next.js lazy-loaded JavaScript under `/_next/static/chunks/` belongs in the dedicated game cache, not only the general shell cache. This is essential because the embedded Quick Break scene and its Three.js dependencies load after the customer opens the game. Keep a generous bounded game-cache budget (currently 320 entries) so normal site traffic does not evict the racing runtime before offline QA.
 - During service-worker installation, cache all route-discovered critical JS chunks and the public homepage/game routes. Continue caching the selected local Kenney model and any same-origin glTF buffers/textures; preserve the procedural vehicle fallback.
 - Keep API requests network-only. Do not cache Firebase/API responses, customer account pages, admin pages, booking/queue data, authentication responses, or private user content as public offline assets. Offline race progress/results remain device-local and untrusted for online rewards.
 - Offline QA sequence: visit the production homepage while online; allow the new service worker to install and activate; reload once so the page is controlled by it; open VULA RACING · QUICK BREAK and let the scene/model finish loading; then enable airplane mode or disable Wi-Fi/mobile data and reload the homepage before opening the game again. Verify the car, track, controls, practice/qualifying/race flow and pit stop still load. A first visit to a newly deployed worker may require that one reload after installation; do not claim offline readiness until this sequence is tested on a real device.
 - Preserve the existing branded install prompt, waiting-worker Refresh flow, iOS install guidance, Firebase messaging isolation and all game physics/controls. Do not force a service-worker update or reload the user's app during installation.
+
+
+## Pit-lane movement smoothness regression guard — 2026-11-06
+
+- The garage exit and physical pit lane use the pit spline's own progress for every local collision/safety sweep. Never centre a pit-lane sweep on main-circuit `trackT`; during the initial garage exit that value is zero and the safety solver will snap the car toward the wrong end of the pit lane, causing visible jitter.
+- Keep the pit spline continuously tangent through entry and merge using a smoothstep offset ramp, dense Catmull-Rom control points and high arc-length sampling. The same curve is the source for pit road mesh, markings, minimap, movement, and service-box placement.
+- Preserve normal racing physics. Pit-lane guidance may constrain the car to the shared spline, but collision sampling must follow `playerPitProgress` for both `playerGarageExit` and `playerPitting`.
+- Bump the offline shell/game cache versions when changing racing runtime files so the new smoothness fix is available after an online visit and subsequent offline QA.
