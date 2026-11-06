@@ -19,7 +19,7 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Staff sign-in uses `/api/operations-login`, `FIREBASE_ADMIN_KEY`, and `VULA_OPERATIONS_WORD`. Never expose service-account credentials or staff secrets to the client.
 - Collections: `admins`, `customers`, `services`, `gallery`, `businessSettings`, `bookings`, `queueEntries`, `fleetRequests`, `loyaltyAccounts`, `reminderPreferences`, and `notificationTokens`.
 - Firestore authorization is in `firestore.rules`; image access is in `storage.rules`; indexes are in `firestore.indexes.json`.
-- `public/sw.js` uses isolated, versioned `vula-shell-v22` and `vula-game-v22` caches. It precaches the public game route, discovered Next.js assets, and the selected local racing model when available; the coloured procedural car remains the offline fallback. Bump cache versions when shipped game assets change. Keep early `beforeinstallprompt` capture and the explicit branded install click intact. Updates must wait for the existing app's Refresh action; do not force-reload during install. iOS installation guidance is at `/iphone-install`.
+- `public/sw.js` uses isolated, versioned `vula-shell-v23` and `vula-game-v23` caches. It precaches the public game route, discovered Next.js assets, and the selected local racing model when available; the coloured procedural car remains the offline fallback. Bump cache versions when shipped game assets change. Keep early `beforeinstallprompt` capture and the explicit branded install click intact. Updates must wait for the existing app's Refresh action; do not force-reload during install. iOS installation guidance is at `/iphone-install`.
 - Legacy foundation routes redirect to the active customer or staff journey via `src/middleware.ts`.
 
 ## Online/offline rules
@@ -207,3 +207,11 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - The player remains manually controlled throughout entry, service and exit. Keep the mandatory physical stop; do not allow an unserviced pit run to count as completed.
 - **Skip to Race** is a disposable, immediate two-lap race against Kago. It must not create, require, or consume a save slot and must work when all save slots are occupied or local storage is unavailable. Normal New Game / Continue / Load / Save flows remain separate.
 - Bump the service-worker shell and game cache versions together whenever these game files change.
+
+
+## Race-only opponent presence — 2026-11-06
+
+- Kago may be simulated as a hidden qualifying benchmark, but must have zero visible presence during practice, qualifying and the pre-race grid/countdown: no car, name tag, tyre marks, smoke/dust, sparks, map marker, tracker indicator or opponent-gap telemetry.
+- Enable Kago's vehicle and race effects only once the actual race is running (race progress >= 2 and scored-race lap >= 3). Clear stale bot skid buffers and smoke particles while inactive so earlier race effects cannot linger.
+- Keep qualifying-time calculation internal; do not expose the hidden benchmark as a visible opponent or tracker during practice/qualifying.
+- Bump both service-worker cache versions whenever the race scene changes.
