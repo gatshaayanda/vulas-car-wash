@@ -87,11 +87,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [nos, setNos] = useState(100);
   const [tyreChoice, setTyreChoice] = useState<"Soft" | "Medium" | "Hard">("Medium");
   const [signal, setSignal] = useState({ label: "GREEN LIGHT · BUILD SPEED", tone: "go" });
-  const lastSignal = useRef("");
   const botQualifyingElapsedRef = useRef(0);
   const botQualifyingTimeRef = useRef<number | null>(null);
   const lastPitPromptLapRef = useRef(-1);
-  const garageRollCelebratedRef = useRef(false);
   const cornerSkillRef = useRef({ brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 });
   const [boostActive, setBoostActive] = useState(false);
   const [toast, setToast] = useState<{ text: string; kind: "success" | "error" | "info" } | null>(null);
@@ -140,7 +138,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     if (phase !== "countdown") return;
     const timer = window.setTimeout(() => {
       if (countdown <= 1) {
-        setCountdown(0); raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running"); notify(raceRef.current.progress >= 2 ? "🏁 GO GO GO! HOLD THE GREEN GAS BUTTON AND STEER!" : raceRef.current.playerGarageExit ? "🚦 READY? HOLD THE GREEN GAS BUTTON TO DRIVE OUT!" : "🏎️ LET’S GO! HOLD GAS AND FOLLOW THE STEERING CUES!", "success");
+        setCountdown(0); raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running"); notify("");
       } else setCountdown(n => n - 1);
     }, 650);
     return () => window.clearTimeout(timer);
@@ -168,7 +166,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           if (nearestPitDistance < 3.5) {
             race.playerPitting = true; race.playerPitProgress = nearestPitT;
             race.playerPitServiced = false; race.playerPitServiceRemaining = 0;
-            notify("PIT LANE! KEEP DRIVING TO YOUR SERVICE BOX.", "info");
+            
           }
         }
         const pitSteer = controls.steer;
@@ -218,7 +216,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         const boostAcceleration = boost ? 52 : 0;
         race.speed = clamp(race.speed + (engineAcceleration + boostAcceleration - aerodynamicDrag - brakeDeceleration) * dt, 0, boost ? 290 : 255);
         race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
-        if (race.nos <= 0 && controls.boost) { controls.boost = false; setBoostActive(false); notify("NOS reserve empty · lift to recharge.", "info"); }
+        if (race.nos <= 0 && controls.boost) { controls.boost = false; setBoostActive(false);  }
 
         // A friction-circle model limits cornering when the tyres are already
         // spending grip on braking. Low-speed steering remains stable; excess
@@ -456,7 +454,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             if (now - race.lastImpactAt > 180) {
               race.lastImpactAt = now;
               race.damage = clamp(race.damage + Math.max(0, impactKmh - 18) * (impactKmh > 115 ? 0.78 : impactKmh > 65 ? 0.38 : 0.12), 0, 100);
-              if (impactKmh > 28) notify(impactKmh > 90 ? "Heavy impact · car damaged" : "Barrier contact · speed lost", impactKmh > 90 ? "error" : "info");
+              if (impactKmh > 28) 
               // Barrier contact is recoverable practice feedback, never a forced
               // game-over/respawn. Keep damage below the crash threshold.
               race.damage = Math.min(99, race.damage);
@@ -483,7 +481,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             // the finite pit spline after it has physically rejoined the road.
             if (joinDistance <= 4.8) {
               race.playerGarageExit = false; race.playerOutLap = true; race.trackT = joinT;
-              notify("PIT EXIT! FOLLOW THE TRACK TO THE START LINE!", "success");
+              notify("PIT CREW · Pit exit clear. Rejoin the circuit.", "success");
             }
           }
         } else if (race.playerPitting) {
@@ -494,7 +492,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             settlePlayerCar(race);
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
             setBoostActive(false); phaseRef.current = "pit"; setPhase("pit");
-            notify("PIT STOP! CAR STOPPED. PICK YOUR TYRES.", "info");
+            notify("PIT CREW · Car stopped. Choose your tyres.", "info");
           }
           if (race.playerPitProgress >= .90 && race.playerPitServiced && race.playerPitServiceRemaining <= 0) {
             let joinT = .105, joinDistance = Number.POSITIVE_INFINITY;
@@ -508,7 +506,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             if (joinDistance <= 4.8) {
               race.playerPitting = false; race.playerPitDone = true;
               race.trackT = joinT; race.progress = 3 + joinT;
-              notify("PIT STOP DONE! KEEP GOING!", "success");
+              notify("PIT CREW · Service complete. Rejoin the circuit.", "success");
             } else {
               race.progress = 2.91;
             }
@@ -522,7 +520,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           if (completedOutLap) {
             race.playerOutLap = false;
             race.elapsed = 0; race.lapTime = 0;
-            notify("🌟 YOU DID IT! PRACTICE COMPLETE. NOW SET YOUR FAST LAP!", "success");
+            
           }
         } else {
           race.trackT = nearestT;
@@ -551,7 +549,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           race.botPitting = true;
           race.botPitProgress = 0;
           race.botPitServiced = false;
-          notify("Kago is entering the pit lane · one stop", "info");
+          notify("PIT CREW · Kago is entering the pit lane.", "info");
         }
         const botTargetSpeed = race.botPitting ? (race.botPitServiceRemaining > 0 ? 0 : 9.2) : 24.11;
         const botProfile = botLevel === "Easy"
@@ -669,7 +667,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           if (!race.botPitServiced && race.botPitProgress >= .49) {
             race.botPitServiced = true;
             race.botPitServiceRemaining = 2.8;
-            notify("Kago stopped in the pit box · service underway", "info");
+            notify("PIT CREW · Kago is stopped for service.", "info");
           }
           if (race.botPitServiceRemaining > 0) {
             race.botPitServiceRemaining = Math.max(0, race.botPitServiceRemaining - dt);
@@ -680,7 +678,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             race.botPitting = false;
             race.botPitDone = true;
             race.botProgress = 3.105;
-            notify("Kago rejoins the circuit · pit stop complete", "success");
+            notify("PIT CREW · Kago has rejoined the circuit.", "success");
           } else {
             race.botProgress = 2.91;
           }
@@ -807,7 +805,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             if (impactKmh > 18 && now - race.lastImpactAt > 220) {
               race.lastImpactAt = now;
               race.damage = Math.min(99, clamp(race.damage + (impactKmh - 18) * (impactKmh > 75 ? 0.34 : 0.14), 0, 100));
-              notify(impactKmh > 75 ? "Heavy contact with Kago · speed lost" : "Kago contact · cars separated", impactKmh > 75 ? "error" : "info");
+              
             }
             race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, 290);
           }
@@ -831,8 +829,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           if (!practiceComplete && !race.lapInvalid && (race.bestLap === null || race.lapTime < race.bestLap)) {
             race.bestLap = race.lapTime;
             setBestLap(race.lapTime);
-            notify("New personal best lap!", "success");
-          } else if (!practiceComplete && race.lapInvalid) notify("Lap invalid — stay on the racing surface.", "error");
+            
+          } else if (!practiceComplete && race.lapInvalid) notify("RACE CONTROL · Lap invalid: track limits exceeded.", "error");
           race.lap = lapNow;
           race.lapTime = 0;
           race.lapInvalid = false;
@@ -858,7 +856,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             race.botPitProgress = 0; race.botPitServiceRemaining = 0;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
             setSpeed(0); setLapTime(0);
-            notify("⭐ GREAT DRIVING! NOW TRY YOUR FASTEST LAP!", "success");
+            
           } else if (qualifyingComplete) {
             const gridPoint = botTrack.getPointAt(0);
             const gridTangent = botTrack.getTangentAt(0).normalize();
@@ -882,10 +880,10 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
             setSpeed(0); setLapTime(0); setNos(100); setCountdown(3);
             phaseRef.current = "grid"; setPhase("grid");
-            notify(playerOnPole ? "🏆 AMAZING! YOU START FIRST! GO GO GO!" : "🏁 GREAT LAP! KAGO STARTS FIRST — LET’S RACE!", playerOnPole ? "success" : "info");
+            
           } else if (lapNow >= 5 && !completedRef.current) {
             if (!race.playerPitDone) {
-              notify("ONE MORE THING! DRIVE LEFT INTO THE PIT STOP!", "info");
+              
             } else {
             completedRef.current = true;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
@@ -893,7 +891,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             const result: RaceResult = { id: "race-" + Date.now(), completedAt: new Date().toISOString(), difficulty: botDifficultyRef.current, elapsed: race.elapsed, bestLap: race.bestLap ?? (completedLapValid ? completedLapTime : null), position, laps: 2 };
             setRaceResult(result);
             phaseRef.current = "finished"; setPhase("finished");
-            notify(position === 1 ? "🏆 YOU DID IT! YOU BEAT KAGO!" : "🏁 AMAZING RACE! YOU FINISHED!", "success");
+            
             onComplete?.(result);
             }
           }
@@ -902,7 +900,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           const raceLapIndex = Math.floor(race.progress);
           if (race.trackT >= .84 && race.trackT < .9 && lastPitPromptLapRef.current !== raceLapIndex) {
             lastPitPromptLapRef.current = raceLapIndex;
-            notify("🟡 PIT STOP! TURN LEFT INTO THE OPEN PIT LANE!", "info");
+            notify("PIT CREW · Pit entry ahead. Keep left.", "info");
           }
         }
         if (now - lastUi > 33) {
@@ -939,12 +937,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
                               : race.progress < 2
                                 ? { label: "QUALIFYING · SET YOUR LAP", tone: "go" }
                                 : { label: "RACE ON · KEEP GOING", tone: "go" };
-          if (cue.tone === "brake" && lastSignal.current !== "brake") notify("🛑 BRAKE NOW! PRESS THE BRAKE BUTTON!", "info");
-          if (race.playerGarageExit && controlsRef.current.accelerate && race.speed > 5 && !garageRollCelebratedRef.current) {
-            garageRollCelebratedRef.current = true;
-            notify("🚗 WHEEE! YOU’RE MOVING! FOLLOW THE YELLOW LINE!", "success");
-          }
-          lastSignal.current = cue.tone;
+          
+          
           setSignal(cue);
         }
       }
@@ -1014,7 +1008,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     const next = !controlsRef.current.boost;
     controlsRef.current.boost = next;
     setBoostActive(next);
-    notify(next ? "NOS deployed · use the burst to build a gap." : "NOS cut · reserve will recover when you lift.", "info");
+    
   };
 
   const pitServiceLocked = phase === "pit";
@@ -1046,7 +1040,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         {phase === "pit" && raceRef.current.playerPitServiced && <div className="warmup-pit-service-overlay" role="dialog" aria-modal="true" aria-label="Pit stop tyre service">
           <span>🛠️ PIT CREW · SERVICE BOX</span><strong>PICK A TYRE</strong>
           <p>Choose Soft, Medium or Hard. The menu closes and you drive the car back onto the circuit.</p>
-          <div>{(["Soft", "Medium", "Hard"] as const).map(tyre => <button type="button" key={tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => { setTyreChoice(tyre); raceRef.current.playerPitServiceRemaining = 0; settlePlayerCar(raceRef.current); controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false }; raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running"); notify(`${tyre.toUpperCase()} FITTED! HOLD GAS TO REJOIN THE TRACK.`, "success"); }}>{tyre}</button>)}</div>
+          <div>{(["Soft", "Medium", "Hard"] as const).map(tyre => <button type="button" key={tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => { setTyreChoice(tyre); raceRef.current.playerPitServiceRemaining = 0; settlePlayerCar(raceRef.current); controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false }; raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running"); notify(`PIT CREW · ${tyre} tyres fitted. Drive out when ready.`, "success"); }}>{tyre}</button>)}</div>
         </div>}
         
       </div>
