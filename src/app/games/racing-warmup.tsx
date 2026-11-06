@@ -114,7 +114,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
 
   const reset = useCallback((start: boolean) => {
     raceRef.current = quickStartRef.current ? createQuickRaceState() : newRace();
-    botQualifyingElapsedRef.current = 0; botQualifyingTimeRef.current = null; lastPitPromptLapRef.current = -1; garageRollCelebratedRef.current = false;
+    botQualifyingElapsedRef.current = 0; botQualifyingTimeRef.current = null; lastPitPromptLapRef.current = -1;
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
     setSpeed(0); setLapTime(0); setBestLap(null); setLap(quickStartRef.current ? 3 : 1); setNos(100); setBoostActive(false); setRivalGap(0); setRaceResult(null);
@@ -138,7 +138,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     if (phase !== "countdown") return;
     const timer = window.setTimeout(() => {
       if (countdown <= 1) {
-        setCountdown(0); raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running"); notify("");
+        setCountdown(0); raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running");
       } else setCountdown(n => n - 1);
     }, 650);
     return () => window.clearTimeout(timer);
