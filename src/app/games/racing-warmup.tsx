@@ -156,14 +156,14 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       if (phaseRef.current === "running" && dt > 0) {
         const controls = controlsRef.current;
         const playerTrackT = wrap(race.trackT, 1);
-        if (!race.playerPitDone && !race.playerPitting && Math.floor(race.progress) >= 2 && playerTrackT >= .895 && playerTrackT < .985) {
+        if (!race.playerPitDone && !race.playerPitting && !race.playerGarageExit) {
           let nearestPitDistance = Number.POSITIVE_INFINITY, nearestPitT = 0;
           for (let sample = 0; sample <= 30; sample++) {
             const sampleT = sample / 100, point = RACING_PIT_LANE.getPointAt(sampleT);
             const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
             if (distance < nearestPitDistance) { nearestPitDistance = distance; nearestPitT = sampleT; }
           }
-          if (nearestPitDistance < 3.5) {
+          if (nearestPitDistance < 7.2) {
             race.playerPitting = true; race.playerPitProgress = nearestPitT;
             race.playerPitServiced = false; race.playerPitServiceRemaining = 0;
             
@@ -305,7 +305,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // same closed track envelope. This catches thin endpoint gaps and fast
         // corner exits even when a rendered frame is delayed.
         const onPitRoute = race.playerPitting || race.playerGarageExit;
-        const trackSafetyOffset = onPitRoute ? 3.45 : 7.15;
+        const trackSafetyOffset = onPitRoute ? 20 : 7.15;
         const playerSafetyTrack = onPitRoute ? RACING_PIT_LANE : trackRef.current!;
         const sweepDx = race.worldX - sweepStartX;
         const sweepDz = race.worldZ - sweepStartZ;
@@ -431,8 +431,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // One consistent swept-frame safety envelope, inside the visible rail
         // centreline at 8.4 units. Keep the car on the road without crash/respawn.
         const safeOffset = trackSafetyOffset;
-        const pitEntryAttempt = !race.playerPitDone && !race.playerPitting && Math.floor(race.progress) >= 2
-          && nearestT >= .89 && nearestT <= .96 && signedOffset < -4.5;
+        const pitEntryAttempt = !race.playerPitDone && !race.playerPitting && !race.playerGarageExit
+          && (() => { let nearest = Number.POSITIVE_INFINITY; for (let sample = 0; sample <= 100; sample++) { const point = RACING_PIT_LANE.getPointAt(sample / 100); nearest = Math.min(nearest, Math.hypot(race.worldX - point.x, race.worldZ - point.z)); } return nearest < 7.2; })();
         if (!pitEntryAttempt && (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset)) {
           const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
           const correctionX = distanceFromCentre > safeOffset
