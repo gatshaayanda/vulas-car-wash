@@ -26,7 +26,6 @@ const pitBoxPoint = mapPitLane.getPointAt(.52);
 
 export default function RacingTrackMap({ raceRef }: Props) {
   const playerMarker = useRef<SVGCircleElement>(null);
-  const rivalMarker = useRef<SVGCircleElement>(null);
 
   useEffect(() => {
     let frame = 0;
@@ -51,9 +50,9 @@ export default function RacingTrackMap({ raceRef }: Props) {
   }, [raceRef]);
 
   return (
-    <aside className="racing-track-map" aria-label="Live circuit map showing pit entry, service bay, pit exit, your car and Kago">
+    <aside className="racing-track-map" aria-label="Live circuit map showing your car">
       <div className="racing-track-map-heading">CIRCUIT MAP</div>
-      <svg viewBox="0 0 200 200" role="img" aria-label="Track layout with live player and Kago positions">
+      <svg viewBox="0 0 200 200" role="img" aria-label="Track layout and your position">
         <polyline points={trackPath} className="racing-track-map-road-edge" />
         <polyline points={trackPath} className="racing-track-map-road" />
         <polyline points={trackPath} className="racing-track-map-road-centre" />
@@ -69,7 +68,6 @@ export default function RacingTrackMap({ raceRef }: Props) {
       </svg>
       <div className="racing-track-map-legend">
         <span><i className="player-dot" />YOU</span>
-        <span><i className="rival-dot" />KAGO</span>
       </div>
     </aside>
   );
