@@ -238,9 +238,9 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 
 ## Regression correction — menu opponent, race notifications and open pit apron (2026-11-07)
 
-- Kago must not appear in the main-menu 3D preview. The preview is a solo player-car circuit shot; Kago's car, name tag, boost flame, smoke, skidmarks and impact effects are all restricted to the actual scored race phase. Never use the preview flag as permission to show the opponent.
+- Kago remains visible in the main-menu 3D preview as part of the established Vula Racing identity. In gameplay, his car, name tag and race effects stay hidden through warm-up, qualifying, grid and countdown, then appear when the actual scored race begins.
 - Race toasts are session-scoped. Do not display or retain pit-crew/race-control toasts in the menu, garage-ready screen, grid, countdown or paused state. Clear stale notifications on reset and phase transitions. Preserve the earned victory toast and active pit/race event messages.
-- Render race toasts above the circuit map.
+- Keep race toasts in the lower-left notification lane and the circuit map in the upper-right map lane. The map has higher stacking priority than toasts; no toast may cover it.
 - Pit access must feel open, but it must not create ghost zones through the circuit fence. Use a local route-proximity handoff to the pit spline; do not use a broad apron-radius exemption. Keep the swept boundary solver active on both the main track and pit route. A player may leave without choosing tyres, but that does not satisfy the mandatory pit visit.
 - Bump both offline shell and game cache versions for racing runtime changes. Report only build/deployment and gameplay checks actually completed.
 
@@ -255,5 +255,5 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 
 ## Racing HUD layout rule — 2026-11-07
 
-- The live circuit map owns the upper-right HUD corner. Toasts must never cover it or stretch underneath it: anchor race notifications in the lower-left lane and cap their width to leave the map's horizontal footprint clear (including on narrow phones).
+- The live circuit map owns the upper-right HUD corner and must stack above transient toasts (map z-index 5; toast z-index 4). Toasts belong in the lower-left lane, capped to leave the map's footprint clear on narrow phones.
 - Keep driving guidance in its own top-centre signal chip. Keep transient event toasts visually secondary and brief; do not centre large toast banners across the gameplay viewport. Maintain separate spatial lanes for map, guidance and notifications rather than solving overlap with z-index alone.
