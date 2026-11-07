@@ -368,9 +368,12 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       const t = i / 220, p = track.getPointAt(t), tangent = track.getTangentAt(t).normalize();
       const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
       for (const s of [-1, 1]) {
-        // Leave the outside rail open where the pit lane branches away and merges.
-        // Keep the full pit-side run open for access to the apron from any side.
-        if (s === -1 && (t >= .89 || t <= .12)) continue;
+        // Open only the two physical pit connectors. The rest of the main
+        // circuit fence stays visible and solid; the pit lane has its own
+        // matching swept collision envelope.
+        const pitEntryOpening = t >= .905 && t <= .94;
+        const pitExitOpening = t >= .075 && t <= .11;
+        if (s === -1 && (pitEntryOpening || pitExitOpening)) continue;
         const rail = new THREE.Mesh(new THREE.BoxGeometry(.22, .62, 2.9), i % 5 === 0 ? redKerb : barrierMat);
         rail.position.set(p.x + side.x * s * 8.4, .58, p.z + side.z * s * 8.4);
         rail.rotation.y = Math.atan2(tangent.x, tangent.z);
