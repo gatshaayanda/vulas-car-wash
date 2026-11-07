@@ -602,7 +602,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       const botYaw = race.botInitialized ? race.botWorldYaw : Math.atan2(-botTangent.x, -botTangent.z);
       botCar.position.copy(botWorld);
       botCar.rotation.y = botYaw;
-      botCar.visible = botRaceActive;
+      // Keep Kago in the main-menu scene preview; only gate his live-race presence by race state.
+      botCar.visible = preview || botRaceActive;
       botCar.rotation.z = clamp(-race.botDrift * .18, -.14, .14);
       botCar.rotation.x = clamp(race.botBrake * .08, 0, .08);
       const botFlame = botCar.userData.flame as THREE.Object3D | undefined;
@@ -611,7 +612,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
         botFlame.scale.setScalar(.78 + Math.sin(clock.elapsedTime * 37) * .22);
       }
       nameTag.position.set(botWorld.x, 3.0, botWorld.z);
-      nameTag.visible = botRaceActive;
+      nameTag.visible = preview || botRaceActive;
       // Subtle suspension response: braking transfers load forward and cornering
       // rolls the body. These are visual cues driven by the physics state.
       car.rotation.x = clamp(-race.longitudinalLoad * 0.22, -0.075, 0.025);
