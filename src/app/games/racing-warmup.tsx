@@ -181,7 +181,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // Pit entry is a real connector, not a proximity trigger around the
         // whole parallel lane. Only acquire pit-road projection at the marked
         // entrance; the rest of the circuit keeps its normal collision envelope.
-        if (!race.playerPitting && !race.playerGarageExit && race.progress >= 2
+        if (!race.playerPitting && !race.playerGarageExit
           && race.trackT >= .895 && race.trackT <= .935) {
           let entryDistanceSq = Number.POSITIVE_INFINITY;
           for (let sampleIndex = 0; sampleIndex <= 96; sampleIndex += 4) {
