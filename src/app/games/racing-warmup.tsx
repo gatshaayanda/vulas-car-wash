@@ -329,7 +329,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // A wide proximity exemption let the car ghost through the circuit fence
         // and escape onto the grass around the pit area.
         const onPitRoute = race.playerPitting || race.playerGarageExit;
-        const trackSafetyOffset = 7.15;
+        const trackSafetyOffset = onPitRoute ? 3.5 : 7.15;
         const playerSafetyTrack = onPitRoute ? RACING_PIT_LANE : trackRef.current!;
         const sweepDx = race.worldX - sweepStartX;
         const sweepDz = race.worldZ - sweepStartZ;
