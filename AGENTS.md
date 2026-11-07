@@ -320,3 +320,11 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - If Vercel access returns 403, stop retrying the same endpoint and report that deployment status could not be verified with the available permissions.
 - Keep GitHub commit/check status, Vercel deployment/build status, and actual browser/device gameplay QA as three separate results.
 - Normal gameplay QA starts at https://vulas-car-wash.vercel.app/ → Vula Racing → New Game.
+
+## Pit forcefield removal — authoritative correction (2026-11-07)
+
+- The open pit apron must not apply either the main-circuit swept boundary solver or the final nearest-centreline safety correction while `playerPitting` or `playerGarageExit` is active. Both corrections can push the car back toward the pit spline and create the invisible forcefield immediately after leaving the lane.
+- Preserve ordinary world-space steering, throttle, braking, yaw and velocity while on the pit complex. Do not add a pit-lane corridor clamp, apron radius wall, lateral correction, velocity cancellation or route snapping.
+- The circuit map is gameplay HUD only. Render it only when `preview === false`; never show it in the opening/menu 3D car preview.
+- Both service-worker caches are now v39 and must be bumped together after further runtime changes.
+- Verify open pit access by driving out of the lane sideways and returning from multiple apron sides. Do not claim physical QA unless actually tested in the live game.
