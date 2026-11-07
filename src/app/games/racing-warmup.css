@@ -505,3 +505,5 @@
  .warmup-toast{left:50%;bottom:9px;padding:12px 14px;font-size:13px}
  .warmup-circuit-controls .warmup-driving .accelerate-button{min-height:70px;font-size:15px;font-weight:1000;letter-spacing:.04em;box-shadow:inset 0 -4px 0 #a7ca60,0 4px 10px #15251a22}
 }
+
+@media(prefers-reduced-motion:reduce){.warmup-pit-service-overlay{animation:none!important}}
