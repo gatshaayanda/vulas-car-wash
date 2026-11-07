@@ -16,7 +16,7 @@ export type Race = {
   longitudinalLoad: number; lateralG: number; wheelLock: number;
   worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; damage: number; lastImpactAt: number; trackT: number; botProgress: number; botSpeed: number;
   botWorldX: number; botWorldZ: number; botWorldYaw: number; botVelocityX: number; botVelocityZ: number; botSteering: number; botThrottle: number; botBrake: number; botDrift: number; botNos: number; botBoostActive: boolean; botInitialized: boolean;
-  botImpactX: number; botImpactZ: number; botImpactAt: number; botImpactStrength: number; botLineOffset: number; botNosCooldown: number; botPitting: boolean; botPitDone: boolean; botPitProgress: number; botPitServiceRemaining: number; botPitServiced: boolean; playerPitRequested: boolean; playerGarageExit: boolean; playerOutLap: boolean; playerPitting: boolean; playerPitDone: boolean; playerPitProgress: number; playerPitServiceRemaining: number; playerPitServiced: boolean;
+  botImpactX: number; botImpactZ: number; botImpactAt: number; botImpactStrength: number; botLineOffset: number; botNosCooldown: number; botPitting: boolean; botPitDone: boolean; botPitProgress: number; botPitServiceRemaining: number; botPitServiced: boolean; playerPitRequested: boolean; playerGarageExit: boolean; playerOutLap: boolean; playerPitting: boolean; playerPitEntryProgress: number; playerPitEntryTrackT: number; playerPitDone: boolean; playerPitProgress: number; playerPitServiceRemaining: number; playerPitServiced: boolean;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
@@ -25,7 +25,7 @@ export const newRace = (): Race => {
   const garagePoint = RACING_PIT_LANE.getPointAt(.52);
   const garageTangent = RACING_PIT_LANE.getTangentAt(.52).normalize();
   const garageYaw = Math.atan2(-garageTangent.x, -garageTangent.z);
-  return { progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: garagePoint.x, worldZ: garagePoint.z, worldYaw: garageYaw, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 17.9, botWorldX: 0, botWorldZ: 0, botWorldYaw: 0, botVelocityX: 0, botVelocityZ: 0, botSteering: 0, botThrottle: 0, botBrake: 0, botDrift: 0, botNos: 100, botBoostActive: false, botInitialized: false, botImpactX: 0, botImpactZ: 0, botImpactAt: 0, botImpactStrength: 0, botLineOffset: -2.45, botNosCooldown: 0, botPitting: false, botPitDone: false, botPitProgress: 0, botPitServiceRemaining: 0, botPitServiced: false, playerPitRequested: false, playerGarageExit: true, playerOutLap: false, playerPitting: false, playerPitDone: false, playerPitProgress: .52, playerPitServiceRemaining: 0, playerPitServiced: false };
+  return { progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: garagePoint.x, worldZ: garagePoint.z, worldYaw: garageYaw, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 17.9, botWorldX: 0, botWorldZ: 0, botWorldYaw: 0, botVelocityX: 0, botVelocityZ: 0, botSteering: 0, botThrottle: 0, botBrake: 0, botDrift: 0, botNos: 100, botBoostActive: false, botInitialized: false, botImpactX: 0, botImpactZ: 0, botImpactAt: 0, botImpactStrength: 0, botLineOffset: -2.45, botNosCooldown: 0, botPitting: false, botPitDone: false, botPitProgress: 0, botPitServiceRemaining: 0, botPitServiced: false, playerPitRequested: false, playerGarageExit: true, playerOutLap: false, playerPitting: false, playerPitEntryProgress: 0, playerPitEntryTrackT: 0, playerPitDone: false, playerPitProgress: .52, playerPitServiceRemaining: 0, playerPitServiced: false };
 };
 function settlePlayerCar(race: Race) {
   race.velocityX = 0; race.velocityZ = 0; race.speed = 0;
@@ -47,6 +47,7 @@ function createQuickRaceState(): Race {
   settlePlayerCar(race);
   race.progress = 2; race.trackT = 0; race.lap = 3;
   race.playerGarageExit = false; race.playerOutLap = false; race.playerPitting = false;
+  race.playerPitEntryProgress = 2; race.playerPitEntryTrackT = 0;
   race.playerPitDone = false; race.playerPitProgress = 0; race.playerPitServiced = false;
   race.botWorldX = gridPoint.x - sideX * 2.45;
   race.botWorldZ = gridPoint.z - sideZ * 2.45;
@@ -68,7 +69,7 @@ type RaceResult = { id: string; completedAt: string; difficulty: "Easy" | "Norma
 export default function RacingWarmup({ embedded = false, initialSave, onSave, onComplete, onExit, quickStart = false }: { embedded?: boolean; initialSave?: LocalRaceSave | null; onSave?: (save: LocalRaceSave) => void; onComplete?: (result: RaceResult) => void; onExit?: () => void; quickStart?: boolean }) {
   const [expanded, setExpanded] = useState(!embedded);
   const quickStartRef = useRef(quickStart);
-  const raceRef = useRef<Race>(initialSave?.race ? { ...newRace(), ...initialSave.race, playerGarageExit: initialSave.race.playerGarageExit ?? false, playerOutLap: initialSave.race.playerOutLap ?? false } : quickStart ? createQuickRaceState() : newRace());
+  const raceRef = useRef<Race>(initialSave?.race ? { ...newRace(), ...initialSave.race, playerGarageExit: initialSave.race.playerGarageExit ?? false, playerOutLap: initialSave.race.playerOutLap ?? false, playerPitEntryProgress: initialSave.race.playerPitEntryProgress ?? initialSave.race.progress ?? 0, playerPitEntryTrackT: initialSave.race.playerPitEntryTrackT ?? initialSave.race.trackT ?? 0 } : quickStart ? createQuickRaceState() : newRace());
   const trackRef = useRef<ReturnType<typeof createRacingTrack> | null>(null);
   if (!trackRef.current) trackRef.current = createRacingTrack();
   const controlsRef = useRef<Controls>({ steer: 0, accelerate: false, brake: false, boost: false });
@@ -177,6 +178,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           }
           if (nearestPitDistance < 7.2) {
             race.playerPitting = true; race.playerPitProgress = nearestPitT;
+            race.playerPitEntryProgress = race.progress; race.playerPitEntryTrackT = race.trackT;
             race.playerPitServiced = race.playerPitDone; race.playerPitServiceRemaining = 0;
             
           }
@@ -526,21 +528,27 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             if (joinDistance <= 10.5) {
               race.playerPitting = false;
               setPitTyreMenuOpen(false); pitTyreMenuShownRef.current = false;
+              const entryProgress = race.playerPitEntryProgress;
+              const entryTrackT = race.playerPitEntryTrackT;
+              // Rejoin at the correct forward circuit position relative to where
+              // the player entered the pit. Never jump to a hard-coded race lap:
+              // pit access is available during warm-up, qualifying and the race.
+              const distanceToMerge = wrap(joinT - entryTrackT, 1);
               race.trackT = joinT;
-              if (race.playerPitServiced) {
+              race.progress = entryProgress + distanceToMerge;
+              if (race.playerPitServiced && entryProgress >= 2) {
                 race.playerPitDone = true;
-                race.progress = 3 + joinT;
                 notify("PIT CREW · Service complete. Rejoin the circuit.", "success");
-              } else {
-                // Leaving the open pit area is always allowed. The mandatory
-                // stop remains outstanding, so the race cannot be completed yet.
-                race.progress = 2.91;
               }
             } else {
-              race.progress = 2.91;
+              race.progress = race.playerPitEntryProgress;
+              race.trackT = race.playerPitEntryTrackT;
             }
           } else {
-            race.progress = 2.91;
+            // Hold the pre-pit race progress while on the spline. This prevents
+            // the pit lane from silently promoting practice/qualifying to race.
+            race.progress = race.playerPitEntryProgress;
+            race.trackT = race.playerPitEntryTrackT;
           }
         } else if (race.playerOutLap) {
           const completedOutLap = nearestT < .08 && race.trackT > .82 && longitudinalVelocity > 0;
