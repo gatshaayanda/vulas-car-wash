@@ -117,7 +117,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     if (activePhase !== "running" && activePhase !== "pit" && activePhase !== "finished") return;
     setToast({ text, kind });
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 3200);
+    toastTimer.current = setTimeout(() => setToast(null), 2400);
   }, []);
   useEffect(() => {
     if (phase === "ready" || phase === "grid" || phase === "countdown" || phase === "paused") {

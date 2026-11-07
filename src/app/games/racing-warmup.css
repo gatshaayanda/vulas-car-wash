@@ -511,3 +511,17 @@
 }
 
 @media(prefers-reduced-motion:reduce){.warmup-pit-service-overlay{animation:none!important}}
+
+
+/* HUD layout override: map and notifications share one predictable viewport layer. */
+.warmup-canvas-wrap{--map-width:132px;isolation:isolate}
+.racing-3d-root{z-index:1}
+.racing-track-map{z-index:100;width:var(--map-width);background:rgba(16,37,31,.92);backdrop-filter:blur(8px);box-shadow:0 5px 18px #07140e66}
+.warmup-signal-chip{z-index:20;left:12px;right:calc(var(--map-width) + 24px);top:12px;max-width:none;width:max-content}
+.warmup-toast{z-index:10;left:12px;right:calc(var(--map-width) + 24px);bottom:12px;width:auto;max-width:360px;max-height:3.2em;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;pointer-events:none}
+@media(max-width:640px){
+ .warmup-canvas-wrap{--map-width:104px}
+ .racing-track-map{top:8px;right:8px}
+ .warmup-signal-chip{left:8px;right:calc(var(--map-width) + 16px);top:8px;width:max-content;max-width:none}
+ .warmup-toast{left:8px;right:calc(var(--map-width) + 16px);bottom:8px;max-width:none;max-height:3.2em;padding:9px 10px;font-size:11px}
+}

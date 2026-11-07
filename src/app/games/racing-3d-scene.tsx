@@ -759,8 +759,9 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
   }, [raceRef, controlsRef, phaseRef, preview, previewGraphics, onGraphicsStatus]);
 
   return (
-    <div ref={mountRef} className="racing-3d-root" data-phase={phaseRef.current} data-braking={controlsRef.current.brake ? "true" : "false"}>
+    <>
+      <div ref={mountRef} className="racing-3d-root" data-phase={phaseRef.current} data-braking={controlsRef.current.brake ? "true" : "false"} />
       <RacingTrackMap raceRef={raceRef} />
-    </div>
+    </>
   );
 }

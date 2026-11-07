@@ -302,3 +302,13 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - The circuit map must visibly render above all notifications (map z-index 50; toast z-index 3). Keep toast width constrained so a long message cannot occupy the map's screen area, including on narrow phones. The signal chip remains a separate top-left layer.
 - Both service-worker caches are v37: vula-shell-v37 and vula-game-v37. Bump together after further runtime changes.
 - QA only from https://vulas-car-wash.vercel.app/ → Vula Racing → New Game. Report build/deployment separately from actual physical gameplay QA.
+
+
+## Racing HUD layout — structural stacking fix (2026-11-07)
+
+- Render the live circuit map as a direct sibling of the 3D scene root inside .warmup-canvas-wrap. Do not nest the map inside the WebGL scene container; that can trap it in a stacking context beneath notifications.
+- The viewport is an isolated stacking context. Scene root z-index 1, toast z-index 10, signal chip z-index 20, circuit map z-index 100.
+- Reserve the map's full width plus a 24px desktop / 16px mobile gutter from both the signal chip and toast using the shared --map-width variable. A toast must never occupy the map's horizontal region.
+- Keep the map readable with an opaque dark surface. Toasts are passive, pointer-events:none, two lines maximum, and disappear after 2.4 seconds. They must not cover driving controls or the map.
+- Mobile map width is 104px; desktop map width is 132px. Re-test narrow portrait and landscape widths before claiming visual QA.
+- Both service-worker caches are v38: vula-shell-v38 and vula-game-v38.
