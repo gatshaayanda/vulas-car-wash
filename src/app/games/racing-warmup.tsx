@@ -551,15 +551,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           }
         } else if (race.playerPitting) {
           race.playerPitProgress = nearestT;
-          // The tyre panel is a rolling proximity interaction. Steering,
-          // throttle, braking, momentum and the running race phase stay live.
-          if (!race.playerPitServiced && race.progress >= 2
-            && race.playerPitProgress >= .42 && race.playerPitProgress <= .70
-            && !pitTyreMenuShownRef.current) {
-            pitTyreMenuShownRef.current = true;
-            setPitTyreMenuOpen(true);
-          }
-
           // Forward exit: the pit curve ends on the main circuit centreline at
           // T=.105. Require the car to reach that endpoint physically.
           if (race.playerPitProgress >= .985 && race.playerPitServiceRemaining <= 0) {
