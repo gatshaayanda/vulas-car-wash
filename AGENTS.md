@@ -19,7 +19,7 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Staff sign-in uses `/api/operations-login`, `FIREBASE_ADMIN_KEY`, and `VULA_OPERATIONS_WORD`. Never expose service-account credentials or staff secrets to the client.
 - Collections: `admins`, `customers`, `services`, `gallery`, `businessSettings`, `bookings`, `queueEntries`, `fleetRequests`, `loyaltyAccounts`, `reminderPreferences`, and `notificationTokens`.
 - Firestore authorization is in `firestore.rules`; image access is in `storage.rules`; indexes are in `firestore.indexes.json`.
-- `public/sw.js` uses isolated, versioned `vula-shell-v34` and `vula-game-v34` caches. It precaches the public game route, discovered Next.js assets, and the selected local racing model when available; the coloured procedural car remains the offline fallback. Bump cache versions when shipped game assets change. Keep early `beforeinstallprompt` capture and the explicit branded install click intact. Updates must wait for the existing app's Refresh action; do not force-reload during install. iOS installation guidance is at `/iphone-install`.
+- `public/sw.js` uses isolated, versioned `vula-shell-v46` and `vula-game-v46` caches. It precaches the public game route, discovered Next.js assets, and the selected local racing model when available; the coloured procedural car remains the offline fallback. Bump cache versions when shipped game assets change. Keep early `beforeinstallprompt` capture and the explicit branded install click intact. Updates must wait for the existing app's Refresh action; do not force-reload during install. iOS installation guidance is at `/iphone-install`.
 - Legacy foundation routes redirect to the active customer or staff journey via `src/middleware.ts`.
 
 ## Online/offline rules
@@ -387,3 +387,11 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Do not use a broad geometric apron exemption that can accidentally disable the racing circuit's visible walls. Protect the main circuit first; keep the approved player physics unchanged.
 - Both service-worker caches are v45 after this runtime correction.
 - Report deployment and physical gameplay QA separately; do not claim the walls or pit are verified until driven in the live game.
+
+
+## Unified player track collision — 2026-11-07
+
+- The player drives one continuous world-space vehicle simulation across the circuit and the connected pit road. Pit/service flags may control pit-service and lap bookkeeping only; they must never switch off main-circuit collision or select a separate player physics mode.
+- Use one authoritative swept boundary solver against the union of the main circuit and connected pit-road surfaces. Evaluate both candidate road sections every frame, resolve the nearest applicable physical boundary, and keep the visible fence openings aligned with the actual connector openings.
+- Do not add a second post-projection wall correction. Do not use a stale pit flag or stale trackT value as the sole selector for which walls collide.
+- The pit service apron remains open only where there is no visible barrier. Never create an invisible wall; never let a visible fence become non-collidable.
