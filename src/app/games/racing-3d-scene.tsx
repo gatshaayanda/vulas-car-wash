@@ -295,7 +295,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
       const rail = new THREE.Mesh(new THREE.BoxGeometry(.22, .62, 2.9), pitOuterBarrierMaterial);
       // Keep the wall behind the garage apron, not between the garages and pit road.
-      rail.position.set(p.x - side.x * 14.8, .58, p.z - side.z * 14.8);
+      rail.position.set(p.x - side.x * 17.8, .58, p.z - side.z * 17.8);
       rail.rotation.y = Math.atan2(tangent.x, tangent.z);
       rail.castShadow = true; rail.receiveShadow = true; pitOuterRail.add(rail);
       const post = new THREE.Mesh(new THREE.BoxGeometry(.25, .9, .18), pitOuterPostMaterial);
