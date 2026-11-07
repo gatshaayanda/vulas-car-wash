@@ -312,3 +312,11 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Keep the map readable with an opaque dark surface. Toasts are passive, pointer-events:none, two lines maximum, and disappear after 2.4 seconds. They must not cover driving controls or the map.
 - Mobile map width is 104px; desktop map width is 132px. Re-test narrow portrait and landscape widths before claiming visual QA.
 - Both service-worker caches are v38: vula-shell-v38 and vula-game-v38.
+
+## Deployment verification discipline — 2026-11-07
+
+- A GitHub push is not proof that Vercel received or built the commit. After every push, inspect Vercel deployment records for the exact commit SHA and confirm the deployment state before reporting a production update.
+- If the exact commit has no deployment record, report it as not yet observed by Vercel; do not call it a failed build or attribute it to deployment limits without evidence.
+- If Vercel access returns 403, stop retrying the same endpoint and report that deployment status could not be verified with the available permissions.
+- Keep GitHub commit/check status, Vercel deployment/build status, and actual browser/device gameplay QA as three separate results.
+- Normal gameplay QA starts at https://vulas-car-wash.vercel.app/ → Vula Racing → New Game.
