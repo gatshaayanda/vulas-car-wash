@@ -292,3 +292,13 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - The normal QA entry is https://vulas-car-wash.vercel.app/ → Vula Racing → New Game. Never direct QA to /games or a unique deployment URL.
 - Both service-worker caches are now v36: vula-shell-v36 and vula-game-v36. Bump both together for every subsequent racing runtime change.
 - Report code inspection, build status, deployment status and actual device gameplay QA separately. Never claim a full race or pit flow passed unless it was physically played through.
+
+
+## Open pit collision and HUD layering — corrective override (2026-11-07)
+
+- The pit spline must never act as an invisible wall or corridor boundary. Once the player is within 16 world units of the pit route during the scored race, hand off to the open pit complex without moving or changing the car.
+- While on the pit route or in the garage exit, do not run the pit-spline swept boundary clamp. It was the source of the invisible force-field effect when the player tried to leave the lane/apron sideways. Keep world-space vehicle physics and player controls unchanged.
+- Do not reintroduce a narrow corridor clamp, lateral steering correction, velocity cancellation, or route snapping to keep the player on the pit spline. The pit apron is open driving space.
+- The circuit map must visibly render above all notifications (map z-index 50; toast z-index 3). Keep toast width constrained so a long message cannot occupy the map's screen area, including on narrow phones. The signal chip remains a separate top-left layer.
+- Both service-worker caches are v37: vula-shell-v37 and vula-game-v37. Bump together after further runtime changes.
+- QA only from https://vulas-car-wash.vercel.app/ → Vula Racing → New Game. Report build/deployment separately from actual physical gameplay QA.

@@ -199,7 +199,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           }
           // The overlap is intentional: the main circuit envelope and the
           // pit-road envelope meet, so there is no invisible gap or forcefield.
-          if (nearestPitDistance < 7.0) {
+          if (nearestPitDistance < 16.0) {
             race.playerPitting = true;
             race.playerPitProgress = nearestPitT;
             race.playerPitEntryProgress = race.progress;
@@ -390,7 +390,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // pit spline progress. Using main-track progress (zero at race start)
         // makes the safety sweep clamp the car toward the wrong pit-lane segment.
         const sweepCentre = Math.round((onPitRoute ? nearestPitT : race.trackT) * sweepSamples);
-        for (let step = 1; step <= sweepSteps; step++) {
+        if (!onPitRoute) for (let step = 1; step <= sweepSteps; step++) {
           const fraction = step / sweepSteps;
           const sampleX = sweepStartX + sweepDx * fraction;
           const sampleZ = sweepStartZ + sweepDz * fraction;
