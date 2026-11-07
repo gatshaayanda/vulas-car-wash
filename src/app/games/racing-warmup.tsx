@@ -409,11 +409,18 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           const pitDx = sampleX - pitX, pitDz = sampleZ - pitZ;
           const pitSideX = -pitTangentZ, pitSideZ = pitTangentX;
           const pitSignedOffset = pitDx * pitSideX + pitDz * pitSideZ;
-          // The service-apron side is intentionally open; the inner pit fence
-          // is a real boundary. It uses this same swept solver and response.
-          const pitPenetration = pitSignedOffset > pitSafetyOffset
-            ? pitSignedOffset - pitSafetyOffset
-            : pitDistance <= 8 ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
+          // The circuit-facing pit boundary must be open only through the
+          // physical entry taper. Its length matches createRacingPitLane's
+          // 12-of-84-sample transition and the visible main-track fence gap.
+          // Once the connector has merged into the parallel pit road, the
+          // ordinary inner pit boundary applies again.
+          const pitEntryOpening = nearestPitSample <= Math.round(sweepSamples * (12 / 84))
+            && mainT >= .905 && mainT <= .94 && mainDistance <= 16;
+          const pitPenetration = pitEntryOpening
+            ? Number.NEGATIVE_INFINITY
+            : pitSignedOffset > pitSafetyOffset
+              ? pitSignedOffset - pitSafetyOffset
+              : pitDistance <= 8 ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
 
           const usePitBoundary = pitPenetration < mainPenetration;
           const penetration = Math.min(mainPenetration, pitPenetration);
