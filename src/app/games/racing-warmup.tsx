@@ -584,7 +584,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             // not advance the lap counter or teleport to a nearest track segment.
             const pitTangent = RACING_PIT_LANE.getTangentAt(.01);
             const reversingAlongPit = race.velocityX * pitTangent.x + race.velocityZ * pitTangent.z < -0.5;
-            const entryPoint = MAIN_TRACK_COLLISION_SAMPLES[Math.round(.91 * COLLISION_SAMPLE_COUNT)];
+            const entryPoint = PIT_LANE_COLLISION_SAMPLES[0];
             const entryDistance = Math.hypot(race.worldX - entryPoint.x, race.worldZ - entryPoint.z);
             if (reversingAlongPit && entryDistance <= 4.8) {
               race.playerPitting = false;
