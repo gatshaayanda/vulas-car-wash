@@ -43,7 +43,7 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 
 ## Protected Vula Racing golden baseline
 
-- **Only current approved golden baseline:** commit `0d440cd3a63220ee99559abe13fffb45e61180cf`, protected reference branch `golden-baseline/vula-racing-2026-11-06`. This is the version the product owner approved on 6 November 2026. All improvements must move forward from it.
+- **Only current approved golden baseline:** commit `fde07f0d832f978c9ea5b51288700bca3c9cecc7`, protected reference branch `golden-baseline/vula-racing-2026-11-07`. This is the version the product owner approved on 7 November 2026, including the approved pit-entry connector correction. All improvements must move forward from it.
 - This is the sole authoritative rollback and development foundation for Vula Racing. Never substitute an older checkpoint or superseded implementation. If the product owner asks to go back, restore this exact baseline. Do not bring up obsolete versions, baseline identifiers, branch names, or historical deployment claims in discussion, code comments, docs, or handoffs.
 - Never move, delete, rewrite or force-push the approved golden reference branch. Develop forward from this exact approved baseline on a working branch. If a feature regresses, restore this exact approved commit.
 - The approved baseline includes Kago's independent world-space vehicle state, steering, throttle, braking, line selection, NOS and collision response. Its known outstanding defect is competitive pace: adequate engine force alone does not prove that Kago holds speed through corners or contests the player. Do not describe him as race-ready until full-lap gameplay QA proves it.
