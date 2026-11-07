@@ -502,7 +502,11 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // One consistent swept-frame safety envelope, inside the visible rail
         // centreline at 8.4 units. Keep the car on the road without crash/respawn.
         const safeOffset = trackSafetyOffset;
-        if (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset) {
+        // The pit complex is open-world: once the player has entered it, neither
+        // the pit spline nor the main circuit may push the car back into a lane.
+        // Keep the swept circuit solver and this final boundary correction off
+        // throughout pit ownership; world-space driving remains fully active.
+        if (!onPitRoute && (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset)) {
           const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
           const correctionX = distanceFromCentre > safeOffset
             ? outwardX
