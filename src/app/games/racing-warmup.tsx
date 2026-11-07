@@ -389,16 +389,21 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           const dx = sampleX - nearestX, dz = sampleZ - nearestZ;
           const sideX = -nearestTangentZ, sideZ = nearestTangentX;
           const signedOffset = dx * sideX + dz * sideZ;
-          if (distance > trackSafetyOffset || Math.abs(signedOffset) > trackSafetyOffset) {
-            const normalX = distance > trackSafetyOffset && distance > 0.0001
+          // The pit lane runs outside the main circuit. Its inner-side fence is
+          // only 4.8 units from the pit centreline; stop the car body before that
+          // visible rail instead of allowing it through to the old 7.15-unit clamp.
+          // The outer side retains the existing open-apron envelope.
+          const safeOffset = onPitRoute && signedOffset > 0 ? 3.5 : trackSafetyOffset;
+          if (distance > safeOffset || Math.abs(signedOffset) > safeOffset) {
+            const normalX = distance > safeOffset && distance > 0.0001
               ? dx / distance : sideX * (signedOffset < 0 ? -1 : 1);
-            const normalZ = distance > trackSafetyOffset && distance > 0.0001
+            const normalZ = distance > safeOffset && distance > 0.0001
               ? dz / distance : sideZ * (signedOffset < 0 ? -1 : 1);
             const remainingX = race.worldX - sampleX;
             const remainingZ = race.worldZ - sampleZ;
             const outwardRemainder = Math.max(0, remainingX * normalX + remainingZ * normalZ);
-            race.worldX = nearestX + normalX * trackSafetyOffset + remainingX - normalX * outwardRemainder;
-            race.worldZ = nearestZ + normalZ * trackSafetyOffset + remainingZ - normalZ * outwardRemainder;
+            race.worldX = nearestX + normalX * safeOffset + remainingX - normalX * outwardRemainder;
+            race.worldZ = nearestZ + normalZ * safeOffset + remainingZ - normalZ * outwardRemainder;
             const outwardVelocity = race.velocityX * normalX + race.velocityZ * normalZ;
             if (outwardVelocity > 0) {
               race.velocityX -= normalX * outwardVelocity * 1.04;
@@ -479,9 +484,10 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // cross the rail, even when the centreline tangent is unstable at a hairpin.
         // One consistent swept-frame safety envelope, inside the visible rail
         // centreline at 8.4 units. Keep the car on the road without crash/respawn.
-        const safeOffset = trackSafetyOffset;
-        // Apply the same visible-edge collision envelope on the current road:
-        // main circuit when racing, pit road while physically inside its connector.
+        // Match the pit-side fence with the swept solver: the inner edge is
+        // 4.8 units from the pit centreline, so keep the car centre 3.5 units in.
+        // Main-circuit handling and the pit apron outer edge remain unchanged.
+        const safeOffset = onPitRoute && signedOffset > 0 ? 3.5 : trackSafetyOffset;
         if (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset) {
           const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
           const correctionX = distanceFromCentre > safeOffset
