@@ -369,3 +369,12 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Keep the pit-route outer-side envelope and all main-circuit collision limits unchanged. Do not widen collision exemptions, move fences, alter driving physics, or change session flow to address this issue.
 - Both service-worker caches are v43: `vula-shell-v43` and `vula-game-v43`.
 - Report source verification, deployment and physical gameplay QA separately.
+
+
+## Pit apron handling — collision refinement (2026-11-07)
+
+- Preserve ordinary world-space player physics. The pit apron opening is geometric: require both the outside-of-circuit signed offset and proximity to the corresponding pit-road segment; do not disable the circuit fence elsewhere.
+- Once on the pit route, keep the visible inner pit fence collision in the swept solver, but leave the outer apron side open. Do not clamp the car to an invisible outer corridor.
+- The pit swept solver is the sole pit-route boundary correction. Skip the final nearest-centreline correction while on the pit route or inside the geometrically verified open apron; the duplicate correction causes tugging on curves.
+- Keep main-circuit collision behaviour unchanged outside the open apron. Bump both service-worker caches together for runtime changes; current versions are v44.
+- Do not claim physical gameplay QA unless the pit apron has been driven from multiple sides in the live game.
