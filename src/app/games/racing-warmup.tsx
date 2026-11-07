@@ -76,7 +76,7 @@ function fmt(seconds: number | null): string {
 }
 
 type LocalRaceSave = { race: Race; difficulty: "Easy" | "Normal" | "Hard"; savedAt: string };
-type RaceResult = { id: string; completedAt: string; difficulty: "Easy" | "Normal" | "Hard"; elapsed: number; bestLap: number | null; position: 1 | 2; laps: number; pitStopMissed?: boolean };
+type RaceResult = { id: string; completedAt: string; difficulty: "Easy" | "Normal" | "Hard"; elapsed: number; bestLap: number | null; position: 1 | 2; laps: number };
 
 export default function RacingWarmup({ embedded = false, initialSave, onSave, onComplete, onExit, quickStart = false }: { embedded?: boolean; initialSave?: LocalRaceSave | null; onSave?: (save: LocalRaceSave) => void; onComplete?: (result: RaceResult) => void; onExit?: () => void; quickStart?: boolean }) {
   const [expanded, setExpanded] = useState(!embedded);
@@ -99,8 +99,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [lap, setLap] = useState(initialSave?.race.lap ?? (quickStart ? 3 : 1));
   const [nos, setNos] = useState(100);
   const [tyreChoice, setTyreChoice] = useState<"Soft" | "Medium" | "Hard">("Medium");
-  const [pitTyreMenuOpen, setPitTyreMenuOpen] = useState(false);
-  const pitTyreMenuShownRef = useRef(false);
   const [signal, setSignal] = useState({ label: "GREEN LIGHT · BUILD SPEED", tone: "go" });
   const botQualifyingElapsedRef = useRef(0);
   const botQualifyingTimeRef = useRef<number | null>(null);
@@ -138,7 +136,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
 
   const reset = useCallback((start: boolean) => {
     raceRef.current = quickStartRef.current ? createQuickRaceState() : newRace();
-    pitTyreMenuShownRef.current = false; setPitTyreMenuOpen(false);
     botQualifyingElapsedRef.current = 0; botQualifyingTimeRef.current = null; lastPitPromptLapRef.current = -1;
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
@@ -558,16 +555,10 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             const mergeDistance = Math.hypot(race.worldX - mergePoint.x, race.worldZ - mergePoint.z);
             if (mergeDistance <= 4.8) {
               race.playerPitting = false;
-              setPitTyreMenuOpen(false);
-              pitTyreMenuShownRef.current = false;
               const entryProgress = race.playerPitEntryProgress;
               const entryTrackT = race.playerPitEntryTrackT;
               race.trackT = .105;
               race.progress = entryProgress + wrap(.105 - entryTrackT, 1);
-              if (race.playerPitServiced && entryProgress >= 2) {
-                race.playerPitDone = true;
-                notify("PIT CREW · Service complete. Rejoin the circuit.", "success");
-              }
             }
           } else if (race.playerPitProgress <= .015 && race.playerPitServiceRemaining <= 0) {
             // Reverse exit is also allowed through the same open entry. It does
@@ -578,14 +569,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             const entryDistance = Math.hypot(race.worldX - entryPoint.x, race.worldZ - entryPoint.z);
             if (reversingAlongPit && entryDistance <= 4.8) {
               race.playerPitting = false;
-              setPitTyreMenuOpen(false);
-              pitTyreMenuShownRef.current = false;
               race.trackT = race.playerPitEntryTrackT;
               race.progress = race.playerPitEntryProgress;
-              if (race.playerPitServiced && race.playerPitEntryProgress >= 2) {
-                race.playerPitDone = true;
-                notify("PIT CREW · Pit entry clear. Rejoin the circuit.", "success");
-              }
             }
           }
 
@@ -987,29 +972,21 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           setBoostActive(boost);
           const cue = race.playerGarageExit
             ? { label: controlsRef.current.accelerate ? "FOLLOW THE PIT ROAD →" : "HOLD GAS TO LEAVE GARAGE", tone: "go" }
-            : race.playerPitting && !race.playerPitServiced
-              ? race.playerPitProgress < .42
-                ? { label: "FOLLOW PIT ROAD TO THE SERVICE BAY →", tone: "pit" }
-                : race.playerPitProgress <= .70
-                  ? { label: "PIT CREW · CHOOSE YOUR TYRES", tone: "pit" }
-                  : { label: "PIT EXIT AHEAD →", tone: "pit" }
-                : race.playerPitting
-                  ? { label: controlsRef.current.accelerate ? "FOLLOW PIT ROAD TO EXIT →" : "HOLD GAS TO LEAVE PIT", tone: "go" }
-                  : race.playerOutLap
-                    ? { label: "FOLLOW THE ROAD TO START →", tone: "go" }
-                    : race.speed < 10 && !controlsRef.current.accelerate && !controlsRef.current.brake
-                        ? { label: "PRESS & HOLD GAS ↑", tone: "go" }
-                        : upcomingBend > 0.62 && race.speed > 105
-                          ? { label: "BRAKE BEFORE THE CORNER ↓", tone: "brake" }
-                          : upcomingBend > 0.34
-                            ? { label: upcomingTurn < 0 ? "STEER LEFT ←" : "STEER RIGHT →", tone: "turn" }
-                            : race.progress < 1
-                              ? { label: race.speed < 10 ? "HOLD GAS TO DRIVE" : "PRACTICE LAP · KEEP GOING", tone: "go" }
-                              : race.progress < 2
-                                ? { label: "QUALIFYING · SET YOUR LAP", tone: "go" }
-                                : { label: "RACE ON · KEEP GOING", tone: "go" };
-          
-          
+            : race.playerPitting
+              ? { label: "PIT EXIT AHEAD →", tone: "pit" }
+              : race.playerOutLap
+                ? { label: "FOLLOW THE ROAD TO START →", tone: "go" }
+                : race.speed < 10 && !controlsRef.current.accelerate && !controlsRef.current.brake
+                  ? { label: "PRESS & HOLD GAS ↑", tone: "go" }
+                  : upcomingBend > 0.62 && race.speed > 105
+                    ? { label: "BRAKE BEFORE THE CORNER ↓", tone: "brake" }
+                    : upcomingBend > 0.34
+                      ? { label: upcomingTurn < 0 ? "STEER LEFT ←" : "STEER RIGHT →", tone: "turn" }
+                      : race.progress < 1
+                        ? { label: race.speed < 10 ? "HOLD GAS TO DRIVE" : "PRACTICE LAP · KEEP GOING", tone: "go" }
+                        : race.progress < 2
+                          ? { label: "QUALIFYING · SET YOUR LAP", tone: "go" }
+                          : { label: "RACE ON · KEEP GOING", tone: "go" };
           setSignal(cue);
         }
       }
