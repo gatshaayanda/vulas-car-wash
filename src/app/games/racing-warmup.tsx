@@ -1075,7 +1075,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} />
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
-        {toast && <div className={"warmup-toast " + toast.kind} role="status">{toast.text}</div>}
+        
         {phase === "finished" && raceResult && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.position === 1 ? "YOU BEAT KAGO!" : "YOU FINISHED THE RACE!"}</strong><p>{fmt(raceResult.elapsed)} · 2 scored laps · {raceResult.difficulty}</p><button type="button" onClick={startRace}>RACE AGAIN ↗</button></div>}
         <div className={"warmup-3d-overlay" + (phase === "ready" ? " is-interactive" : "")} hidden={phase === "running" || phase === "finished" || phase === "pit"} aria-live="polite">
           <span>🏁 VULA RACING · LET’S PLAY!</span>
@@ -1092,6 +1092,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         {null}
         
       </div>
+      <div className="warmup-notification-slot" role="status" aria-live="polite" aria-atomic="true">{toast && <div className={"warmup-toast " + toast.kind}>{toast.text}</div>}</div>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
         <div className="warmup-steering" aria-label="Analog steering">
