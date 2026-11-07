@@ -328,3 +328,15 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - The circuit map is gameplay HUD only. Render it only when `preview === false`; never show it in the opening/menu 3D car preview.
 - Both service-worker caches are now v39 and must be bumped together after further runtime changes.
 - Verify open pit access by driving out of the lane sideways and returning from multiple apron sides. Do not claim physical QA unless actually tested in the live game.
+
+
+## Pit apron collision must match the permanent open fence gap — 2026-11-07
+
+- The outer pit-side fence is intentionally absent along the full pit branch (main-track T=.89 through .12). The physical collision solver must honour that same permanent opening on every scored lap, before and after the mandatory tyre visit.
+- Do not use `playerPitDone`, `playerPitting`, or `playerGarageExit` as the sole switch for whether the outer pit apron is physically open. Those are race-flow/projection states; `playerPitDone` is a one-time service milestone and must never restore a wall.
+- Determine the open apron collision region geometrically using BOTH proximity to the pit-road spline (within 16 world units) AND the negative/outside signed offset from the main circuit (less than -6.5). Proximity alone is too broad because the pit road runs close and parallel to the main track.
+- In that geometrically defined open apron, skip both the main-track swept boundary correction and final nearest-centreline correction. On the racing surface, inner side, and all other fence sections, retain the authoritative collision solver.
+- Keep projection/race progression separate from collision openness. Do not globally disable collisions, add a broad radius exemption, or alter vehicle physics.
+- The visible outer rail omission in `racing-3d-scene.tsx` must remain aligned with the same pit-side T=.89–.12 opening.
+- Both service-worker caches are v40: `vula-shell-v40` and `vula-game-v40`. Bump together after runtime changes.
+- QA the pit-side opening on the first and subsequent scored laps, including after `playerPitDone` becomes true. Also confirm the opposite/inner fence remains solid. Do not claim physical QA unless actually played.
