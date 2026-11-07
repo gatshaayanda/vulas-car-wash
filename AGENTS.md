@@ -251,3 +251,9 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - The rendered fence openings must align with the physical pit entry and exit. Everywhere else, the car must meet the track boundary, lose outward velocity and remain recoverable; do not add a second render-loop collision solver or change the approved handling model.
 - Tyre selection is a GGL Space-style proximity interaction in the service bay, not a stationary service phase. Open the compact Soft / Medium / Hard panel as the player rolls through the service area; keep the race phase, momentum, steering, throttle and braking live. On selection, record the tyre choice, close the panel and show a short animated PIT CREW confirmation toast. The mandatory stop is satisfied only when the player physically exits after selecting tyres.
 - Do not reintroduce a forced stop, modal pause, velocity reset, control lock, auto-drive or tyre-physics changes. Tyres remain presentation-only in this QA stage.
+
+
+## Racing HUD layout rule — 2026-11-07
+
+- The live circuit map owns the upper-right HUD corner. Toasts must never cover it or stretch underneath it: anchor race notifications in the lower-left lane and cap their width to leave the map's horizontal footprint clear (including on narrow phones).
+- Keep driving guidance in its own top-centre signal chip. Keep transient event toasts visually secondary and brief; do not centre large toast banners across the gameplay viewport. Maintain separate spatial lanes for map, guidance and notifications rather than solving overlap with z-index alone.
