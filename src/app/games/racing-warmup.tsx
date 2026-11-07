@@ -518,6 +518,17 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             nearestDistanceSq = distanceSq; nearestT = sampleT;
           }
         }
+        // Keep track-limit telemetry derived from the local road projection.
+        // This is measurement only; physical boundaries are resolved above by
+        // the single swept collision solver.
+        const projectedIndex = Math.round(clamp(nearestT, 0, 1) * projectionSamples);
+        const projectedPoint = projectionCurveSamples[projectedIndex];
+        const projectedTangentX = projectedPoint.tx;
+        const projectedTangentZ = projectedPoint.tz;
+        const projectionDx = race.worldX - projectedPoint.x;
+        const projectionDz = race.worldZ - projectedPoint.z;
+        const distanceFromCentre = Math.hypot(projectionDx, projectionDz);
+        const signedOffset = projectionDx * -projectedTangentZ + projectionDz * projectedTangentX;
         const previousProgress = race.progress;
         if (race.playerGarageExit) {
           race.playerPitProgress = nearestT;
