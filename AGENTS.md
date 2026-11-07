@@ -353,3 +353,10 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Keep player vehicle physics unchanged. Do not introduce magic walls, broad collision exemptions, invisible barriers, special pit-only speed/steering rules, forced service interactions or collision-state changes after a tyre milestone.
 - Both service-worker caches are v41: `vula-shell-v41` and `vula-game-v41`. Bump both together after racing runtime changes.
 - QA the whole lap and pit entry/exit on first and subsequent laps. Report source inspection, deployment status and physical gameplay QA separately; never claim physical QA unless actually played.
+
+
+## Pit connector availability in every driving session — 2026-11-07
+
+- The physical pit entrance and exit work during warm-up, qualifying and scored racing. Do not gate physical pit access on race progress, lap number, mandatory service, or tyre state.
+- Only switch to pit-road projection at the actual entry connector; release at the physical exit/return connector. Preserve normal lap progression across the connector.
+- Current service-worker caches are v42: `vula-shell-v42` and `vula-game-v42`.
