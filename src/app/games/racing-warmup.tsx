@@ -86,6 +86,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [lap, setLap] = useState(initialSave?.race.lap ?? (quickStart ? 3 : 1));
   const [nos, setNos] = useState(100);
   const [tyreChoice, setTyreChoice] = useState<"Soft" | "Medium" | "Hard">("Medium");
+  const [pitTyreMenuOpen, setPitTyreMenuOpen] = useState(false);
+  const pitTyreMenuShownRef = useRef(false);
   const [signal, setSignal] = useState({ label: "GREEN LIGHT · BUILD SPEED", tone: "go" });
   const botQualifyingElapsedRef = useRef(0);
   const botQualifyingTimeRef = useRef<number | null>(null);
@@ -123,6 +125,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
 
   const reset = useCallback((start: boolean) => {
     raceRef.current = quickStartRef.current ? createQuickRaceState() : newRace();
+    pitTyreMenuShownRef.current = false; setPitTyreMenuOpen(false);
     botQualifyingElapsedRef.current = 0; botQualifyingTimeRef.current = null; lastPitPromptLapRef.current = -1;
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
@@ -322,11 +325,12 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
           if (distance < nearestPitDistance) { nearestPitDistance = distance; nearestPitT = sampleT; }
         }
+        // The pit spline is authoritative only after the car commits to the entry.
+        // A wide proximity exemption let the car ghost through the circuit fence
+        // and escape onto the grass around the pit area.
         const onPitRoute = race.playerPitting || race.playerGarageExit;
-        const pitApronOpen = nearestPitDistance < 25;
-        const usePitSafetyTrack = onPitRoute || pitApronOpen;
-        const trackSafetyOffset = usePitSafetyTrack ? 25 : 7.15;
-        const playerSafetyTrack = usePitSafetyTrack ? RACING_PIT_LANE : trackRef.current!;
+        const trackSafetyOffset = 7.15;
+        const playerSafetyTrack = onPitRoute ? RACING_PIT_LANE : trackRef.current!;
         const sweepDx = race.worldX - sweepStartX;
         const sweepDz = race.worldZ - sweepStartZ;
         const sweepDistance = Math.hypot(sweepDx, sweepDz);
@@ -335,7 +339,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // While the player is in the garage exit or pit lane, search around the
         // pit spline progress. Using main-track progress (zero at race start)
         // makes the safety sweep clamp the car toward the wrong pit-lane segment.
-        const sweepCentre = Math.round((usePitSafetyTrack ? nearestPitT : race.trackT) * sweepSamples);
+        const sweepCentre = Math.round((onPitRoute ? nearestPitT : race.trackT) * sweepSamples);
         for (let step = 1; step <= sweepSteps; step++) {
           const fraction = step / sweepSteps;
           const sampleX = sweepStartX + sweepDx * fraction;
@@ -343,7 +347,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           let nearestDistanceSq = Number.POSITIVE_INFINITY;
           let nearestX = 0, nearestZ = 0, nearestTangentX = 0, nearestTangentZ = -1;
           for (let offset = -144; offset <= 144; offset++) {
-            const sample = usePitSafetyTrack ? Math.round(clamp(nearestPitT + offset / sweepSamples, 0, 1) * sweepSamples) : ((sweepCentre + offset) % sweepSamples + sweepSamples) % sweepSamples;
+            const sample = onPitRoute ? Math.round(clamp(nearestPitT + offset / sweepSamples, 0, 1) * sweepSamples) : ((sweepCentre + offset) % sweepSamples + sweepSamples) % sweepSamples;
             const sampleT = sample / sweepSamples;
             const point = playerSafetyTrack.getPointAt(sampleT);
             const dx = sampleX - point.x, dz = sampleZ - point.z;
@@ -451,7 +455,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // One consistent swept-frame safety envelope, inside the visible rail
         // centreline at 8.4 units. Keep the car on the road without crash/respawn.
         const safeOffset = trackSafetyOffset;
-        if (!pitApronOpen && (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset)) {
+        if (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset) {
           const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
           const correctionX = distanceFromCentre > safeOffset
             ? outwardX
@@ -504,13 +508,11 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           }
         } else if (race.playerPitting) {
           race.playerPitProgress = nearestT;
-          const pitSpeed = Math.hypot(race.velocityX, race.velocityZ);
-          if (!race.playerPitServiced && race.playerPitProgress >= .45 && race.playerPitProgress <= .68 && pitSpeed < 1.35) {
-            race.playerPitServiced = true; race.playerPitServiceRemaining = 999;
-            settlePlayerCar(race);
-            controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-            setBoostActive(false); phaseRef.current = "pit"; setPhase("pit");
-            notify("PIT CREW · Car stopped. Choose your tyres.", "info");
+          // Proximity interaction: choose tyres while rolling through the service bay.
+          // The driving phase, momentum and controls stay live throughout.
+          if (!race.playerPitServiced && race.progress >= 2 && race.playerPitProgress >= .42 && race.playerPitProgress <= .70 && !pitTyreMenuShownRef.current) {
+            pitTyreMenuShownRef.current = true;
+            setPitTyreMenuOpen(true);
           }
           if (race.playerPitProgress >= .82 && race.playerPitServiceRemaining <= 0) {
             let joinT = .105, joinDistance = Number.POSITIVE_INFINITY;
@@ -523,6 +525,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             // to the canonical circuit boundary as soon as the merge is reached.
             if (joinDistance <= 10.5) {
               race.playerPitting = false;
+              setPitTyreMenuOpen(false); pitTyreMenuShownRef.current = false;
               race.trackT = joinT;
               if (race.playerPitServiced) {
                 race.playerPitDone = true;
@@ -938,14 +941,12 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           const pitApproach = race.progress >= 2 && !race.playerPitDone && !race.playerPitting && race.trackT >= .84 && race.trackT < .97;
           const cue = race.playerGarageExit
             ? { label: controlsRef.current.accelerate ? "FOLLOW THE PIT ROAD →" : "HOLD GAS TO LEAVE GARAGE", tone: "go" }
-            : race.playerPitting && race.playerPitServiceRemaining > 0
-              ? { label: "PIT CREW WORKING · WAIT A MOMENT", tone: "pit" }
-              : race.playerPitting && !race.playerPitServiced
-                ? race.playerPitProgress < .42
-                  ? { label: "FOLLOW PIT ROAD TO THE BOX →", tone: "pit" }
-                  : race.playerPitProgress <= .70
-                    ? { label: race.speed > 28 ? "BRAKE · STOP IN THE PIT BOX ↓" : "STOP IN THE PIT BOX", tone: "pit" }
-                    : { label: "PIT BOX PASSED · TURN BACK TO STOP", tone: "pit" }
+            : race.playerPitting && !race.playerPitServiced
+              ? race.playerPitProgress < .42
+                ? { label: "FOLLOW PIT ROAD TO THE SERVICE BAY →", tone: "pit" }
+                : race.playerPitProgress <= .70
+                  ? { label: "PIT CREW · CHOOSE YOUR TYRES", tone: "pit" }
+                  : { label: "PIT EXIT AHEAD →", tone: "pit" }
                 : race.playerPitting
                   ? { label: controlsRef.current.accelerate ? "FOLLOW PIT ROAD TO EXIT →" : "HOLD GAS TO LEAVE PIT", tone: "go" }
                   : race.playerOutLap
@@ -978,7 +979,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     const keyDown = (e: KeyboardEvent) => {
       if (embedded && !expanded) return;
       if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "a", "d", "w", "s", " "].includes(e.key)) e.preventDefault();
-      if (raceRef.current.playerPitting && raceRef.current.playerPitServiceRemaining > 0) return;
       if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") controlsRef.current.steer = -1;
       if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") controlsRef.current.steer = 1;
       if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") controlsRef.current.accelerate = true;
@@ -1000,7 +1000,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   // Circular thumbstick, like the movement controls in Shooters Trigger/Paws World.
   // The knob follows the thumb in two dimensions; horizontal displacement steers the car.
   const steerStickPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (raceRef.current.playerPitting && raceRef.current.playerPitServiceRemaining > 0) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const maxX = Math.max(1, rect.width * 0.28);
     const maxY = Math.max(1, rect.height * 0.28);
@@ -1020,7 +1019,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     if (knob) knob.style.transform = "translate3d(0, 0, 0)";
   };
   const hold = (key: "accelerate" | "brake", down: boolean) => {
-    if (raceRef.current.playerPitting && raceRef.current.playerPitServiceRemaining > 0) { controlsRef.current[key] = false; return; }
     controlsRef.current[key] = down;
     if (key === "brake" && down) {
       controlsRef.current.boost = false;
@@ -1037,7 +1035,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     
   };
 
-  const pitServiceLocked = phase === "pit";
   if (embedded && !expanded) return <div className="race-inline-promo"><div><p className="vula-eyebrow">VULA RACING · QUICK BREAK</p><h2>Take a quick lap.</h2><p>A little circuit practice while you wait. Your wash booking stays right where you left it.</p></div><button type="button" className="vula-button primary" onClick={() => setExpanded(true)}>Play now ↗</button></div>;
 
   return <div className={"vula race-hub" + (embedded ? " race-hub-embedded" : "")}>
@@ -1063,10 +1060,10 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             <div className="warmup-pit-check"><span>✓ Car ready!</span><span>✓ Practice first!</span><span>✓ Kago joins later!</span></div>
           </> : <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>}
         </div>
-        {phase === "pit" && raceRef.current.playerPitServiced && <div className="warmup-pit-service-overlay" role="dialog" aria-modal="true" aria-label="Pit stop tyre service">
-          <span>🛠️ PIT CREW · SERVICE BOX</span><strong>PICK A TYRE</strong>
-          <p>Choose Soft, Medium or Hard. The menu closes and you drive the car back onto the circuit.</p>
-          <div>{(["Soft", "Medium", "Hard"] as const).map(tyre => <button type="button" key={tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => { setTyreChoice(tyre); raceRef.current.playerPitServiceRemaining = 0; settlePlayerCar(raceRef.current); controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false }; raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running"); notify(`PIT CREW · ${tyre} tyres fitted. Drive out when ready.`, "success"); }}>{tyre}</button>)}</div>
+        {pitTyreMenuOpen && raceRef.current.playerPitting && !raceRef.current.playerPitServiced && <div className="warmup-pit-service-overlay" role="group" aria-label="Pit stop tyre selection">
+          <span>🛠️ PIT CREW · SERVICE BAY</span><strong>CHOOSE YOUR TYRES</strong>
+          <p>Pick a set while you roll through. Your car stays under your control.</p>
+          <div>{(["Soft", "Medium", "Hard"] as const).map(tyre => <button type="button" key={tyre} className={tyreChoice === tyre ? "selected" : ""} aria-pressed={tyreChoice === tyre} onClick={() => { setTyreChoice(tyre); raceRef.current.playerPitServiced = true; raceRef.current.playerPitServiceRemaining = 0; setPitTyreMenuOpen(false); notify(`PIT CREW · ${tyre.toUpperCase()} TYRES SELECTED. DRIVE ON!`, "success"); }}>{tyre}</button>)}</div>
         </div>}
         
       </div>
@@ -1074,10 +1071,10 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       <div className="warmup-controls warmup-circuit-controls">
         <div className="warmup-steering" aria-label="Analog steering">
            
-          <div className={"steering-stick" + (phase !== "running" || pitServiceLocked ? " is-disabled" : "")}
+          <div className={"steering-stick" + (phase !== "running" ? " is-disabled" : "")}
             role="slider" aria-label="Steering thumbstick" aria-valuemin={-100} aria-valuemax={100} aria-valuenow={Math.round(controlsRef.current.steer * 100)}
-            tabIndex={phase === "running" && !pitServiceLocked ? 0 : -1}
-            onPointerDown={e => { if (phase !== "running" || pitServiceLocked) return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); steerStickPointer(e); }}
+            tabIndex={phase === "running" ? 0 : -1}
+            onPointerDown={e => { if (phase !== "running") return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); steerStickPointer(e); }}
             onPointerMove={e => { if (e.currentTarget.hasPointerCapture(e.pointerId)) steerStickPointer(e); }}
             onPointerUp={releaseSteerStick} onPointerCancel={releaseSteerStick} onLostPointerCapture={releaseSteerStick}
             onKeyDown={e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); const steer = e.key === "ArrowLeft" ? -0.72 : 0.72; controlsRef.current.steer = steer; const knob = e.currentTarget.querySelector<HTMLElement>(".steering-stick-knob"); if (knob) knob.style.transform = `translate3d(${steer * 25}px, 0, 0)`; } }}
@@ -1088,9 +1085,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
            
         </div>
         <div className="warmup-driving"> 
-          <button type="button" aria-label="Brake" disabled={phase !== "running" || pitServiceLocked} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>BRAKE ↓</button>
-          <button type="button" className="accelerate-button" aria-label="Accelerate" disabled={phase !== "running" || pitServiceLocked} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>GAS ↑</button>
-          <button type="button" className="nos-button" aria-label="Toggle NOS burst" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0 || pitServiceLocked} onClick={toggleBoost}>{boostActive ? "NOS ON ⚡" : "TAP NOS ⚡"}</button>
+          <button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>BRAKE ↓</button>
+          <button type="button" className="accelerate-button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>GAS ↑</button>
+          <button type="button" className="nos-button" aria-label="Toggle NOS burst" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0} onClick={toggleBoost}>{boostActive ? "NOS ON ⚡" : "TAP NOS ⚡"}</button>
         </div>
         <div className="warmup-actions">{phase === "paused" && onSave && <button type="button" className="vula-button secondary" onClick={() => onSave({ race: { ...raceRef.current }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString() })}>Save game</button>}{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startRace}>Start driving ↗</button> : phase === "countdown" ? <button type="button" className="vula-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Drive again ↻</button>}<button type="button" className="vula-button secondary" onClick={() => reset(false)}>Restart ↻</button>{onExit && <button type="button" className="vula-button secondary" onClick={onExit}>Racing menu</button>}</div>
       </div>
