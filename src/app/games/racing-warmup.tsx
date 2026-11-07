@@ -181,32 +181,24 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       previous = now;
       if (phaseRef.current === "running" && dt > 0) {
         const controls = controlsRef.current;
-        // The pit complex is an open-world extension of the circuit, not a
-        // one-way gated lane. During the scored race, commit when the car
-        // physically reaches any part of the open pit apron from any side.
-        // This changes boundary/projection ownership only; world position,
-        // velocity, yaw, steering and player controls are never modified.
-        if (!race.playerPitDone && !race.playerPitting && !race.playerGarageExit
-          && race.progress >= 2) {
-          let nearestPitDistance = Number.POSITIVE_INFINITY, nearestPitT = 0;
-          for (let sampleIndex = 0; sampleIndex <= COLLISION_SAMPLE_COUNT; sampleIndex += 8) {
+        // Pit entry is a real connector, not a proximity trigger around the
+        // whole parallel lane. Only acquire pit-road projection at the marked
+        // entrance; the rest of the circuit keeps its normal collision envelope.
+        if (!race.playerPitting && !race.playerGarageExit && race.progress >= 2
+          && race.trackT >= .895 && race.trackT <= .935) {
+          let entryDistanceSq = Number.POSITIVE_INFINITY;
+          for (let sampleIndex = 0; sampleIndex <= 96; sampleIndex += 4) {
             const point = PIT_LANE_COLLISION_SAMPLES[sampleIndex];
-            const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
-            if (distance < nearestPitDistance) {
-              nearestPitDistance = distance;
-              nearestPitT = sampleIndex / COLLISION_SAMPLE_COUNT;
-            }
+            const dx = race.worldX - point.x, dz = race.worldZ - point.z;
+            entryDistanceSq = Math.min(entryDistanceSq, dx * dx + dz * dz);
           }
-          // The overlap is intentional: the main circuit envelope and the
-          // pit-road envelope meet, so there is no invisible gap or forcefield.
-          if (nearestPitDistance < 16.0) {
+          if (entryDistanceSq <= 8.5 * 8.5) {
             race.playerPitting = true;
-            race.playerPitProgress = nearestPitT;
+            race.playerPitProgress = 0;
             race.playerPitEntryProgress = race.progress;
             race.playerPitEntryTrackT = race.trackT;
             race.playerPitServiced = false;
             race.playerPitServiceRemaining = 0;
-            notify("PIT CREW · Pit apron entered. Drive through the service bay.", "info");
           }
         }
         const pitSteer = controls.steer;
@@ -377,30 +369,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             }
           }
         }
-        // The outer pit-side apron is a permanent open-world part of the
-        // circuit, including after the mandatory tyre visit is complete. Its
-        // collision state must be derived from physical location, not the
-        // one-time playerPitDone / playerPitting race-flow flags.
-        // Require BOTH proximity to the pit road AND the outside (pit) side
-        // of the main circuit. Proximity alone would create a ghost zone on
-        // the racing surface because the two parallel roads are close together.
-        const mainCentre = Math.round(wrap(race.trackT, 1) * COLLISION_SAMPLE_COUNT);
-        let nearestMainDistanceSq = Number.POSITIVE_INFINITY;
-        let pitSideOffset = 0;
-        for (let offset = -144; offset <= 144; offset++) {
-          const sampleIndex = (mainCentre + offset + COLLISION_SAMPLE_COUNT) % COLLISION_SAMPLE_COUNT;
-          const point = MAIN_TRACK_COLLISION_SAMPLES[sampleIndex];
-          const dx = race.worldX - point.x, dz = race.worldZ - point.z;
-          const distanceSq = dx * dx + dz * dz;
-          if (distanceSq < nearestMainDistanceSq) {
-            nearestMainDistanceSq = distanceSq;
-            pitSideOffset = dx * -point.tz + dz * point.tx;
-          }
-        }
-        const pitApronOpen = !onPitRoute
-          && nearestPitDistanceSqForProgress < 16 * 16
-          && pitSideOffset < -6.5;
-
         // Match the rendered 14.4-unit pit road instead of creating a
         // narrow invisible corridor around the pit spline.
         const trackSafetyOffset = 7.15;
@@ -414,7 +382,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // pit spline progress. Using main-track progress (zero at race start)
         // makes the safety sweep clamp the car toward the wrong pit-lane segment.
         const sweepCentre = Math.round((onPitRoute ? nearestPitT : race.trackT) * sweepSamples);
-        if (!onPitRoute && !pitApronOpen) for (let step = 1; step <= sweepSteps; step++) {
+        for (let step = 1; step <= sweepSteps; step++) {
           const fraction = step / sweepSteps;
           const sampleX = sweepStartX + sweepDx * fraction;
           const sampleZ = sweepStartZ + sweepDz * fraction;
@@ -530,7 +498,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // the pit spline nor the main circuit may push the car back into a lane.
         // Keep the swept circuit solver and this final boundary correction off
         // throughout pit ownership; world-space driving remains fully active.
-        if (!onPitRoute && !pitApronOpen && (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset)) {
+        if (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset) {
           const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
           const correctionX = distanceFromCentre > safeOffset
             ? outwardX
@@ -1007,26 +975,17 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           } else if (lapNow >= 5 && !completedRef.current) {
             completedRef.current = true;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-            const pitStopMissed = !race.playerPitDone;
-            const position: 1 | 2 = pitStopMissed ? 2 : race.progress >= race.botProgress ? 1 : 2;
+            const position: 1 | 2 = race.progress >= race.botProgress ? 1 : 2;
             const result: RaceResult = {
               id: "race-" + Date.now(), completedAt: new Date().toISOString(),
               difficulty: botDifficultyRef.current, elapsed: race.elapsed,
               bestLap: race.bestLap ?? (completedLapValid ? completedLapTime : null),
-              position, laps: 2, ...(pitStopMissed ? { pitStopMissed: true } : {}),
+              position, laps: 2,
             };
             setRaceResult(result);
             phaseRef.current = "finished"; setPhase("finished");
-            if (pitStopMissed) notify("RACE CONTROL · Mandatory pit stop missed. Result recorded as DNF.", "error");
-            else if (position === 1) notify("🏆 PIT CREW · YOU BEAT KAGO! RACE WINNER!", "success");
+            if (position === 1) notify("🏆 RACE CONTROL · YOU BEAT KAGO! RACE WINNER!", "success");
             onComplete?.(result);
-          }
-        }
-        if (race.progress >= 2 && !race.playerPitDone && !race.playerPitting) {
-          const raceLapIndex = Math.floor(race.progress);
-          if (race.trackT >= .84 && race.trackT < .9 && lastPitPromptLapRef.current !== raceLapIndex) {
-            lastPitPromptLapRef.current = raceLapIndex;
-            notify("PIT CREW · Pit entry ahead. Keep left.", "info");
           }
         }
         if (now - lastUi > 33) {
@@ -1035,7 +994,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           setLapTime(race.lapTime);
           setNos(race.nos);
           setBoostActive(boost);
-          const pitApproach = race.progress >= 2 && !race.playerPitDone && !race.playerPitting && race.trackT >= .84 && race.trackT < .97;
           const cue = race.playerGarageExit
             ? { label: controlsRef.current.accelerate ? "FOLLOW THE PIT ROAD →" : "HOLD GAS TO LEAVE GARAGE", tone: "go" }
             : race.playerPitting && !race.playerPitServiced
@@ -1048,9 +1006,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
                   ? { label: controlsRef.current.accelerate ? "FOLLOW PIT ROAD TO EXIT →" : "HOLD GAS TO LEAVE PIT", tone: "go" }
                   : race.playerOutLap
                     ? { label: "FOLLOW THE ROAD TO START →", tone: "go" }
-                    : pitApproach
-                      ? { label: race.trackT < .895 ? "PIT AHEAD · KEEP LEFT ←" : "TURN LEFT INTO PIT ←", tone: "pit" }
-                      : race.speed < 10 && !controlsRef.current.accelerate && !controlsRef.current.brake
+                    : race.speed < 10 && !controlsRef.current.accelerate && !controlsRef.current.brake
                         ? { label: "PRESS & HOLD GAS ↑", tone: "go" }
                         : upcomingBend > 0.62 && race.speed > 105
                           ? { label: "BRAKE BEFORE THE CORNER ↓", tone: "brake" }
@@ -1144,7 +1100,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} />
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
         {toast && <div className={"warmup-toast " + toast.kind} role="status">{toast.text}</div>}
-        {phase === "finished" && raceResult && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.pitStopMissed ? "PIT STOP MISSED · DNF" : raceResult.position === 1 ? "YOU BEAT KAGO!" : "YOU FINISHED THE RACE!"}</strong><p>{fmt(raceResult.elapsed)} · {raceResult.pitStopMissed ? "Mandatory pit stop not completed" : "2 scored laps"} · {raceResult.difficulty}</p><button type="button" onClick={startRace}>RACE AGAIN ↗</button></div>}
+        {phase === "finished" && raceResult && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.position === 1 ? "YOU BEAT KAGO!" : "YOU FINISHED THE RACE!"}</strong><p>{fmt(raceResult.elapsed)} · 2 scored laps · {raceResult.difficulty}</p><button type="button" onClick={startRace}>RACE AGAIN ↗</button></div>}
         <div className={"warmup-3d-overlay" + (phase === "ready" ? " is-interactive" : "")} hidden={phase === "running" || phase === "finished" || phase === "pit"} aria-live="polite">
           <span>🏁 VULA RACING · LET’S PLAY!</span>
           <strong>{phase === "ready" ? "PIT GARAGE · RACE PREP" : phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "pit" ? "PIT STOP" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>
@@ -1157,11 +1113,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             <div className="warmup-pit-check"><span>✓ Car ready!</span><span>✓ Practice first!</span><span>✓ Kago joins later!</span></div>
           </> : <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>}
         </div>
-        {pitTyreMenuOpen && raceRef.current.playerPitting && !raceRef.current.playerPitServiced && <div className="warmup-pit-service-overlay" role="group" aria-label="Pit stop tyre selection">
-          <span>🛠️ PIT CREW · SERVICE BAY</span><strong>CHOOSE YOUR TYRES</strong>
-          <p>Pick a set while you roll through. Your car stays under your control.</p>
-          <div>{(["Soft", "Medium", "Hard"] as const).map(tyre => <button type="button" key={tyre} className={tyreChoice === tyre ? "selected" : ""} aria-pressed={tyreChoice === tyre} onClick={() => { setTyreChoice(tyre); raceRef.current.playerPitServiced = true; raceRef.current.playerPitServiceRemaining = 0; setPitTyreMenuOpen(false); notify(`PIT CREW · ${tyre.toUpperCase()} TYRES SELECTED. DRIVE ON!`, "success"); }}>{tyre}</button>)}</div>
-        </div>}
+        {null}
         
       </div>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
