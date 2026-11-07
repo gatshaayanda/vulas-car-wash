@@ -495,14 +495,14 @@
 .warmup-signal-chip.brake{border-color:#ff8879;background:#4a211df5}
 .warmup-signal-chip.pit{border-color:#ffd05a;background:#493817f5}
 .warmup-signal-chip span{width:10px;height:10px;flex-basis:10px}
-.warmup-toast{left:50%;bottom:14px;transform:translateX(-50%);width:max-content;max-width:calc(100% - 24px);padding:13px 17px;border:2px solid #c9ee83;border-radius:15px;background:#173323f7;color:#fff;font-size:clamp(13px,3vw,17px);font-weight:950;line-height:1.3;text-align:center;box-shadow:0 8px 26px #07140e77;animation:warmup-coach-pop .22s cubic-bezier(.2,.8,.2,1)}
+.warmup-toast{left:12px;right:auto;bottom:12px;transform:none;width:max-content;max-width:min(360px,calc(100% - 168px));padding:10px 13px;border:2px solid #c9ee83;border-radius:12px;background:#173323f7;color:#fff;font-size:clamp(12px,2.2vw,14px);font-weight:900;line-height:1.3;text-align:left;box-shadow:0 6px 18px #07140e55;animation:warmup-toast-in .16s ease-out}
 .warmup-toast.success{border-color:#c9ee83;background:#1c4329f7}
 .warmup-toast.info{border-color:#ffdc77;background:#443619f7}
 .warmup-toast.error{border-color:#ff9a8c;background:#4b211df7}
-@keyframes warmup-coach-pop{0%{opacity:0;transform:translate(-50%,10px) scale(.92)}70%{transform:translate(-50%,-2px) scale(1.02)}100%{opacity:1;transform:translate(-50%,0) scale(1)}}
+
 @media(max-width:640px){
  .warmup-signal-chip{top:8px;left:50%;padding:10px 13px;font-size:12px}
- .warmup-toast{left:50%;bottom:9px;padding:12px 14px;font-size:13px}
+ .warmup-toast{left:8px;right:auto;bottom:8px;max-width:calc(100% - 132px);padding:9px 11px;font-size:11px;text-align:left}
  .warmup-circuit-controls .warmup-driving .accelerate-button{min-height:70px;font-size:15px;font-weight:1000;letter-spacing:.04em;box-shadow:inset 0 -4px 0 #a7ca60,0 4px 10px #15251a22}
 }
 
