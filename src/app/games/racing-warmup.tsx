@@ -21,6 +21,18 @@ export type Race = {
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
 const RACING_PIT_LANE = createRacingPitLane(createRacingTrack());
+// Immutable arc-length samples keep the authoritative collision/projection
+// geometry identical while avoiding repeated spline evaluations each frame.
+const COLLISION_SAMPLE_COUNT = 1920;
+function createCollisionSamples(curve: ReturnType<typeof createRacingTrack>) {
+  return Array.from({ length: COLLISION_SAMPLE_COUNT + 1 }, (_, index) => {
+    const t = index / COLLISION_SAMPLE_COUNT;
+    const point = curve.getPointAt(t), tangent = curve.getTangentAt(t);
+    return { x: point.x, z: point.z, tx: tangent.x, tz: tangent.z };
+  });
+}
+const MAIN_TRACK_COLLISION_SAMPLES = createCollisionSamples(createRacingTrack());
+const PIT_LANE_COLLISION_SAMPLES = createCollisionSamples(RACING_PIT_LANE);
 export const newRace = (): Race => {
   const garagePoint = RACING_PIT_LANE.getPointAt(.52);
   const garageTangent = RACING_PIT_LANE.getTangentAt(.52).normalize();
@@ -64,7 +76,7 @@ function fmt(seconds: number | null): string {
 }
 
 type LocalRaceSave = { race: Race; difficulty: "Easy" | "Normal" | "Hard"; savedAt: string };
-type RaceResult = { id: string; completedAt: string; difficulty: "Easy" | "Normal" | "Hard"; elapsed: number; bestLap: number | null; position: 1 | 2; laps: number };
+type RaceResult = { id: string; completedAt: string; difficulty: "Easy" | "Normal" | "Hard"; elapsed: number; bestLap: number | null; position: 1 | 2; laps: number; pitStopMissed?: boolean };
 
 export default function RacingWarmup({ embedded = false, initialSave, onSave, onComplete, onExit, quickStart = false }: { embedded?: boolean; initialSave?: LocalRaceSave | null; onSave?: (save: LocalRaceSave) => void; onComplete?: (result: RaceResult) => void; onExit?: () => void; quickStart?: boolean }) {
   const [expanded, setExpanded] = useState(!embedded);
@@ -322,8 +334,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // edge solver must not fence off a lateral approach to the pit road.
         let nearestPitDistance = Number.POSITIVE_INFINITY, nearestPitT = race.playerPitProgress;
         for (let sample = 0; sample <= 192; sample++) {
-          const sampleT = sample / 192;
-          const point = RACING_PIT_LANE.getPointAt(sampleT);
+          const point = PIT_LANE_COLLISION_SAMPLES[sample * 10];
           const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
           if (distance < nearestPitDistance) { nearestPitDistance = distance; nearestPitT = sampleT; }
         }
@@ -332,12 +343,12 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // and escape onto the grass around the pit area.
         const onPitRoute = race.playerPitting || race.playerGarageExit;
         const trackSafetyOffset = onPitRoute ? 3.5 : 7.15;
-        const playerSafetyTrack = onPitRoute ? RACING_PIT_LANE : trackRef.current!;
         const sweepDx = race.worldX - sweepStartX;
         const sweepDz = race.worldZ - sweepStartZ;
         const sweepDistance = Math.hypot(sweepDx, sweepDz);
         const sweepSteps = Math.min(12, Math.max(1, Math.ceil(sweepDistance / 0.28)));
-        const sweepSamples = 1920;
+        const sweepSamples = COLLISION_SAMPLE_COUNT;
+        const sweepCurveSamples = onPitRoute ? PIT_LANE_COLLISION_SAMPLES : MAIN_TRACK_COLLISION_SAMPLES;
         // While the player is in the garage exit or pit lane, search around the
         // pit spline progress. Using main-track progress (zero at race start)
         // makes the safety sweep clamp the car toward the wrong pit-lane segment.
@@ -350,15 +361,13 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           let nearestX = 0, nearestZ = 0, nearestTangentX = 0, nearestTangentZ = -1;
           for (let offset = -144; offset <= 144; offset++) {
             const sample = onPitRoute ? Math.round(clamp(nearestPitT + offset / sweepSamples, 0, 1) * sweepSamples) : ((sweepCentre + offset) % sweepSamples + sweepSamples) % sweepSamples;
-            const sampleT = sample / sweepSamples;
-            const point = playerSafetyTrack.getPointAt(sampleT);
+            const point = sweepCurveSamples[sample];
             const dx = sampleX - point.x, dz = sampleZ - point.z;
             const distanceSq = dx * dx + dz * dz;
             if (distanceSq < nearestDistanceSq) {
               nearestDistanceSq = distanceSq;
               nearestX = point.x; nearestZ = point.z;
-              const tangent = playerSafetyTrack.getTangentAt(sampleT);
-              nearestTangentX = tangent.x; nearestTangentZ = tangent.z;
+              nearestTangentX = point.tx; nearestTangentZ = point.tz;
             }
           }
           const distance = Math.sqrt(nearestDistanceSq);
@@ -408,7 +417,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // world-space vehicle integration remain authoritative throughout.
         // Circuit projection is used only for lap timing, track limits, and collision queries.
         let nearestT = onPitRoute ? race.playerPitProgress : wrap(race.trackT, 1);
-        const playerProjectionTrack = onPitRoute ? RACING_PIT_LANE : trackRef.current!;
         let nearestDistanceSq = Number.POSITIVE_INFINITY;
         let nearestX = 0;
         let nearestZ = 0;
@@ -419,7 +427,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // can snap to the wrong branch of the road and make the car appear to cut
         // across the track or pass through a barrier. The previous frame's trackT
         // anchors this search while still allowing forward and reverse movement.
-        const projectionSamples = 1920;
+        const projectionSamples = COLLISION_SAMPLE_COUNT;
+        const projectionCurveSamples = onPitRoute ? PIT_LANE_COLLISION_SAMPLES : MAIN_TRACK_COLLISION_SAMPLES;
         // Keep projection on the current circuit branch while giving tight corners
         // and frame-time spikes enough search room to avoid jumping over the boundary.
         const projectionWindow = 72;
@@ -427,14 +436,13 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         for (let offset = -projectionWindow; offset <= projectionWindow; offset++) {
           const sample = onPitRoute ? Math.round(clamp(nearestT + offset / projectionSamples, 0, 1) * projectionSamples) : ((projectionCentre + offset) % projectionSamples + projectionSamples) % projectionSamples;
           const sampleT = sample / projectionSamples;
-          const point = playerProjectionTrack.getPointAt(sampleT);
+          const point = projectionCurveSamples[sample];
           const dx = race.worldX - point.x;
           const dz = race.worldZ - point.z;
           const distanceSq = dx * dx + dz * dz;
           if (distanceSq < nearestDistanceSq) {
             nearestDistanceSq = distanceSq; nearestT = sampleT; nearestX = point.x; nearestZ = point.z;
-            const tangent = playerProjectionTrack.getTangentAt(sampleT);
-            nearestTangentX = tangent.x; nearestTangentZ = tangent.z;
+            nearestTangentX = point.tx; nearestTangentZ = point.tz;
           }
         }
         const dx = race.worldX - nearestX;
@@ -495,8 +503,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           race.playerPitProgress = nearestT; race.trackT = 0; race.progress = 0;
           if (race.playerPitProgress >= .90) {
             let joinT = .105, joinDistance = Number.POSITIVE_INFINITY;
-            for (let i = 0; i < 1920; i++) {
-              const t = i / 1920, point = trackRef.current!.getPointAt(t);
+            for (let i = 0; i < COLLISION_SAMPLE_COUNT; i++) {
+              const t = i / COLLISION_SAMPLE_COUNT, point = MAIN_TRACK_COLLISION_SAMPLES[i];
               const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
               if (distance < joinDistance) { joinDistance = distance; joinT = t; }
             }
@@ -518,21 +526,16 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           }
           if (race.playerPitProgress >= .82 && race.playerPitServiceRemaining <= 0) {
             let joinT = .105, joinDistance = Number.POSITIVE_INFINITY;
-            for (let i = 0; i < 1920; i++) {
-              const t = i / 1920, point = trackRef.current!.getPointAt(t);
+            for (let i = 0; i < COLLISION_SAMPLE_COUNT; i++) {
+              const t = i / COLLISION_SAMPLE_COUNT, point = MAIN_TRACK_COLLISION_SAMPLES[i];
               const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
               if (distance < joinDistance) { joinDistance = distance; joinT = t; }
             }
-            // The pit curve now ends on the circuit centreline. Transfer back
-            // to the canonical circuit boundary as soon as the merge is reached.
             if (joinDistance <= 10.5) {
               race.playerPitting = false;
               setPitTyreMenuOpen(false); pitTyreMenuShownRef.current = false;
               const entryProgress = race.playerPitEntryProgress;
               const entryTrackT = race.playerPitEntryTrackT;
-              // Rejoin at the correct forward circuit position relative to where
-              // the player entered the pit. Never jump to a hard-coded race lap:
-              // pit access is available during warm-up, qualifying and the race.
               const distanceToMerge = wrap(joinT - entryTrackT, 1);
               race.trackT = joinT;
               race.progress = entryProgress + distanceToMerge;
@@ -543,6 +546,29 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             } else {
               race.progress = race.playerPitEntryProgress;
               race.trackT = race.playerPitEntryTrackT;
+            }
+          } else if (race.playerPitProgress <= .055 && race.playerPitServiceRemaining <= 0) {
+            const pitTangent = RACING_PIT_LANE.getTangentAt(race.playerPitProgress);
+            const reversingAlongPit = race.velocityX * pitTangent.x + race.velocityZ * pitTangent.z < -0.5;
+            if (reversingAlongPit) {
+              let joinT = race.playerPitEntryTrackT, joinDistance = Number.POSITIVE_INFINITY;
+              for (let i = 0; i < COLLISION_SAMPLE_COUNT; i++) {
+                const t = i / COLLISION_SAMPLE_COUNT, point = MAIN_TRACK_COLLISION_SAMPLES[i];
+                const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
+                if (distance < joinDistance) { joinDistance = distance; joinT = t; }
+              }
+              if (joinDistance <= 8) {
+                race.playerPitting = false;
+                setPitTyreMenuOpen(false); pitTyreMenuShownRef.current = false;
+                const entryProgress = race.playerPitEntryProgress;
+                const entryTrackT = race.playerPitEntryTrackT;
+                race.trackT = joinT;
+                race.progress = entryProgress + (joinT - entryTrackT);
+                if (race.playerPitServiced && entryProgress >= 2) {
+                  race.playerPitDone = true;
+                  notify("PIT CREW · Pit exit clear. Rejoin the circuit.", "success");
+                }
+              }
             }
           } else {
             // Hold the pre-pit race progress while on the spline. This prevents
@@ -919,18 +945,21 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             phaseRef.current = "grid"; setPhase("grid");
             
           } else if (lapNow >= 5 && !completedRef.current) {
-            if (!race.playerPitDone) {
-              
-            } else {
             completedRef.current = true;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-            const position: 1 | 2 = race.progress >= race.botProgress ? 1 : 2;
-            const result: RaceResult = { id: "race-" + Date.now(), completedAt: new Date().toISOString(), difficulty: botDifficultyRef.current, elapsed: race.elapsed, bestLap: race.bestLap ?? (completedLapValid ? completedLapTime : null), position, laps: 2 };
+            const pitStopMissed = !race.playerPitDone;
+            const position: 1 | 2 = pitStopMissed ? 2 : race.progress >= race.botProgress ? 1 : 2;
+            const result: RaceResult = {
+              id: "race-" + Date.now(), completedAt: new Date().toISOString(),
+              difficulty: botDifficultyRef.current, elapsed: race.elapsed,
+              bestLap: race.bestLap ?? (completedLapValid ? completedLapTime : null),
+              position, laps: 2, ...(pitStopMissed ? { pitStopMissed: true } : {}),
+            };
             setRaceResult(result);
             phaseRef.current = "finished"; setPhase("finished");
-            if (position === 1) notify("🏆 PIT CREW · YOU BEAT KAGO! RACE WINNER!", "success");
+            if (pitStopMissed) notify("RACE CONTROL · Mandatory pit stop missed. Result recorded as DNF.", "error");
+            else if (position === 1) notify("🏆 PIT CREW · YOU BEAT KAGO! RACE WINNER!", "success");
             onComplete?.(result);
-            }
           }
         }
         if (race.progress >= 2 && !race.playerPitDone && !race.playerPitting) {
@@ -1055,7 +1084,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} />
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
         {toast && <div className={"warmup-toast " + toast.kind} role="status">{toast.text}</div>}
-        {phase === "finished" && raceResult && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.position === 1 ? "YOU BEAT KAGO!" : "YOU FINISHED THE RACE!"}</strong><p>{fmt(raceResult.elapsed)} · 2 scored laps · {raceResult.difficulty}</p><button type="button" onClick={startRace}>RACE AGAIN ↗</button></div>}
+        {phase === "finished" && raceResult && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.pitStopMissed ? "PIT STOP MISSED · DNF" : raceResult.position === 1 ? "YOU BEAT KAGO!" : "YOU FINISHED THE RACE!"}</strong><p>{fmt(raceResult.elapsed)} · {raceResult.pitStopMissed ? "Mandatory pit stop not completed" : "2 scored laps"} · {raceResult.difficulty}</p><button type="button" onClick={startRace}>RACE AGAIN ↗</button></div>}
         <div className={"warmup-3d-overlay" + (phase === "ready" ? " is-interactive" : "")} hidden={phase === "running" || phase === "finished" || phase === "pit"} aria-live="polite">
           <span>🏁 VULA RACING · LET’S PLAY!</span>
           <strong>{phase === "ready" ? "PIT GARAGE · RACE PREP" : phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "pit" ? "PIT STOP" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>

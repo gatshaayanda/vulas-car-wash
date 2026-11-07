@@ -19,7 +19,7 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Staff sign-in uses `/api/operations-login`, `FIREBASE_ADMIN_KEY`, and `VULA_OPERATIONS_WORD`. Never expose service-account credentials or staff secrets to the client.
 - Collections: `admins`, `customers`, `services`, `gallery`, `businessSettings`, `bookings`, `queueEntries`, `fleetRequests`, `loyaltyAccounts`, `reminderPreferences`, and `notificationTokens`.
 - Firestore authorization is in `firestore.rules`; image access is in `storage.rules`; indexes are in `firestore.indexes.json`.
-- `public/sw.js` uses isolated, versioned `vula-shell-v23` and `vula-game-v23` caches. It precaches the public game route, discovered Next.js assets, and the selected local racing model when available; the coloured procedural car remains the offline fallback. Bump cache versions when shipped game assets change. Keep early `beforeinstallprompt` capture and the explicit branded install click intact. Updates must wait for the existing app's Refresh action; do not force-reload during install. iOS installation guidance is at `/iphone-install`.
+- `public/sw.js` uses isolated, versioned `vula-shell-v34` and `vula-game-v34` caches. It precaches the public game route, discovered Next.js assets, and the selected local racing model when available; the coloured procedural car remains the offline fallback. Bump cache versions when shipped game assets change. Keep early `beforeinstallprompt` capture and the explicit branded install click intact. Updates must wait for the existing app's Refresh action; do not force-reload during install. iOS installation guidance is at `/iphone-install`.
 - Legacy foundation routes redirect to the active customer or staff journey via `src/middleware.ts`.
 
 ## Online/offline rules
@@ -43,7 +43,7 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 
 ## Protected Vula Racing golden baseline
 
-- **Only current approved golden baseline:** commit `951e3af260f14e0fe647a8715bbe4328c210c349`, protected reference branch `golden-baseline/kago-racing-2026-11-04`. This is the version the product owner approved on 4 November 2026. All improvements must move forward from it.
+- **Only current approved golden baseline:** commit `0d440cd3a63220ee99559abe13fffb45e61180cf`, protected reference branch `golden-baseline/vula-racing-2026-11-06`. This is the version the product owner approved on 6 November 2026. All improvements must move forward from it.
 - This is the sole authoritative rollback and development foundation for Vula Racing. Never substitute an older checkpoint or superseded implementation. If the product owner asks to go back, restore this exact baseline. Do not bring up obsolete versions, baseline identifiers, branch names, or historical deployment claims in discussion, code comments, docs, or handoffs.
 - Never move, delete, rewrite or force-push the approved golden reference branch. Develop forward from this exact approved baseline on a working branch. If a feature regresses, restore this exact approved commit.
 - The approved baseline includes Kago's independent world-space vehicle state, steering, throttle, braking, line selection, NOS and collision response. Its known outstanding defect is competitive pace: adequate engine force alone does not prove that Kago holds speed through corners or contests the player. Do not describe him as race-ready until full-lap gameplay QA proves it.
@@ -166,7 +166,7 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 
 ## Racing PWA offline QA hardening — 2026-11-06
 
-- Keep the homepage/game navigation and the selected local Kenney racing model available offline after an online visit. The active caches are isolated as `vula-shell-v21` and `vula-game-v21`; bump both versions whenever offline shell or game runtime behaviour changes.
+- Keep the homepage/game navigation and the selected local Kenney racing model available offline after an online visit. The active caches are isolated as `vula-shell-v34` and `vula-game-v34`; bump both versions whenever offline shell or game runtime behaviour changes.
 - Next.js lazy-loaded JavaScript under `/_next/static/chunks/` belongs in the dedicated game cache, not only the general shell cache. This is essential because the embedded Quick Break scene and its Three.js dependencies load after the customer opens the game. Keep a generous bounded game-cache budget (currently 320 entries) so normal site traffic does not evict the racing runtime before offline QA.
 - During service-worker installation, cache all route-discovered critical JS chunks and the public homepage/game routes. Continue caching the selected local Kenney model and any same-origin glTF buffers/textures; preserve the procedural vehicle fallback.
 - Keep API requests network-only. Do not cache Firebase/API responses, customer account pages, admin pages, booking/queue data, authentication responses, or private user content as public offline assets. Offline race progress/results remain device-local and untrusted for online rewards.
@@ -257,3 +257,12 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 
 - The live circuit map owns the upper-right HUD corner and must stack above transient toasts (map z-index 5; toast z-index 4). Toasts belong in the lower-left lane, capped to leave the map's footprint clear on narrow phones.
 - Keep driving guidance in its own top-centre signal chip. Keep transient event toasts visually secondary and brief; do not centre large toast banners across the gameplay viewport. Maintain separate spatial lanes for map, guidance and notifications rather than solving overlap with z-index alone.
+
+
+## Final pre-QA hardening — 2026-11-07
+
+- Preserve the established player-driving integration and single authoritative swept boundary solver. Collision and projection samples may be precomputed from immutable canonical curves, but sampled positions and tangents must remain identical to the 1,920-division arc-length samples.
+- The physical pit spline has two valid exits: forward through the merge or reverse back through the entry connector. Release pit projection only at the connected circuit endpoint; never create a broad collision exemption or teleport the player.
+- The mandatory tyre-selection pit visit must be completed within the two scored laps. If the player crosses the finish without servicing, record a DNF immediately rather than silently extending the race by another lap or awarding a misleading result.
+- Keep the service interaction compact and outside the upper-right map and lower-left toast lanes. Player controls and world movement remain live while the tyre panel is open.
+- Current service-worker caches are `vula-shell-v34` and `vula-game-v34`; bump both together for subsequent runtime changes.
