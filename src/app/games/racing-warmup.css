@@ -525,3 +525,10 @@
  .warmup-signal-chip{left:8px;right:calc(var(--map-width) + 16px);top:8px;width:max-content;max-width:none}
  .warmup-toast{left:8px;right:calc(var(--map-width) + 16px);bottom:8px;max-width:none;max-height:3.2em;padding:9px 10px;font-size:11px}
 }
+
+
+/* Toast feedback lives outside the live racing scene so it cannot cover the road or map. */
+.warmup-notification-slot{display:flex;align-items:center;min-height:48px;margin:8px 0 0;}
+.warmup-notification-slot .warmup-toast{position:relative;inset:auto;z-index:auto;transform:none;display:block;width:100%;max-width:none;max-height:none;overflow:visible;-webkit-line-clamp:unset;-webkit-box-orient:initial;box-sizing:border-box;padding:10px 13px;border-radius:10px;font-size:clamp(11px,1.8vw,13px);line-height:1.4;overflow-wrap:anywhere;white-space:normal;pointer-events:none;}
+@media(max-width:640px){.warmup-notification-slot{min-height:46px;margin-top:7px}.warmup-notification-slot .warmup-toast{padding:9px 11px;font-size:11px;}}
+@media(prefers-reduced-motion:reduce){.warmup-notification-slot .warmup-toast{animation:none!important;}}
