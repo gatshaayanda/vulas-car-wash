@@ -360,3 +360,12 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - The physical pit entrance and exit work during warm-up, qualifying and scored racing. Do not gate physical pit access on race progress, lap number, mandatory service, or tyre state.
 - Only switch to pit-road projection at the actual entry connector; release at the physical exit/return connector. Preserve normal lap progression across the connector.
 - Current service-worker caches are v42: `vula-shell-v42` and `vula-game-v42`.
+
+
+## Pit-side visible fence collision alignment — 2026-11-07
+
+- The pit lane sits 13.2 world units outside the main circuit centreline; the main circuit's pit-side rail is 8.4 units outside that centreline, placing the visible rail 4.8 units from the pit-lane centreline.
+- While the player is on the pit route, the inner-side swept and final collision limits must stop the car centre at 3.5 units from the pit-lane centreline so the 2.16-unit-wide car body cannot pass through the visible rail.
+- Keep the pit-route outer-side envelope and all main-circuit collision limits unchanged. Do not widen collision exemptions, move fences, alter driving physics, or change session flow to address this issue.
+- Both service-worker caches are v43: `vula-shell-v43` and `vula-game-v43`.
+- Report source verification, deployment and physical gameplay QA separately.
