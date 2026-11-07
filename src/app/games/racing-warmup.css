@@ -482,11 +482,11 @@
 .warmup-3d-overlay.is-interactive{pointer-events:auto}
 .warmup-signal-chip.pit{border-color:#f2bd45;background:#332713ef}
 .warmup-signal-chip.pit span{background:#f2bd45;box-shadow:0 0 0 3px #f2bd4525}
-.warmup-circuit-wrap .warmup-pit-service-overlay{position:absolute;z-index:6;left:50%;top:50%;transform:translate(-50%,-50%);width:min(420px,calc(100% - 24px));margin:0;pointer-events:auto}
+.warmup-circuit-wrap .warmup-pit-service-overlay{position:absolute;z-index:8;right:12px;top:50%;left:auto;transform:translateY(-50%);width:min(350px,calc(100% - 24px));margin:0;pointer-events:auto;animation:warmup-pit-menu-in .18s ease-out}@keyframes warmup-pit-menu-in{from{opacity:0;transform:translate(8px,-50%)}to{opacity:1;transform:translate(0,-50%)}}
 .warmup-pit-service-progress{position:absolute;z-index:5;right:12px;bottom:12px;display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid #f2bd45;border-radius:9px;background:#14241fee;color:#fff;box-shadow:0 4px 16px #07140e30;pointer-events:none}
 .warmup-pit-service-progress strong{font-size:9px;letter-spacing:.08em}
 .warmup-pit-service-progress span{font-size:13px;font-weight:950;color:#f2bd45;font-variant-numeric:tabular-nums}
-@media(max-width:480px){.warmup-circuit-wrap .warmup-pit-service-overlay{padding:13px}.warmup-circuit-wrap .warmup-pit-service-overlay>strong{font-size:18px}.warmup-pit-service-progress{right:8px;bottom:8px;padding:8px 9px}}
+@media(max-width:480px){.warmup-circuit-wrap .warmup-pit-service-overlay{right:8px;width:min(310px,calc(100% - 16px));padding:13px}.warmup-circuit-wrap .warmup-pit-service-overlay>strong{font-size:18px}.warmup-pit-service-progress{right:8px;bottom:8px;padding:8px 9px}}
 
 /* Big, friendly driving coach cues: readable on a phone at a glance. */
 .warmup-signal-chip{top:12px;left:50%;transform:translateX(-50%);justify-content:center;width:max-content;max-width:calc(100% - 20px);padding:11px 16px;border:2px solid #c9ee83;border-radius:999px;background:#142b20f2;color:#fff;font-size:clamp(12px,2.7vw,16px);font-weight:1000;letter-spacing:.025em;text-align:center;box-shadow:0 5px 18px #07140e66}
