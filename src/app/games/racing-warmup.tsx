@@ -496,10 +496,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // Circuit projection is used only for lap timing, track limits, and collision queries.
         let nearestT = onPitRoute ? race.playerPitProgress : wrap(race.trackT, 1);
         let nearestDistanceSq = Number.POSITIVE_INFINITY;
-        let nearestX = 0;
-        let nearestZ = 0;
-        let nearestTangentX = 0;
-        let nearestTangentZ = -1;
         // Project onto the local section of the circuit, not the globally nearest
         // section. At hairpins and nearby return legs, a global nearest-point search
         // can snap to the wrong branch of the road and make the car appear to cut
@@ -519,8 +515,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           const dz = race.worldZ - point.z;
           const distanceSq = dx * dx + dz * dz;
           if (distanceSq < nearestDistanceSq) {
-            nearestDistanceSq = distanceSq; nearestT = sampleT; nearestX = point.x; nearestZ = point.z;
-            nearestTangentX = point.tx; nearestTangentZ = point.tz;
+            nearestDistanceSq = distanceSq; nearestT = sampleT;
           }
         }
         const previousProgress = race.progress;
