@@ -332,88 +332,143 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         race.worldX += race.velocityX * dt;
         race.worldZ += race.velocityZ * dt;
 
-        // Sweep the car's complete frame movement in short substeps against the
-        // same closed track envelope. This catches thin endpoint gaps and fast
-        // corner exits even when a rendered frame is delayed.
-        // Treat the whole pit apron as open world. The circuit's ordinary
-        // edge solver must not fence off a lateral approach to the pit road.
-        const onPitRoute = race.playerPitting || race.playerGarageExit;
-        // Follow the pit route locally from the previous frame. A global nearest
-        // point search can jump to a different part of the parallel lane and
-        // produce a visible projection/collision discontinuity.
-        let nearestPitT = onPitRoute ? race.playerPitProgress : 0;
-        if (onPitRoute) {
-          let nearestPitDistanceSq = Number.POSITIVE_INFINITY;
-          const centre = Math.round(clamp(nearestPitT, 0, 1) * COLLISION_SAMPLE_COUNT);
-          for (let offset = -144; offset <= 144; offset++) {
-            const sampleIndex = Math.round(clamp(centre + offset, 0, COLLISION_SAMPLE_COUNT));
-            const point = PIT_LANE_COLLISION_SAMPLES[sampleIndex];
-            const distanceSq = (race.worldX - point.x) ** 2 + (race.worldZ - point.z) ** 2;
-            if (distanceSq < nearestPitDistanceSq) {
-              nearestPitDistanceSq = distanceSq;
-              nearestPitT = sampleIndex / COLLISION_SAMPLE_COUNT;
-            }
-          }
-        }
-        // Match the rendered 14.4-unit pit road instead of creating a
-        // narrow invisible corridor around the pit spline.
+        // One swept collision solver covers the complete connected driving
+        // surface. The main circuit and pit connector are candidate pieces of
+        // road, not mutually exclusive physics modes selected by pit-state flags.
         const trackSafetyOffset = 7.15;
+        const pitSafetyOffset = 3.5;
         const sweepDx = race.worldX - sweepStartX;
         const sweepDz = race.worldZ - sweepStartZ;
         const sweepDistance = Math.hypot(sweepDx, sweepDz);
         const sweepSteps = Math.min(12, Math.max(1, Math.ceil(sweepDistance / 0.28)));
         const sweepSamples = COLLISION_SAMPLE_COUNT;
-        const sweepCurveSamples = onPitRoute ? PIT_LANE_COLLISION_SAMPLES : MAIN_TRACK_COLLISION_SAMPLES;
-        // While the player is in the garage exit or pit lane, search around the
-        // pit spline progress. Using main-track progress (zero at race start)
-        // makes the safety sweep clamp the car toward the wrong pit-lane segment.
-        const sweepCentre = Math.round((onPitRoute ? nearestPitT : race.trackT) * sweepSamples);
+        // Anchor both candidate searches to the car's actual world position.
+        // This avoids losing the main fence merely because a pit-state flag or
+        // progress value is stale, and avoids switching collision systems.
+        let nearestMainSample = 0, nearestPitSample = 0;
+        let nearestMainStartSq = Number.POSITIVE_INFINITY;
+        let nearestPitStartSq = Number.POSITIVE_INFINITY;
+        for (let index = 0; index < sweepSamples; index++) {
+          const mainPoint = MAIN_TRACK_COLLISION_SAMPLES[index];
+          const mainDx = race.worldX - mainPoint.x, mainDz = race.worldZ - mainPoint.z;
+          const mainSq = mainDx * mainDx + mainDz * mainDz;
+          if (mainSq < nearestMainStartSq) { nearestMainStartSq = mainSq; nearestMainSample = index; }
+          const pitPoint = PIT_LANE_COLLISION_SAMPLES[index];
+          const pitDx = race.worldX - pitPoint.x, pitDz = race.worldZ - pitPoint.z;
+          const pitSq = pitDx * pitDx + pitDz * pitDz;
+          if (pitSq < nearestPitStartSq) { nearestPitStartSq = pitSq; nearestPitSample = index; }
+        }
         for (let step = 1; step <= sweepSteps; step++) {
           const fraction = step / sweepSteps;
           const sampleX = sweepStartX + sweepDx * fraction;
           const sampleZ = sweepStartZ + sweepDz * fraction;
-          let nearestDistanceSq = Number.POSITIVE_INFINITY;
-          let nearestX = 0, nearestZ = 0, nearestTangentX = 0, nearestTangentZ = -1;
-          for (let offset = -144; offset <= 144; offset++) {
-            const sample = onPitRoute ? Math.round(clamp(nearestPitT + offset / sweepSamples, 0, 1) * sweepSamples) : ((sweepCentre + offset) % sweepSamples + sweepSamples) % sweepSamples;
-            const point = sweepCurveSamples[sample];
-            const dx = sampleX - point.x, dz = sampleZ - point.z;
-            const distanceSq = dx * dx + dz * dz;
-            if (distanceSq < nearestDistanceSq) {
-              nearestDistanceSq = distanceSq;
-              nearestX = point.x; nearestZ = point.z;
-              nearestTangentX = point.tx; nearestTangentZ = point.tz;
+          let mainDistanceSq = Number.POSITIVE_INFINITY, mainIndex = nearestMainSample;
+          let mainX = 0, mainZ = 0, mainTangentX = 0, mainTangentZ = -1;
+          let pitDistanceSq = Number.POSITIVE_INFINITY, pitIndex = nearestPitSample;
+          let pitX = 0, pitZ = 0, pitTangentX = 0, pitTangentZ = -1;
+          // Search locally around each curve's previous closest sample. Both
+          // searches run every frame, regardless of playerPitting/garageExit.
+          for (let offset = -72; offset <= 72; offset++) {
+            const mainSample = ((nearestMainSample + offset) % sweepSamples + sweepSamples) % sweepSamples;
+            const mainPoint = MAIN_TRACK_COLLISION_SAMPLES[mainSample];
+            const mainDx = sampleX - mainPoint.x, mainDz = sampleZ - mainPoint.z;
+            const candidateMainSq = mainDx * mainDx + mainDz * mainDz;
+            if (candidateMainSq < mainDistanceSq) {
+              mainDistanceSq = candidateMainSq; mainIndex = mainSample;
+              mainX = mainPoint.x; mainZ = mainPoint.z;
+              mainTangentX = mainPoint.tx; mainTangentZ = mainPoint.tz;
+            }
+            const pitSample = Math.round(clamp(nearestPitSample + offset, 0, sweepSamples));
+            const pitPoint = PIT_LANE_COLLISION_SAMPLES[pitSample];
+            const pitDx = sampleX - pitPoint.x, pitDz = sampleZ - pitPoint.z;
+            const candidatePitSq = pitDx * pitDx + pitDz * pitDz;
+            if (candidatePitSq < pitDistanceSq) {
+              pitDistanceSq = candidatePitSq; pitIndex = pitSample;
+              pitX = pitPoint.x; pitZ = pitPoint.z;
+              pitTangentX = pitPoint.tx; pitTangentZ = pitPoint.tz;
             }
           }
-          const distance = Math.sqrt(nearestDistanceSq);
-          const dx = sampleX - nearestX, dz = sampleZ - nearestZ;
-          const sideX = -nearestTangentZ, sideZ = nearestTangentX;
-          const signedOffset = dx * sideX + dz * sideZ;
-          // The pit's inner fence remains collidable. Its outer side is open:
-          // never manufacture a second boundary where the outer rail is absent.
-          // The geometric apron opening also prevents the main-track fence from
-          // pushing the car away before it has committed to the pit route.
-          const pitInnerContact = onPitRoute && signedOffset > 3.5;
-          const circuitEdgeContact = !onPitRoute
-            && (distance > trackSafetyOffset || Math.abs(signedOffset) > trackSafetyOffset);
-          if (pitInnerContact || circuitEdgeContact) {
-            const safeOffset = onPitRoute ? 3.5 : trackSafetyOffset;
-            const normalX = onPitRoute ? sideX : distance > safeOffset && distance > 0.0001
+          nearestMainSample = mainIndex;
+          nearestPitSample = pitIndex;
+
+          const mainDistance = Math.sqrt(mainDistanceSq);
+          const mainDx = sampleX - mainX, mainDz = sampleZ - mainZ;
+          const mainSideX = -mainTangentZ, mainSideZ = mainTangentX;
+          const mainSignedOffset = mainDx * mainSideX + mainDz * mainSideZ;
+          const mainT = mainIndex / sweepSamples;
+          // The only open main-track edges are the two visible pit connectors.
+          // This is a narrow geometric opening, not a broad pit-mode exemption.
+          const mainConnectorOpening = mainSignedOffset < 0
+            && ((mainT >= .905 && mainT <= .94) || (mainT >= .075 && mainT <= .11))
+            && mainDistance <= 16;
+          const mainPenetration = mainConnectorOpening
+            ? Number.POSITIVE_INFINITY
+            : Math.max(mainDistance, Math.abs(mainSignedOffset)) - trackSafetyOffset;
+
+          const pitDistance = Math.sqrt(pitDistanceSq);
+          const pitDx = sampleX - pitX, pitDz = sampleZ - pitZ;
+          const pitSideX = -pitTangentZ, pitSideZ = pitTangentX;
+          const pitSignedOffset = pitDx * pitSideX + pitDz * pitSideZ;
+          // The service-apron side is intentionally open; the inner pit fence
+          // is a real boundary. It uses this same swept solver and response.
+          const pitPenetration = pitSignedOffset > pitSafetyOffset
+            ? pitSignedOffset - pitSafetyOffset
+            : pitDistance <= 8 ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
+
+          const usePitBoundary = pitPenetration < mainPenetration;
+          const penetration = Math.min(mainPenetration, pitPenetration);
+          if (penetration > 0) {
+            const safeOffset = usePitBoundary ? pitSafetyOffset : trackSafetyOffset;
+            const distance = usePitBoundary ? pitDistance : mainDistance;
+            const dx = usePitBoundary ? pitDx : mainDx;
+            const dz = usePitBoundary ? pitDz : mainDz;
+            const sideX = usePitBoundary ? pitSideX : mainSideX;
+            const sideZ = usePitBoundary ? pitSideZ : mainSideZ;
+            const signedOffset = usePitBoundary ? pitSignedOffset : mainSignedOffset;
+            const normalX = usePitBoundary ? sideX : distance > safeOffset && distance > .0001
               ? dx / distance : sideX * (signedOffset < 0 ? -1 : 1);
-            const normalZ = onPitRoute ? sideZ : distance > safeOffset && distance > 0.0001
+            const normalZ = usePitBoundary ? sideZ : distance > safeOffset && distance > .0001
               ? dz / distance : sideZ * (signedOffset < 0 ? -1 : 1);
             const remainingX = race.worldX - sampleX;
             const remainingZ = race.worldZ - sampleZ;
             const outwardRemainder = Math.max(0, remainingX * normalX + remainingZ * normalZ);
-            race.worldX = nearestX + normalX * safeOffset + remainingX - normalX * outwardRemainder;
-            race.worldZ = nearestZ + normalZ * safeOffset + remainingZ - normalZ * outwardRemainder;
+            const boundaryX = usePitBoundary ? pitX : mainX;
+            const boundaryZ = usePitBoundary ? pitZ : mainZ;
+            race.worldX = boundaryX + normalX * safeOffset + remainingX - normalX * outwardRemainder;
+            race.worldZ = boundaryZ + normalZ * safeOffset + remainingZ - normalZ * outwardRemainder;
             const outwardVelocity = race.velocityX * normalX + race.velocityZ * normalZ;
             if (outwardVelocity > 0) {
-              race.velocityX -= normalX * outwardVelocity * 1.04;
-              race.velocityZ -= normalZ * outwardVelocity * 1.04;
-              race.speed *= 0.88;
+              const impactKmh = outwardVelocity * 3.6 / 0.28;
+              const restitution = impactKmh > 80 ? .16 : .04;
+              race.velocityX -= normalX * outwardVelocity * (1 + restitution);
+              race.velocityZ -= normalZ * outwardVelocity * (1 + restitution);
+              if (now - race.lastImpactAt > 180) {
+                race.lastImpactAt = now;
+                race.damage = clamp(race.damage + Math.max(0, impactKmh - 18)
+                  * (impactKmh > 115 ? .78 : impactKmh > 65 ? .38 : .12), 0, 99);
+              }
+            } else {
+              race.velocityX *= .98;
+              race.velocityZ *= .98;
             }
             break;
+          }
+        }
+        // Pit state still controls service and lap bookkeeping below. It no
+        // longer selects a different collision solver or disables circuit walls.
+        const onPitRoute = race.playerPitting || race.playerGarageExit;
+        let nearestPitT = onPitRoute ? race.playerPitProgress : 0;
+        if (onPitRoute) {
+          let nearestPitDistanceSq = Number.POSITIVE_INFINITY;
+          const centre = Math.round(clamp(nearestPitT, 0, 1) * sweepSamples);
+          for (let offset = -144; offset <= 144; offset++) {
+            const sampleIndex = Math.round(clamp(centre + offset, 0, sweepSamples));
+            const point = PIT_LANE_COLLISION_SAMPLES[sampleIndex];
+            const distanceSq = (race.worldX - point.x) ** 2 + (race.worldZ - point.z) ** 2;
+            if (distanceSq < nearestPitDistanceSq) {
+              nearestPitDistanceSq = distanceSq;
+              nearestPitT = sampleIndex / sweepSamples;
+            }
           }
         }
         race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 290 : 255);
@@ -466,66 +521,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           if (distanceSq < nearestDistanceSq) {
             nearestDistanceSq = distanceSq; nearestT = sampleT; nearestX = point.x; nearestZ = point.z;
             nearestTangentX = point.tx; nearestTangentZ = point.tz;
-          }
-        }
-        const dx = race.worldX - nearestX;
-        const dz = race.worldZ - nearestZ;
-        const signedOffset = dx * -nearestTangentZ + dz * nearestTangentX;
-        const distanceFromCentre = Math.sqrt(nearestDistanceSq);
-        // Resolve against the actual nearest-point displacement. A tangent-only
-        // signed offset can under-report penetration when the projection lands near
-        // the edge of its search window at a hairpin. The radial vector from the
-        // selected centreline point gives a hard geometric boundary in that case.
-        const sideX = -nearestTangentZ;
-        const sideZ = nearestTangentX;
-        const sideSign = signedOffset < 0 ? -1 : 1;
-        const outwardX = distanceFromCentre > 0.0001 ? dx / distanceFromCentre : sideX * sideSign;
-        const outwardZ = distanceFromCentre > 0.0001 ? dz / distanceFromCentre : sideZ * sideSign;
-        const impactVelocity = race.velocityX * outwardX + race.velocityZ * outwardZ;
-        // The road is 12 units wide and the visible rail is centred at 8.4.
-        // Keep the car centre inside the road edge so its 2.16-unit body cannot
-        // cross the rail, even when the centreline tangent is unstable at a hairpin.
-        // One consistent swept-frame safety envelope, inside the visible rail
-        // centreline at 8.4 units. Keep the car on the road without crash/respawn.
-        // Match the pit-side fence with the swept solver: the inner edge is
-        // 4.8 units from the pit centreline, so keep the car centre 3.5 units in.
-        // Main-circuit handling and the pit apron outer edge remain unchanged.
-        const safeOffset = trackSafetyOffset;
-        // The swept solver above is authoritative for the pit route. Do not run
-        // a second nearest-centreline correction over it: the two corrections
-        // can fight on curves and feel like a tugging forcefield.
-        if (!onPitRoute
-          && (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset)) {
-          const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
-          const correctionX = distanceFromCentre > safeOffset
-            ? outwardX
-            : sideX * sideSign;
-          const correctionZ = distanceFromCentre > safeOffset
-            ? outwardZ
-            : sideZ * sideSign;
-          race.worldX = nearestX + correctionX * safeOffset;
-          race.worldZ = nearestZ + correctionZ * safeOffset;
-          if (impactVelocity > 0) {
-            const impactKmh = impactVelocity * 3.6 / 0.28;
-            // Remove outward velocity at the boundary, with a small rebound for a
-            // harder hit. Tangential velocity remains so the car can scrape along a wall.
-            const restitution = impactKmh > 80 ? 0.16 : 0.04;
-            race.velocityX -= outwardX * impactVelocity * (1 + restitution);
-            race.velocityZ -= outwardZ * impactVelocity * (1 + restitution);
-            race.speed *= impactKmh > 115 ? 0.52 : impactKmh > 65 ? 0.72 : 0.88;
-            if (now - race.lastImpactAt > 180) {
-              race.lastImpactAt = now;
-              race.damage = clamp(race.damage + Math.max(0, impactKmh - 18) * (impactKmh > 115 ? 0.78 : impactKmh > 65 ? 0.38 : 0.12), 0, 100);
-              if (impactKmh > 28) 
-              // Barrier contact is recoverable practice feedback, never a forced
-              // game-over/respawn. Keep damage below the crash threshold.
-              race.damage = Math.min(99, race.damage);
-            }
-          } else if (penetration > 0) {
-            // If the car was already pressed against the rail or has near-zero outward
-            // velocity, keep it outside the wall anyway; reversing remains available.
-            race.velocityX *= 0.98;
-            race.velocityZ *= 0.98;
           }
         }
         const previousProgress = race.progress;
