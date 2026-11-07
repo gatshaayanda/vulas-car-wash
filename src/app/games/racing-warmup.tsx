@@ -181,18 +181,31 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       previous = now;
       if (phaseRef.current === "running" && dt > 0) {
         const controls = controlsRef.current;
-        if (!race.playerPitting && !race.playerGarageExit) {
+        // Commit to the pit only at its physical entry connector, during the
+        // scored race. Being near the middle/service bay of a parallel spline
+        // must never switch the player's collision/projection route.
+        if (!race.playerPitDone && !race.playerPitting && !race.playerGarageExit
+          && race.progress >= 2 && race.trackT >= .895 && race.trackT < .985) {
           let nearestPitDistance = Number.POSITIVE_INFINITY, nearestPitT = 0;
-          for (let sample = 0; sample <= 100; sample++) {
-            const sampleT = sample / 100, point = RACING_PIT_LANE.getPointAt(sampleT);
+          for (let sample = 0; sample <= 240; sample++) {
+            const sampleIndex = sample * 8;
+            const point = PIT_LANE_COLLISION_SAMPLES[sampleIndex];
             const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
-            if (distance < nearestPitDistance) { nearestPitDistance = distance; nearestPitT = sampleT; }
+            if (distance < nearestPitDistance) {
+              nearestPitDistance = distance;
+              nearestPitT = sampleIndex / COLLISION_SAMPLE_COUNT;
+            }
           }
-          if (nearestPitDistance < 7.2) {
-            race.playerPitting = true; race.playerPitProgress = nearestPitT;
-            race.playerPitEntryProgress = race.progress; race.playerPitEntryTrackT = race.trackT;
-            race.playerPitServiced = race.playerPitDone; race.playerPitServiceRemaining = 0;
-            
+          // The player must physically reach the open connector. No long-range
+          // attraction, auto-steering, or handoff from another part of the lane.
+          if (nearestPitDistance < 3.5) {
+            race.playerPitting = true;
+            race.playerPitProgress = nearestPitT;
+            race.playerPitEntryProgress = race.progress;
+            race.playerPitEntryTrackT = race.trackT;
+            race.playerPitServiced = false;
+            race.playerPitServiceRemaining = 0;
+            notify("PIT CREW · Pit lane entered. Keep driving to the service bay.", "info");
           }
         }
         const pitSteer = controls.steer;
@@ -200,10 +213,12 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         const steerEase = 1 - Math.exp(-dt * (Math.abs(pitSteer) > Math.abs(race.steering) ? 10.5 : 6.5));
         race.steering += (pitSteer - race.steering) * steerEase;
         const steering = race.steering;
-        const t = wrap(race.progress, 1);
-        const trackTurn = getTrackTurn(trackRef.current!, t, .006);
+        const onPitGuidanceRoute = race.playerPitting || race.playerGarageExit;
+        const guidanceCurve = onPitGuidanceRoute ? RACING_PIT_LANE : trackRef.current!;
+        const t = onPitGuidanceRoute ? race.playerPitProgress : wrap(race.progress, 1);
+        const trackTurn = getTrackTurn(guidanceCurve, t, .006);
         const bend = clamp(Math.abs(trackTurn) * 28, 0, 1);
-        const upcomingTurn = getTrackTurn(trackRef.current!, t + .018, .006);
+        const upcomingTurn = getTrackTurn(guidanceCurve, t + .018, .006);
         const upcomingBend = clamp(Math.abs(upcomingTurn) * 28, 0, 1);
         const speedRatio = race.speed / 230;
         const throttleTarget = controls.accelerate && !controls.brake ? 1 : 0;
@@ -332,16 +347,35 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // corner exits even when a rendered frame is delayed.
         // Treat the whole pit apron as open world. The circuit's ordinary
         // edge solver must not fence off a lateral approach to the pit road.
-        let nearestPitDistance = Number.POSITIVE_INFINITY, nearestPitT = race.playerPitProgress;
-        for (let sample = 0; sample <= 192; sample++) {
-          const point = PIT_LANE_COLLISION_SAMPLES[sample * 10];
-          const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
-          if (distance < nearestPitDistance) { nearestPitDistance = distance; nearestPitT = sample / 192; }
-        }
-        // The pit spline is authoritative only after the car commits to the entry.
-        // A wide proximity exemption let the car ghost through the circuit fence
-        // and escape onto the grass around the pit area.
         const onPitRoute = race.playerPitting || race.playerGarageExit;
+        // Follow the pit route locally from the previous frame. A global nearest
+        // point search can jump to a different part of the parallel lane and
+        // produce a visible projection/collision discontinuity.
+        let nearestPitT = onPitRoute ? race.playerPitProgress : 0;
+        let nearestPitDistanceSqForProgress = Number.POSITIVE_INFINITY;
+        if (onPitRoute) {
+          const centre = Math.round(clamp(nearestPitT, 0, 1) * COLLISION_SAMPLE_COUNT);
+          for (let offset = -144; offset <= 144; offset++) {
+            const sampleIndex = Math.round(clamp(centre + offset, 0, COLLISION_SAMPLE_COUNT));
+            const point = PIT_LANE_COLLISION_SAMPLES[sampleIndex];
+            const distanceSq = (race.worldX - point.x) ** 2 + (race.worldZ - point.z) ** 2;
+            if (distanceSq < nearestPitDistanceSqForProgress) {
+              nearestPitDistanceSqForProgress = distanceSq;
+              nearestPitT = sampleIndex / COLLISION_SAMPLE_COUNT;
+            }
+          }
+        } else {
+          // Before commitment, inspect only the actual entry connector, not the
+          // entire pit spline. This keeps the main-track boundary authoritative.
+          for (let sampleIndex = 0; sampleIndex <= 1920; sampleIndex += 8) {
+            const point = PIT_LANE_COLLISION_SAMPLES[sampleIndex];
+            const distanceSq = (race.worldX - point.x) ** 2 + (race.worldZ - point.z) ** 2;
+            if (distanceSq < nearestPitDistanceSqForProgress) {
+              nearestPitDistanceSqForProgress = distanceSq;
+              nearestPitT = sampleIndex / COLLISION_SAMPLE_COUNT;
+            }
+          }
+        }
         const trackSafetyOffset = onPitRoute ? 3.5 : 7.15;
         const sweepDx = race.worldX - sweepStartX;
         const sweepDz = race.worldZ - sweepStartZ;
@@ -500,79 +534,74 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         }
         const previousProgress = race.progress;
         if (race.playerGarageExit) {
-          race.playerPitProgress = nearestT; race.trackT = 0; race.progress = 0;
-          if (race.playerPitProgress >= .90) {
-            let joinT = .105, joinDistance = Number.POSITIVE_INFINITY;
-            for (let i = 0; i < COLLISION_SAMPLE_COUNT; i++) {
-              const t = i / COLLISION_SAMPLE_COUNT, point = MAIN_TRACK_COLLISION_SAMPLES[i];
-              const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
-              if (distance < joinDistance) { joinDistance = distance; joinT = t; }
-            }
-            // Release pit-lane collision ownership as soon as the open merge
-            // reaches the circuit. Do not keep projecting/clamping the car to
-            // the finite pit spline after it has physically rejoined the road.
-            if (joinDistance <= 4.8) {
-              race.playerGarageExit = false; race.playerOutLap = true; race.trackT = joinT;
+          race.playerPitProgress = nearestT;
+          race.trackT = 0;
+          race.progress = 0;
+          // Garage exit is a real drive to the far end of the pit connector.
+          // Release only at the physical merge point, never at a nearby spline
+          // projection elsewhere on the circuit.
+          if (race.playerPitProgress >= .985) {
+            const mergePoint = MAIN_TRACK_COLLISION_SAMPLES[Math.round(.105 * COLLISION_SAMPLE_COUNT)];
+            const mergeDistance = Math.hypot(race.worldX - mergePoint.x, race.worldZ - mergePoint.z);
+            if (mergeDistance <= 4.8) {
+              race.playerGarageExit = false;
+              race.playerOutLap = true;
+              race.trackT = .105;
               notify("PIT CREW · Pit exit clear. Rejoin the circuit.", "success");
             }
           }
         } else if (race.playerPitting) {
           race.playerPitProgress = nearestT;
-          // Proximity interaction: choose tyres while rolling through the service bay.
-          // The driving phase, momentum and controls stay live throughout.
-          if (!race.playerPitServiced && race.progress >= 2 && race.playerPitProgress >= .42 && race.playerPitProgress <= .70 && !pitTyreMenuShownRef.current) {
+          // The tyre panel is a rolling proximity interaction. Steering,
+          // throttle, braking, momentum and the running race phase stay live.
+          if (!race.playerPitServiced && race.progress >= 2
+            && race.playerPitProgress >= .42 && race.playerPitProgress <= .70
+            && !pitTyreMenuShownRef.current) {
             pitTyreMenuShownRef.current = true;
             setPitTyreMenuOpen(true);
           }
-          if (race.playerPitProgress >= .82 && race.playerPitServiceRemaining <= 0) {
-            let joinT = .105, joinDistance = Number.POSITIVE_INFINITY;
-            for (let i = 0; i < COLLISION_SAMPLE_COUNT; i++) {
-              const t = i / COLLISION_SAMPLE_COUNT, point = MAIN_TRACK_COLLISION_SAMPLES[i];
-              const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
-              if (distance < joinDistance) { joinDistance = distance; joinT = t; }
-            }
-            if (joinDistance <= 10.5) {
+
+          // Forward exit: the pit curve ends on the main circuit centreline at
+          // T=.105. Require the car to reach that endpoint physically.
+          if (race.playerPitProgress >= .985 && race.playerPitServiceRemaining <= 0) {
+            const mergePoint = MAIN_TRACK_COLLISION_SAMPLES[Math.round(.105 * COLLISION_SAMPLE_COUNT)];
+            const mergeDistance = Math.hypot(race.worldX - mergePoint.x, race.worldZ - mergePoint.z);
+            if (mergeDistance <= 4.8) {
               race.playerPitting = false;
-              setPitTyreMenuOpen(false); pitTyreMenuShownRef.current = false;
+              setPitTyreMenuOpen(false);
+              pitTyreMenuShownRef.current = false;
               const entryProgress = race.playerPitEntryProgress;
               const entryTrackT = race.playerPitEntryTrackT;
-              const distanceToMerge = wrap(joinT - entryTrackT, 1);
-              race.trackT = joinT;
-              race.progress = entryProgress + distanceToMerge;
+              race.trackT = .105;
+              race.progress = entryProgress + wrap(.105 - entryTrackT, 1);
               if (race.playerPitServiced && entryProgress >= 2) {
                 race.playerPitDone = true;
                 notify("PIT CREW · Service complete. Rejoin the circuit.", "success");
               }
-            } else {
-              race.progress = race.playerPitEntryProgress;
-              race.trackT = race.playerPitEntryTrackT;
             }
-          } else if (race.playerPitProgress <= .055 && race.playerPitServiceRemaining <= 0) {
-            const pitTangent = RACING_PIT_LANE.getTangentAt(race.playerPitProgress);
+          } else if (race.playerPitProgress <= .015 && race.playerPitServiceRemaining <= 0) {
+            // Reverse exit is also allowed through the same open entry. It does
+            // not advance the lap counter or teleport to a nearest track segment.
+            const pitTangent = RACING_PIT_LANE.getTangentAt(.01);
             const reversingAlongPit = race.velocityX * pitTangent.x + race.velocityZ * pitTangent.z < -0.5;
-            if (reversingAlongPit) {
-              let joinT = race.playerPitEntryTrackT, joinDistance = Number.POSITIVE_INFINITY;
-              for (let i = 0; i < COLLISION_SAMPLE_COUNT; i++) {
-                const t = i / COLLISION_SAMPLE_COUNT, point = MAIN_TRACK_COLLISION_SAMPLES[i];
-                const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
-                if (distance < joinDistance) { joinDistance = distance; joinT = t; }
-              }
-              if (joinDistance <= 8) {
-                race.playerPitting = false;
-                setPitTyreMenuOpen(false); pitTyreMenuShownRef.current = false;
-                const entryProgress = race.playerPitEntryProgress;
-                const entryTrackT = race.playerPitEntryTrackT;
-                race.trackT = joinT;
-                race.progress = entryProgress + (joinT - entryTrackT);
-                if (race.playerPitServiced && entryProgress >= 2) {
-                  race.playerPitDone = true;
-                  notify("PIT CREW · Pit exit clear. Rejoin the circuit.", "success");
-                }
+            const entryPoint = MAIN_TRACK_COLLISION_SAMPLES[Math.round(.91 * COLLISION_SAMPLE_COUNT)];
+            const entryDistance = Math.hypot(race.worldX - entryPoint.x, race.worldZ - entryPoint.z);
+            if (reversingAlongPit && entryDistance <= 4.8) {
+              race.playerPitting = false;
+              setPitTyreMenuOpen(false);
+              pitTyreMenuShownRef.current = false;
+              race.trackT = race.playerPitEntryTrackT;
+              race.progress = race.playerPitEntryProgress;
+              if (race.playerPitServiced && race.playerPitEntryProgress >= 2) {
+                race.playerPitDone = true;
+                notify("PIT CREW · Pit entry clear. Rejoin the circuit.", "success");
               }
             }
-          } else {
-            // Hold the pre-pit race progress while on the spline. This prevents
-            // the pit lane from silently promoting practice/qualifying to race.
+          }
+
+          // Until one of the two physical endpoints is reached, race progress
+          // remains at the entry point; the car itself is never moved or reset.
+          if (race.playerPitting) {
             race.progress = race.playerPitEntryProgress;
             race.trackT = race.playerPitEntryTrackT;
           }

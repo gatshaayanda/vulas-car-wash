@@ -266,3 +266,16 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - The mandatory tyre-selection pit visit must be completed within the two scored laps. If the player crosses the finish without servicing, record a DNF immediately rather than silently extending the race by another lap or awarding a misleading result.
 - Keep the service interaction compact and outside the upper-right map and lower-left toast lanes. Player controls and world movement remain live while the tyre panel is open.
 - Current service-worker caches are `vula-shell-v34` and `vula-game-v34`; bump both together for subsequent runtime changes.
+
+
+## Pit-lane physical integration — corrective implementation rule (2026-11-07)
+
+- The homepage is the only normal customer QA entry: open https://vulas-car-wash.vercel.app/, scroll to Vula Racing, then start New Game. Do not direct the product owner to /games, a nested route, or a unique Vercel deployment URL for normal gameplay QA.
+- Preserve the approved player vehicle physics and world-space integration exactly. Do not steer, snap, teleport, auto-drive, pause, cap speed, replace velocity, or redirect the car onto a pit spline. The pit curve is geometry/projection context only.
+- Pit commitment is local to the physical entry connector: require the scored race, the main-track entry window, and close physical proximity to the first connector segment. Never switch to pit projection merely because the player is near any arbitrary point on the complete pit spline.
+- Once committed, track pit progress locally from the previous pit sample. Do not globally search the whole parallel spline each frame; a nearest-point jump can change the collision boundary under the car.
+- The pit exit must be reached physically at the actual curve endpoint. Do not use a broad nearest-main-track search or a large join radius to release pit ownership. Forward exit merges at main-track T=.105; reverse exit returns through the entry at T=.91. Preserve the player's race progress on reverse exit.
+- Keep one authoritative swept boundary solver. Main-track and pit-route ownership change only at the real connectors. Do not add a broad apron-radius collision exemption or a competing render-loop solver.
+- The rolling tyre panel must not interrupt gameplay. A selected tyre only counts toward the mandatory pit visit after the player physically exits through a connected endpoint. Leaving without selecting tyres is allowed but does not satisfy the mandatory visit.
+- Any change to racing runtime files must bump both service-worker caches together. Current cache version is v35 after the pit projection correction.
+- Do not claim the pit is fixed, a race is smooth, or device QA passed until the homepage flow has been played through the pit entry, service interaction, both exit directions, and a full two-lap race on an actual device/browser.
