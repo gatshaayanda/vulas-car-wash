@@ -377,6 +377,30 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             }
           }
         }
+        // The outer pit-side apron is a permanent open-world part of the
+        // circuit, including after the mandatory tyre visit is complete. Its
+        // collision state must be derived from physical location, not the
+        // one-time playerPitDone / playerPitting race-flow flags.
+        // Require BOTH proximity to the pit road AND the outside (pit) side
+        // of the main circuit. Proximity alone would create a ghost zone on
+        // the racing surface because the two parallel roads are close together.
+        const mainCentre = Math.round(wrap(race.trackT, 1) * COLLISION_SAMPLE_COUNT);
+        let nearestMainDistanceSq = Number.POSITIVE_INFINITY;
+        let pitSideOffset = 0;
+        for (let offset = -144; offset <= 144; offset++) {
+          const sampleIndex = (mainCentre + offset + COLLISION_SAMPLE_COUNT) % COLLISION_SAMPLE_COUNT;
+          const point = MAIN_TRACK_COLLISION_SAMPLES[sampleIndex];
+          const dx = race.worldX - point.x, dz = race.worldZ - point.z;
+          const distanceSq = dx * dx + dz * dz;
+          if (distanceSq < nearestMainDistanceSq) {
+            nearestMainDistanceSq = distanceSq;
+            pitSideOffset = dx * -point.tz + dz * point.tx;
+          }
+        }
+        const pitApronOpen = !onPitRoute
+          && nearestPitDistanceSqForProgress < 16 * 16
+          && pitSideOffset < -6.5;
+
         // Match the rendered 14.4-unit pit road instead of creating a
         // narrow invisible corridor around the pit spline.
         const trackSafetyOffset = 7.15;
@@ -390,7 +414,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // pit spline progress. Using main-track progress (zero at race start)
         // makes the safety sweep clamp the car toward the wrong pit-lane segment.
         const sweepCentre = Math.round((onPitRoute ? nearestPitT : race.trackT) * sweepSamples);
-        if (!onPitRoute) for (let step = 1; step <= sweepSteps; step++) {
+        if (!onPitRoute && !pitApronOpen) for (let step = 1; step <= sweepSteps; step++) {
           const fraction = step / sweepSteps;
           const sampleX = sweepStartX + sweepDx * fraction;
           const sampleZ = sweepStartZ + sweepDz * fraction;
@@ -506,7 +530,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // the pit spline nor the main circuit may push the car back into a lane.
         // Keep the swept circuit solver and this final boundary correction off
         // throughout pit ownership; world-space driving remains fully active.
-        if (!onPitRoute && (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset)) {
+        if (!onPitRoute && !pitApronOpen && (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset)) {
           const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
           const correctionX = distanceFromCentre > safeOffset
             ? outwardX
