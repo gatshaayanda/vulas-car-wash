@@ -340,3 +340,16 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - The visible outer rail omission in `racing-3d-scene.tsx` must remain aligned with the same pit-side T=.89–.12 opening.
 - Both service-worker caches are v40: `vula-shell-v40` and `vula-game-v40`. Bump together after runtime changes.
 - QA the pit-side opening on the first and subsequent scored laps, including after `playerPitDone` becomes true. Also confirm the opposite/inner fence remains solid. Do not claim physical QA unless actually played.
+
+
+## Normal circuit and optional pit policy — supersedes earlier pit-stop rules (2026-11-07)
+
+- The racing environment is a normal continuous circuit with a normal connected pit lane. Warm-up and qualifying are solo sessions on the same physical track; Kago is only a visible opponent once the scored race starts.
+- The player must never phase through visible rails or fences. Keep one authoritative swept boundary solver and the matching final boundary correction active on BOTH the main circuit and pit lane. Select the correct local curve for projection; never disable collision based on pit proximity, race lap, tyre state, or service flags.
+- Pit projection ownership changes only at the physical entrance connector and releases only at the physical exit/entry connector. Never acquire the pit spline merely because the car is near any arbitrary part of the parallel lane.
+- Render a solid outer circuit fence everywhere except the small physical pit entrance and exit connector openings. Do not remove the fence along the entire pit-side run. The pit road's own collision envelope must match its visible road edges.
+- Pit visits and tyre selection are OPTIONAL. Never make a pit visit mandatory, never DNF or penalize a player for skipping it, and never pause/slow/steer/teleport the car to force service. Tyre-condition information may be a concise warning/alert; it is not permission to alter the physical environment.
+- Warm-up and qualifying must remain freely drivable and solo. No opponent car, opponent collision, opponent effects or opponent HUD presence during those phases. Preserve the established transition into the scored race.
+- Keep player vehicle physics unchanged. Do not introduce magic walls, broad collision exemptions, invisible barriers, special pit-only speed/steering rules, forced service interactions or collision-state changes after a tyre milestone.
+- Both service-worker caches are v41: `vula-shell-v41` and `vula-game-v41`. Bump both together after racing runtime changes.
+- QA the whole lap and pit entry/exit on first and subsequent laps. Report source inspection, deployment status and physical gameplay QA separately; never claim physical QA unless actually played.
