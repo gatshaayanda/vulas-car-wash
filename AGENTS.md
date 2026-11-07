@@ -279,3 +279,16 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - The rolling tyre panel must not interrupt gameplay. A selected tyre only counts toward the mandatory pit visit after the player physically exits through a connected endpoint. Leaving without selecting tyres is allowed but does not satisfy the mandatory visit.
 - Any change to racing runtime files must bump both service-worker caches together. Current cache version is v35 after the pit projection correction.
 - Do not claim the pit is fixed, a race is smooth, or device QA passed until the homepage flow has been played through the pit entry, service interaction, both exit directions, and a full two-lap race on an actual device/browser.
+
+
+## Open-world pit access — superseding correction (2026-11-07)
+
+- This correction supersedes earlier instructions that restricted player pit entry to the narrow T=.895–.985 connector window or treated the pit as a separately fenced corridor.
+- During the scored race, the player may enter the pit complex from any side at any point along its open apron. Detect physical proximity to the full pit-road spline; never snap, steer, teleport, pause, brake, cap speed, reset velocity or otherwise take control of the car during handoff.
+- Keep the entire pit-side run of the main circuit visually open and remove the outer pit-apron wall. The pit complex is an open extension of the circuit, not a gated one-way lane.
+- Match the pit collision envelope to the rendered 14.4-unit road width (7.15 units from centreline). Do not retain the narrow 3.5-unit corridor that behaves like an invisible wall.
+- Keep local pit-spline progress tracking after initial physical handoff so the car cannot jump to a distant parallel segment. Keep the same world-space player physics and controls throughout.
+- Tyre selection remains a rolling interaction. The mandatory pit visit is complete only after a tyre selection and a physical exit at either end of the pit road.
+- The normal QA entry is https://vulas-car-wash.vercel.app/ → Vula Racing → New Game. Never direct QA to /games or a unique deployment URL.
+- Both service-worker caches are now v36: vula-shell-v36 and vula-game-v36. Bump both together for every subsequent racing runtime change.
+- Report code inspection, build status, deployment status and actual device gameplay QA separately. Never claim a full race or pit flow passed unless it was physically played through.

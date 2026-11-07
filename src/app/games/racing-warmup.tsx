@@ -181,14 +181,15 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       previous = now;
       if (phaseRef.current === "running" && dt > 0) {
         const controls = controlsRef.current;
-        // Commit to the pit only at its physical entry connector, during the
-        // scored race. Being near the middle/service bay of a parallel spline
-        // must never switch the player's collision/projection route.
+        // The pit complex is an open-world extension of the circuit, not a
+        // one-way gated lane. During the scored race, commit when the car
+        // physically reaches any part of the open pit apron from any side.
+        // This changes boundary/projection ownership only; world position,
+        // velocity, yaw, steering and player controls are never modified.
         if (!race.playerPitDone && !race.playerPitting && !race.playerGarageExit
-          && race.progress >= 2 && race.trackT >= .895 && race.trackT < .985) {
+          && race.progress >= 2) {
           let nearestPitDistance = Number.POSITIVE_INFINITY, nearestPitT = 0;
-          for (let sample = 0; sample <= 240; sample++) {
-            const sampleIndex = sample * 8;
+          for (let sampleIndex = 0; sampleIndex <= COLLISION_SAMPLE_COUNT; sampleIndex += 8) {
             const point = PIT_LANE_COLLISION_SAMPLES[sampleIndex];
             const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
             if (distance < nearestPitDistance) {
@@ -196,16 +197,16 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
               nearestPitT = sampleIndex / COLLISION_SAMPLE_COUNT;
             }
           }
-          // The player must physically reach the open connector. No long-range
-          // attraction, auto-steering, or handoff from another part of the lane.
-          if (nearestPitDistance < 3.5) {
+          // The overlap is intentional: the main circuit envelope and the
+          // pit-road envelope meet, so there is no invisible gap or forcefield.
+          if (nearestPitDistance < 7.0) {
             race.playerPitting = true;
             race.playerPitProgress = nearestPitT;
             race.playerPitEntryProgress = race.progress;
             race.playerPitEntryTrackT = race.trackT;
             race.playerPitServiced = false;
             race.playerPitServiceRemaining = 0;
-            notify("PIT CREW · Pit lane entered. Keep driving to the service bay.", "info");
+            notify("PIT CREW · Pit apron entered. Drive through the service bay.", "info");
           }
         }
         const pitSteer = controls.steer;
@@ -376,7 +377,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             }
           }
         }
-        const trackSafetyOffset = onPitRoute ? 3.5 : 7.15;
+        // Match the rendered 14.4-unit pit road instead of creating a
+        // narrow invisible corridor around the pit spline.
+        const trackSafetyOffset = 7.15;
         const sweepDx = race.worldX - sweepStartX;
         const sweepDz = race.worldZ - sweepStartZ;
         const sweepDistance = Math.hypot(sweepDx, sweepDz);
