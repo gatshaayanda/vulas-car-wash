@@ -342,26 +342,15 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // point search can jump to a different part of the parallel lane and
         // produce a visible projection/collision discontinuity.
         let nearestPitT = onPitRoute ? race.playerPitProgress : 0;
-        let nearestPitDistanceSqForProgress = Number.POSITIVE_INFINITY;
         if (onPitRoute) {
+          let nearestPitDistanceSq = Number.POSITIVE_INFINITY;
           const centre = Math.round(clamp(nearestPitT, 0, 1) * COLLISION_SAMPLE_COUNT);
           for (let offset = -144; offset <= 144; offset++) {
             const sampleIndex = Math.round(clamp(centre + offset, 0, COLLISION_SAMPLE_COUNT));
             const point = PIT_LANE_COLLISION_SAMPLES[sampleIndex];
             const distanceSq = (race.worldX - point.x) ** 2 + (race.worldZ - point.z) ** 2;
-            if (distanceSq < nearestPitDistanceSqForProgress) {
-              nearestPitDistanceSqForProgress = distanceSq;
-              nearestPitT = sampleIndex / COLLISION_SAMPLE_COUNT;
-            }
-          }
-        } else {
-          // Before commitment, inspect only the actual entry connector, not the
-          // entire pit spline. This keeps the main-track boundary authoritative.
-          for (let sampleIndex = 0; sampleIndex <= 1920; sampleIndex += 8) {
-            const point = PIT_LANE_COLLISION_SAMPLES[sampleIndex];
-            const distanceSq = (race.worldX - point.x) ** 2 + (race.worldZ - point.z) ** 2;
-            if (distanceSq < nearestPitDistanceSqForProgress) {
-              nearestPitDistanceSqForProgress = distanceSq;
+            if (distanceSq < nearestPitDistanceSq) {
+              nearestPitDistanceSq = distanceSq;
               nearestPitT = sampleIndex / COLLISION_SAMPLE_COUNT;
             }
           }
@@ -491,10 +480,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // One consistent swept-frame safety envelope, inside the visible rail
         // centreline at 8.4 units. Keep the car on the road without crash/respawn.
         const safeOffset = trackSafetyOffset;
-        // The pit complex is open-world: once the player has entered it, neither
-        // the pit spline nor the main circuit may push the car back into a lane.
-        // Keep the swept circuit solver and this final boundary correction off
-        // throughout pit ownership; world-space driving remains fully active.
+        // Apply the same visible-edge collision envelope on the current road:
+        // main circuit when racing, pit road while physically inside its connector.
         if (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset) {
           const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
           const correctionX = distanceFromCentre > safeOffset
