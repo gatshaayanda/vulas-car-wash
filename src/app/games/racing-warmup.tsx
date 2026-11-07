@@ -186,7 +186,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           for (let sample = 0; sample <= 100; sample++) {
             const sampleT = sample / 100, point = RACING_PIT_LANE.getPointAt(sampleT);
             const distance = Math.hypot(race.worldX - point.x, race.worldZ - point.z);
-            if (distance < nearestPitDistance) { nearestPitDistance = distance; nearestPitT = sampleT; }
+            if (distance < nearestPitDistance) { nearestPitDistance = distance; nearestPitT = sample / 192; }
           }
           if (nearestPitDistance < 7.2) {
             race.playerPitting = true; race.playerPitProgress = nearestPitT;
