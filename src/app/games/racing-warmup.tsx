@@ -338,36 +338,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // Treat the whole pit apron as open world. The circuit's ordinary
         // edge solver must not fence off a lateral approach to the pit road.
         const onPitRoute = race.playerPitting || race.playerGarageExit;
-        // The apron is open only where it physically meets the pit branch:
-        // outside the main circuit edge, close to the corresponding pit-road
-        // segment. This keeps the rest of the circuit fence fully collidable.
-        let openPitApron = false;
-        if (!onPitRoute) {
-          const mainCentre = Math.round(wrap(race.trackT, 1) * COLLISION_SAMPLE_COUNT);
-          let mainDistanceSq = Number.POSITIVE_INFINITY;
-          let mainPoint = MAIN_TRACK_COLLISION_SAMPLES[mainCentre];
-          for (let offset = -144; offset <= 144; offset++) {
-            const sample = ((mainCentre + offset) % COLLISION_SAMPLE_COUNT + COLLISION_SAMPLE_COUNT) % COLLISION_SAMPLE_COUNT;
-            const point = MAIN_TRACK_COLLISION_SAMPLES[sample];
-            const distanceSq = (race.worldX - point.x) ** 2 + (race.worldZ - point.z) ** 2;
-            if (distanceSq < mainDistanceSq) { mainDistanceSq = distanceSq; mainPoint = point; }
-          }
-          const mainSideX = -mainPoint.tz, mainSideZ = mainPoint.tx;
-          const mainSignedOffset = (race.worldX - mainPoint.x) * mainSideX
-            + (race.worldZ - mainPoint.z) * mainSideZ;
-          const pitProgress = wrap(race.trackT - .91, 1) / .195;
-          if (mainSignedOffset < -6.5 && pitProgress <= 1.08) {
-            const pitCentre = Math.round(clamp(pitProgress, 0, 1) * COLLISION_SAMPLE_COUNT);
-            let pitDistanceSq = Number.POSITIVE_INFINITY;
-            for (let offset = -144; offset <= 144; offset++) {
-              const sample = Math.round(clamp(pitCentre + offset, 0, COLLISION_SAMPLE_COUNT));
-              const point = PIT_LANE_COLLISION_SAMPLES[sample];
-              const distanceSq = (race.worldX - point.x) ** 2 + (race.worldZ - point.z) ** 2;
-              if (distanceSq < pitDistanceSq) pitDistanceSq = distanceSq;
-            }
-            openPitApron = pitDistanceSq <= 16 * 16;
-          }
-        }
         // Follow the pit route locally from the previous frame. A global nearest
         // point search can jump to a different part of the parallel lane and
         // produce a visible projection/collision discontinuity.
@@ -424,7 +394,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           // The geometric apron opening also prevents the main-track fence from
           // pushing the car away before it has committed to the pit route.
           const pitInnerContact = onPitRoute && signedOffset > 3.5;
-          const circuitEdgeContact = !onPitRoute && !openPitApron
+          const circuitEdgeContact = !onPitRoute
             && (distance > trackSafetyOffset || Math.abs(signedOffset) > trackSafetyOffset);
           if (pitInnerContact || circuitEdgeContact) {
             const safeOffset = onPitRoute ? 3.5 : trackSafetyOffset;
@@ -524,7 +494,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // The swept solver above is authoritative for the pit route. Do not run
         // a second nearest-centreline correction over it: the two corrections
         // can fight on curves and feel like a tugging forcefield.
-        if (!onPitRoute && !openPitApron
+        if (!onPitRoute
           && (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset)) {
           const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
           const correctionX = distanceFromCentre > safeOffset

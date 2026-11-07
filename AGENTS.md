@@ -378,3 +378,12 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - The pit swept solver is the sole pit-route boundary correction. Skip the final nearest-centreline correction while on the pit route or inside the geometrically verified open apron; the duplicate correction causes tugging on curves.
 - Keep main-circuit collision behaviour unchanged outside the open apron. Bump both service-worker caches together for runtime changes; current versions are v44.
 - Do not claim physical gameplay QA unless the pit apron has been driven from multiple sides in the live game.
+
+
+## Circuit wall regression correction — 2026-11-07
+
+- Main-circuit collision must remain active whenever the player is not physically on the pit route. Never bypass main-track collision based on an approximate progress window, signed-offset guess, or proximity to the pit spline.
+- The pit-route swept solver is used only while `playerPitting` or `playerGarageExit` is active. It keeps the inner pit fence collidable and the outer pit apron open; the final nearest-centreline correction stays disabled only for that pit-route state.
+- Do not use a broad geometric apron exemption that can accidentally disable the racing circuit's visible walls. Protect the main circuit first; keep the approved player physics unchanged.
+- Both service-worker caches are v45 after this runtime correction.
+- Report deployment and physical gameplay QA separately; do not claim the walls or pit are verified until driven in the live game.
