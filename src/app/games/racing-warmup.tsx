@@ -102,6 +102,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [carColor, setCarColor] = useState("#f04478");
   const [pitMenuAvailable, setPitMenuAvailable] = useState(false);
   const [pitMenuOpen, setPitMenuOpen] = useState(false);
+  const pitMenuAvailableRef = useRef(false);
+  const pitMenuOpenRef = useRef(false);
   const pitMenuPromptedRef = useRef(false);
   useEffect(() => {
     try {
@@ -577,6 +579,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           // service bay inside the physical pit lane (not merely at pit entry).
           if (race.playerPitProgress >= .46 && race.playerPitProgress <= .76 && !pitMenuPromptedRef.current) {
             pitMenuPromptedRef.current = true;
+            pitMenuAvailableRef.current = true;
             setPitMenuAvailable(true);
             notify("PIT CREW · Service bay reached. Tap PIT SETUP to change paint or tyres.", "info");
           }
@@ -629,6 +632,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         }
         if (!race.playerPitting && pitMenuPromptedRef.current) {
           pitMenuPromptedRef.current = false;
+          pitMenuAvailableRef.current = false;
+          pitMenuOpenRef.current = false;
           setPitMenuAvailable(false);
           setPitMenuOpen(false);
         }
@@ -1007,7 +1012,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           setLapTime(race.lapTime);
           setNos(race.nos);
           setBoostActive(boost);
-          const cue = pitMenuAvailable && race.playerPitting && !pitMenuOpen
+          const cue = pitMenuAvailableRef.current && race.playerPitting && !pitMenuOpenRef.current
             ? { label: "PIT SERVICE BAY · TAP PIT SETUP ↓", tone: "pit" }
             : race.playerGarageExit
             ? { label: controlsRef.current.accelerate ? "FOLLOW THE PIT ROAD →" : "HOLD GAS TO LEAVE GARAGE", tone: "go" }
@@ -1105,12 +1110,12 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} carColor={carColor} />
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
-        {pitMenuAvailable && raceRef.current.playerPitting && !pitMenuOpen && <button type="button" className="warmup-pit-setup-trigger" onClick={() => setPitMenuOpen(true)}>PIT SETUP <span>↗</span></button>}
+        {pitMenuAvailable && raceRef.current.playerPitting && !pitMenuOpen && <button type="button" className="warmup-pit-setup-trigger" onClick={() => { pitMenuOpenRef.current = true; setPitMenuOpen(true); }}>PIT SETUP <span>↗</span></button>}
         {pitMenuAvailable && raceRef.current.playerPitting && pitMenuOpen && <div className="warmup-pit-setup-panel" role="dialog" aria-label="Pit setup">
-          <div className="warmup-pit-setup-heading"><div><span>PIT CREW · OPTIONAL SETUP</span><strong>Quick adjustments</strong></div><button type="button" aria-label="Close pit setup" onClick={() => setPitMenuOpen(false)}>×</button></div>
+          <div className="warmup-pit-setup-heading"><div><span>PIT CREW · OPTIONAL SETUP</span><strong>Quick adjustments</strong></div><button type="button" aria-label="Close pit setup" onClick={() => { pitMenuOpenRef.current = false; setPitMenuOpen(false); }}>×</button></div>
           <section><b>VEHICLE COLOUR</b><div className="warmup-pit-setup-colours">{[["#f04478","Pink"],["#e44361","Red"],["#2878d0","Blue"],["#f2c230","Yellow"],["#f0f1e9","White"],["#252b31","Graphite"]].map(([color,label]) => <button key={color} type="button" title={label} aria-label={`Choose ${label}`} aria-pressed={carColor === color} style={{backgroundColor:color}} className={carColor === color ? "selected" : ""} onClick={() => chooseCarColor(color)} />)}</div></section>
           <section><b>TYRE CHOICE <small>VISUAL ONLY · NO GRIP CHANGE</small></b><div className="warmup-pit-setup-tyres">{(["Soft","Medium","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={tyreChoice === tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => setTyreChoice(tyre)}>{tyre}</button>)}</div></section>
-          <button type="button" className="warmup-pit-setup-done" onClick={() => setPitMenuOpen(false)}>DONE · BACK TO RACE</button>
+          <button type="button" className="warmup-pit-setup-done" onClick={() => { pitMenuOpenRef.current = false; setPitMenuOpen(false); }}>DONE · BACK TO RACE</button>
         </div>
         <div className="warmup-hud warmup-circuit-hud" aria-label="Live race timing">
           <div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div>
