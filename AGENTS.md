@@ -415,3 +415,21 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - The HUD correction is visual-only. Preserve the current playable pit flow, vehicle physics, steering, throttle/brake/NOS, camera, AI, track, collisions, local saves, race results, and offline/PWA behavior.
 - The HUD must read as one coherent system: compact live timing/status strip above the scene; clear persistent driving cue at the scene's upper-left; compact live map at upper-right; event notification in a dedicated full-width strip below the scene; NOS meter immediately below notifications and above the controls. Do not leave conflicting legacy toast positioning or clipping rules active.
 - Bump both service-worker cache identifiers together for HUD runtime changes. Report CI, deployment readiness and real-device QA separately.
+
+## Player-approved pit-first session architecture — 2026-11-08
+
+This section is the latest explicit product-owner decision and supersedes older menu/Skip-to-Race instructions above.
+
+- New Game, Continue and Load Game all open the same playable 3D pit scene. Continue/Load restore the saved driver identity, best lap, valid latest qualifying record and difficulty, but place the car safely in the pit with zero residual motion. Do not resume a saved car in the middle of the circuit.
+- The opening scene is not a pre-race setup screen. Remove the cluttered opponent/difficulty/tyre/paint selection overlay. The player can press Start Driving or open the contextual PIT MENU in the pit.
+- PIT MENU offers exactly three session choices: Warm-up Laps, Qualifier, Start Race. Do not expose a separate Skip to Race action on the main menu.
+- After choosing a session, reveal the next setup step: vehicle paint, visual-only Soft/Medium/Hard tyre choice, and Kago difficulty. No selection is mandatory merely to enter the pit scene; sensible defaults are active.
+- Warm-up begins from the pit and is solo. Kago must be completely absent from the rendered circuit and must not collide with the player.
+- Qualifying begins alone from the grid. Kago may run an invisible qualifying benchmark. A valid latest qualifying time determines pole/second place against that benchmark; an invalid or missing result means the player starts last when choosing a direct race.
+- Direct race starts from a real grid just beyond the start/finish line, with the chequered line behind the cars. Grid rows are tightly and consistently staggered: pole position is one car-length ahead, not separated by arbitrary gaps. The qualifier-to-race transition uses the same grid.
+- Race results remain exactly two scored laps. Kago only becomes visible when the race begins.
+- When Kago pits, hide his car, name tag, map/race presence and effects for the duration of service. Keep his AI pit state and race progress running; show only a small KAGO · IN PITS status. Restore his visible car when he rejoins. Do not teleport or otherwise alter player movement.
+- Keep this as a flow/presentation refactor around the existing local race engine. Preserve online/multiplayer integration and API contracts, local save slots, high scores, race result contracts, player physics, controls, AI motion, track, pit routing, collision solver, camera, HUD, PWA installation and offline behavior.
+- The 3D driving scene remains visible and usable. Do not wrap the game in a modal or replace the scene with a full-screen menu. PIT MENU is a compact in-scene overlay only.
+- Tyres remain presentation-only. Do not change grip, speed, steering, braking or lap timing.
+- Bump both vula-shell and vula-game service-worker cache identifiers together for racing runtime changes. Report actual CI/build/deployment/device QA results separately; never claim unrun checks.
