@@ -162,7 +162,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     sessionModeRef.current = "qualifying"; setSessionMode("qualifying"); setPitMenuOpen(false); setQualifyingUsed(true); setQualifyingResult(null);
     raceRef.current.progress = 0; raceRef.current.lap = 1; raceRef.current.elapsed = 0; raceRef.current.lapTime = 0;
     raceRef.current.bestLap = null; raceRef.current.lapInvalid = false; raceRef.current.playerOutLap = false; raceRef.current.playerPitEntryProgress = 0; raceRef.current.playerPitEntryTrackT = raceRef.current.trackT;
-    setLap(1); setLapTime(0); setBestLap(null); setRaceResult(null);
+    setLap(1); setLapTime(0); setBestLap(null);
     botQualifyingElapsedRef.current = 0; botQualifyingTimeRef.current = null;
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
     phaseRef.current = "running"; setPhase("running");
