@@ -414,5 +414,4 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - All subsequent work must be additive and based on this playable checkpoint. If a change regresses playability, restore this exact checkpoint.
 - The HUD correction is visual-only. Preserve the current playable pit flow, vehicle physics, steering, throttle/brake/NOS, camera, AI, track, collisions, local saves, race results, and offline/PWA behavior.
 - The HUD must read as one coherent system: compact live timing/status strip above the scene; clear persistent driving cue at the scene's upper-left; compact live map at upper-right; event notification in a dedicated full-width strip below the scene; NOS meter immediately below notifications and above the controls. Do not leave conflicting legacy toast positioning or clipping rules active.
-- The HUD must remain legible at 320px portrait and landscape widths without covering the road, map, or touch controls. The scene must not jump in height when a notification appears or disappears.
 - Bump both service-worker cache identifiers together for HUD runtime changes. Report CI, deployment readiness and real-device QA separately.
