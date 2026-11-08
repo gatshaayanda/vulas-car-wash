@@ -1055,6 +1055,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             race.elapsed = 0;
             notify("RACE CONTROL · Warm-up lap complete. Keep practising or return to the pit.", "success");
           } else if (qualifyingComplete && sessionModeRef.current === "qualifying") {
+            sessionModeRef.current = "race";
             const gridT = .025;
             const gridPoint = botTrack.getPointAt(gridT);
             const gridTangent = botTrack.getTangentAt(gridT).normalize();
@@ -1205,7 +1206,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} carColor={carColor} />
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
-        {(phase === "ready" || (phase === "running" && raceRef.current.playerGarageExit)) && <button type="button" className="warmup-pit-flow-trigger" onClick={() => { setPitFlowStep("activity"); setPitFlowOpen(true); }}>PIT MENU <span>↗</span></button>}
+        {(phase === "ready" || (phase === "running" && (raceRef.current.playerGarageExit || (raceRef.current.playerPitting && sessionModeRef.current !== "race")))) && <button type="button" className="warmup-pit-flow-trigger" onClick={() => { setPitFlowStep("activity"); setPitFlowOpen(true); }}>PIT MENU <span>↗</span></button>}
         {pitFlowOpen && <div className="warmup-pit-flow-panel" role="dialog" aria-modal="true" aria-label="Pit menu">
           <div className="warmup-pit-setup-heading"><div><span>VULA RACING · PIT CREW</span><strong>{pitFlowStep === "activity" ? "What are we driving?" : "Set up your car"}</strong></div><button type="button" aria-label="Close pit menu" onClick={() => setPitFlowOpen(false)}>×</button></div>
           {pitFlowStep === "activity" ? <section className="warmup-pit-activities">
@@ -1219,7 +1220,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             <button type="button" className="warmup-pit-setup-done" onClick={beginSelectedActivity}>{selectedActivity === "warmup" ? "START WARM-UP" : selectedActivity === "qualifying" ? "START QUALIFIER" : "START RACE"} ↗</button>
           </>}
         </div>}
-        {pitMenuAvailable && raceRef.current.playerPitting && pitMenuOpen && <div className="warmup-pit-setup-panel" role="dialog" aria-label="Pit setup">
+        {pitMenuAvailable && raceRef.current.playerPitting && sessionModeRef.current === "race" && !pitMenuOpen && <button type="button" className="warmup-pit-setup-trigger" onClick={() => { pitMenuOpenRef.current = true; setPitMenuOpen(true); }}>PIT SETUP <span>↗</span></button>}
+        {pitMenuAvailable && raceRef.current.playerPitting && sessionModeRef.current === "race" && pitMenuOpen && <div className="warmup-pit-setup-panel" role="dialog" aria-label="Pit setup">
           <div className="warmup-pit-setup-heading"><div><span>PIT CREW · OPTIONAL SETUP</span><strong>Quick adjustments</strong></div><button type="button" aria-label="Close pit setup" onClick={() => { pitMenuOpenRef.current = false; setPitMenuOpen(false); }}>×</button></div>
           <section><b>VEHICLE COLOUR</b><div className="warmup-pit-setup-colours">{[["#f04478","Pink"],["#e44361","Red"],["#2878d0","Blue"],["#f2c230","Yellow"],["#f0f1e9","White"],["#252b31","Graphite"]].map(([color,label]) => <button key={color} type="button" title={label} aria-label={`Choose ${label}`} aria-pressed={carColor === color} style={{backgroundColor:color}} className={carColor === color ? "selected" : ""} onClick={() => chooseCarColor(color)} />)}</div></section>
           <section><b>TYRE CHOICE <small>VISUAL ONLY · NO GRIP CHANGE</small></b><div className="warmup-pit-setup-tyres">{(["Soft","Medium","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={tyreChoice === tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => setTyreChoice(tyre)}>{tyre}</button>)}</div></section>
