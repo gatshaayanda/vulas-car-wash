@@ -451,10 +451,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           const mainConnectorOpening = mainSignedOffset < 0
             && ((mainT >= .905 && mainT <= .94) || (mainT >= .075 && mainT <= .11))
             && mainDistance <= 16;
-          const mainPenetration = mainConnectorOpening
-            ? Number.POSITIVE_INFINITY
-            : Math.max(mainDistance, Math.abs(mainSignedOffset)) - trackSafetyOffset;
-
           const pitDistance = Math.sqrt(pitDistanceSq);
           const pitDx = sampleX - pitX, pitDz = sampleZ - pitZ;
           const pitSideX = -pitTangentZ, pitSideZ = pitTangentX;
@@ -466,11 +462,19 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           // ordinary inner pit boundary applies again.
           const pitEntryOpening = nearestPitSample <= Math.round(sweepSamples * (12 / 84))
             && mainT >= .905 && mainT <= .94 && mainDistance <= 16;
-          const pitPenetration = pitEntryOpening
-            ? Number.NEGATIVE_INFINITY
-            : pitSignedOffset > pitSafetyOffset
-              ? pitSignedOffset - pitSafetyOffset
-              : pitDistance <= 8 ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
+          // The pit lane owns a sample only when it is the physically nearer
+          // road surface. Once it owns the sample, both pit-road edges must
+          // remain solid; only the circuit-facing edge is open at the actual
+          // connector taper. This prevents a gap on the far side of the pit road.
+          const pitRoadOwnsSample = pitDistance <= 8 && pitDistance < mainDistance;
+          const mainPenetration = mainConnectorOpening || pitRoadOwnsSample
+            ? Number.POSITIVE_INFINITY
+            : Math.max(mainDistance, Math.abs(mainSignedOffset)) - trackSafetyOffset;
+          const pitPenetration = pitSignedOffset > pitSafetyOffset
+            ? (pitEntryOpening ? Number.POSITIVE_INFINITY : pitSignedOffset - pitSafetyOffset)
+            : -pitSignedOffset > pitSafetyOffset
+              ? -pitSignedOffset - pitSafetyOffset
+              : Number.POSITIVE_INFINITY;
 
           const usePitBoundary = pitPenetration < mainPenetration;
           const penetration = Math.min(mainPenetration, pitPenetration);
@@ -529,7 +533,13 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           }
         }
         race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 290 : 255);
-        if (race.playerPitting && race.playerPitProgress >= .49 && race.playerPitProgress <= .55 && race.speed <= 2.2 && phaseRef.current === "running") {
+        if (race.playerPitting && race.playerPitProgress >= .49 && race.playerPitProgress <= .55 && race.speed <= 2.2
+          && phaseRef.current === "running"
+          && sessionModeRef.current !== "qualifying"
+          && sessionModeRef.current !== "race") {
+          // A physical pit visit during qualifying or the race is not a session
+          // transition. The driver may stop and lose time, but the live session
+          // and its clock continue until their normal completion conditions.
           settlePlayerCar(race);
           controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
           phaseRef.current = "pit"; setPhase("pit"); setPitMenuOpen(true);
@@ -1126,23 +1136,26 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         
         
         {raceResult && sessionMode === "race-complete" && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.position === 1 ? "YOU BEAT KAGO!" : "YOU FINISHED THE RACE!"}</strong><p>{fmt(raceResult.elapsed)} · 2 scored laps · {raceResult.difficulty}</p><p>Returning to the pit garage…</p></div>}
-        <div className={"warmup-3d-overlay" + (phase === "ready" ? " is-interactive" : "")} hidden={phase === "running" || phase === "finished" || (phase === "pit" && !pitMenuOpen)} aria-live="polite">
+        <div className="warmup-3d-overlay" hidden={phase === "running" || phase === "finished" || phase === "pit" || phase === "ready"} aria-live="polite">
           <span>🏁 VULA RACING · {driverName}</span>
-          <strong>{phase === "ready" ? "PIT GARAGE · RACE PREP" : phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "pit" ? "PIT STOP" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>
-          {(phase === "ready" || phase === "pit") && pitMenuOpen ? <>
-            <p>{phase === "ready" ? "Choose your setup, then drive out of the garage. Warm-up is unlimited; qualifying and racing are optional." : "Pit menu · review your last result and choose what to do next. Your car remains in the physical pit bay."}</p>
-            <div className="warmup-pit-tyres" aria-label="Starting tyre selection">
-              {(["Soft", "Medium", "Hard"] as const).map((tyre) => <button type="button" key={tyre} className={"warmup-pit-tyre " + tyre.toLowerCase() + (tyreChoice === tyre ? " selected" : "")} aria-pressed={tyreChoice === tyre} onClick={() => setTyreChoice(tyre)}><strong>{tyre}</strong><small>{tyre === "Soft" ? "Soft compound · visual choice" : tyre === "Medium" ? "Balanced compound · visual choice" : "Hard compound · visual choice"}</small></button>)}
-            </div>
-            <div className="warmup-pit-brief"><b>ENGINEER</b><span>{tyreChoice} selected. NOS is your only race resource: spend it on straights, then lift to recharge.</span></div>
-            <div className="warmup-car-colours" aria-label="Choose car colour"><b>CAR COLOUR</b>{[["#f04478","Pink"],["#27a9e0","Blue"],["#f2c64e","Yellow"],["#f3f2e9","White"],["#35a66f","Green"],["#9a70d6","Purple"]].map(([value,label])=><button key={value} type="button" aria-label={label+" car"} aria-pressed={carColor===value} style={{backgroundColor:value}} onClick={()=>setCarColor(value)} />)}</div>
-            <div className="warmup-pit-session-results"><b>LAST QUALIFYING</b>{qualifyingResult ? <span>{qualifyingResult.valid ? fmt(qualifyingResult.elapsed) : "Invalid lap"} · Grid P{qualifyingResult.gridPosition}</span> : <span>No qualifying result yet · race starts from the back</span>}{raceResult && <span>Last race · {raceResult.position === 1 ? "Winner" : "Kago won"} · {fmt(raceResult.elapsed)}</span>}</div><div className="warmup-pit-session-actions"><button type="button" onClick={startWarmup}>Warm-up practice ↗</button><button type="button" disabled={qualifyingUsed} onClick={startQualifying}>{qualifyingUsed ? "Qualifying completed" : "Start qualifying ↗"}</button><button type="button" onClick={startKagoRace}>Race Kago · {qualifyingResult?.valid ? "Grid P" + qualifyingResult.gridPosition : "Start from back"} ↗</button>{phase === "pit" && <button type="button" onClick={() => setPitMenuOpen(false)}>Collapse pit menu</button>}</div>
-          </> : <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>}
+          <strong>{phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>
+          <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>
         </div>
-        {null}
-        
       </div>
-      {(phase === "pit" || phase === "ready") && <button type="button" className="warmup-pit-menu-toggle" onClick={() => setPitMenuOpen(value => !value)}>{pitMenuOpen ? "Close pit menu" : "Open pit menu"}</button>}<div className="warmup-notification-slot" role="status" aria-live="polite" aria-atomic="true"><div className={"warmup-signal-chip " + signal.tone}><span />{signal.label}</div>{toast && <div className={"warmup-toast " + toast.kind}>{toast.text}</div>}</div>
+      {(phase === "pit" || phase === "ready") && <section className="warmup-pit-interface" aria-label="Pit garage interface">
+        <button type="button" className="warmup-pit-menu-toggle" aria-expanded={pitMenuOpen} onClick={() => setPitMenuOpen(value => !value)}>{pitMenuOpen ? "Collapse pit interface" : "Open pit interface"}</button>
+        {pitMenuOpen && <div className="warmup-pit-panel">
+          <div className="warmup-pit-panel-heading"><span>VULA RACING / GARAGE</span><strong>{phase === "ready" ? "Race preparation" : "Back in the pit"}</strong><p>{phase === "ready" ? "Choose your setup, then drive out of the garage. Warm-up is unlimited; qualifying and racing are optional." : "Review your result and choose what happens next. Your car remains in the physical pit bay."}</p></div>
+          <div className="warmup-pit-tyres" aria-label="Starting tyre selection">
+            {(["Soft", "Medium", "Hard"] as const).map((tyre) => <button type="button" key={tyre} className={"warmup-pit-tyre " + tyre.toLowerCase() + (tyreChoice === tyre ? " selected" : "")} aria-pressed={tyreChoice === tyre} onClick={() => setTyreChoice(tyre)}><strong>{tyre}</strong><small>{tyre === "Soft" ? "Soft compound · visual choice" : tyre === "Medium" ? "Balanced compound · visual choice" : "Hard compound · visual choice"}</small></button>)}
+          </div>
+          <div className="warmup-pit-brief"><b>ENGINEER</b><span>{tyreChoice} selected. NOS is your only race resource: spend it on straights, then lift to recharge.</span></div>
+          <div className="warmup-car-colours" aria-label="Choose car colour"><b>CAR COLOUR</b>{[["#f04478","Pink"],["#27a9e0","Blue"],["#f2c64e","Yellow"],["#f3f2e9","White"],["#35a66f","Green"],["#9a70d6","Purple"]].map(([value,label])=><button key={value} type="button" aria-label={label+" car"} aria-pressed={carColor===value} style={{backgroundColor:value}} onClick={() => setCarColor(value)} />)}</div>
+          <div className="warmup-pit-session-results"><b>LAST QUALIFYING</b>{qualifyingResult ? <span>{qualifyingResult.valid ? fmt(qualifyingResult.elapsed) : "Invalid lap"} · Grid P{qualifyingResult.gridPosition}</span> : <span>No qualifying result yet · race starts from the back</span>}{raceResult && <span>Last race · {raceResult.position === 1 ? "Winner" : "Kago won"} · {fmt(raceResult.elapsed)}</span>}</div>
+          <div className="warmup-pit-session-actions"><button type="button" onClick={startWarmup}>Warm-up practice ↗</button><button type="button" disabled={qualifyingUsed} onClick={startQualifying}>{qualifyingUsed ? "Qualifying completed" : "Start qualifying ↗"}</button><button type="button" onClick={startKagoRace}>Race Kago · {qualifyingResult?.valid ? "Grid P" + qualifyingResult.gridPosition : "Start from back"} ↗</button></div>
+        </div>}
+      </section>}
+      <div className="warmup-notification-slot" role="status" aria-live="polite" aria-atomic="true"><div className={"warmup-signal-chip " + signal.tone}><span />{signal.label}</div>{toast && <div className={"warmup-toast " + toast.kind}>{toast.text}</div>}</div>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
         <div className="warmup-steering" aria-label="Analog steering">

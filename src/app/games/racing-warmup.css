@@ -549,3 +549,27 @@
 .racing-menu-slot-actions{display:flex;gap:6px}.racing-menu-slot-actions button{white-space:nowrap}
 
 .warmup-pit-session-results{display:grid;gap:5px;margin:10px auto;padding:10px 12px;max-width:620px;border:1px solid #d6e4ce;border-radius:12px;background:#10251f;color:#edf6e9;text-align:left}.warmup-pit-session-results b{font-size:10px;letter-spacing:.12em;color:#c8f56b}.warmup-pit-session-results span{font-size:12px}.warmup-pit-session-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:10px}.warmup-pit-session-actions button,.warmup-pit-menu-toggle{border:1px solid #c9e17a;border-radius:10px;padding:10px 13px;background:#d3f47c;color:#1b2c20;font-weight:800}.warmup-pit-session-actions button:disabled{opacity:.45;cursor:not-allowed}.warmup-pit-session-actions button:last-child,.warmup-pit-menu-toggle{background:transparent;color:inherit;border-color:#a7b7aa}.warmup-pit-menu-toggle{display:block;margin:10px auto}
+
+
+/* Pit interaction is a separate expandable garage surface, never part of the
+   3D scene or the driving-control cluster. */
+.warmup-pit-interface{display:grid;gap:9px;width:100%;max-width:760px;margin:12px auto 4px}
+.warmup-pit-interface .warmup-pit-menu-toggle{justify-self:center;margin:0;min-height:40px;padding:9px 16px;font-size:11px;font-weight:900;letter-spacing:.04em}
+.warmup-pit-panel{display:grid;gap:10px;padding:14px;border:1px solid #d5dfd2;border-radius:16px;background:linear-gradient(145deg,#f9fbf5,#e9f0e5);color:#1c3025;box-shadow:0 8px 24px #10251f16}
+.warmup-pit-panel-heading{display:grid;gap:4px}
+.warmup-pit-panel-heading>span{font-size:9px;font-weight:950;letter-spacing:.16em;color:#63745e}
+.warmup-pit-panel-heading>strong{font-size:18px;line-height:1.1;color:#172820}
+.warmup-pit-panel-heading>p{margin:0;font-size:11px;line-height:1.4;color:#536254}
+.warmup-pit-panel .warmup-pit-tyres{width:100%;margin:2px 0}
+.warmup-pit-panel .warmup-pit-tyre{background:#17251e}
+.warmup-pit-panel .warmup-pit-brief{width:100%;margin:0;background:#17251e}
+.warmup-pit-panel .warmup-car-colours{width:100%;margin:2px 0 4px}
+.warmup-pit-panel .warmup-pit-session-results{width:100%;max-width:none;margin:0}
+.warmup-pit-panel .warmup-pit-session-actions{justify-content:flex-start;margin:0}
+.warmup-pit-panel .warmup-pit-session-actions button{min-height:42px}
+@media(max-width:560px){
+ .warmup-pit-panel{padding:11px;gap:8px}
+ .warmup-pit-panel-heading>strong{font-size:16px}
+ .warmup-pit-panel .warmup-pit-session-actions{display:grid;grid-template-columns:1fr}
+ .warmup-pit-panel .warmup-pit-session-actions button{width:100%}
+}
