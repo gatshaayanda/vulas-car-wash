@@ -1108,7 +1108,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         {null}
         
       </div>
-      <div className="warmup-notification-slot" aria-live="polite" aria-atomic="true">{toast && <div className={"warmup-toast " + toast.kind} role="status" aria-atomic="true">{toast.text}</div>}</div>
+      <div className="warmup-notification-slot">{toast && <div className={"warmup-toast " + toast.kind} role="status" aria-atomic="true">{toast.text}</div>}</div>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
         <div className="warmup-steering" aria-label="Analog steering">
