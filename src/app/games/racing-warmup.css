@@ -585,3 +585,27 @@
   .warmup-notification-slot{min-height:38px}
   .warmup-nos{margin:5px 0 3px;padding:8px 10px}
 }
+
+
+/* Keep the live driving cue fully inside the viewport on every screen width. */
+.warmup-circuit-wrap .warmup-signal-chip{
+  box-sizing:border-box;
+  left:10px;
+  right:calc(var(--map-width, 132px) + 24px);
+  width:auto;
+  max-width:none;
+  min-width:0;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  line-height:1.25;
+}
+@media(max-width:640px){
+  .warmup-circuit-wrap .warmup-signal-chip{
+    left:8px;
+    right:calc(var(--map-width, 104px) + 16px);
+    width:auto;
+    max-width:none;
+    padding:8px 10px;
+    font-size:clamp(10px,2.8vw,12px);
+  }
+}
