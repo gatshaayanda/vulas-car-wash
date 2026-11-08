@@ -42,7 +42,7 @@ export default function RacingTrackMap({ raceRef }: Props) {
       // Keep the map marker tied to his actual world-space simulation, never
       // to spline progress or an estimated position.
       if (rival) {
-        const rivalVisible = race.lap >= 3 && race.botInitialized;
+        const rivalVisible = race.botRaceEnabled && !race.botPitting && race.lap >= 3 && race.botInitialized;
         rival.setAttribute("visibility", rivalVisible ? "visible" : "hidden");
         if (rivalVisible) {
           rival.setAttribute("cx", mapX(race.botWorldX).toFixed(1));
