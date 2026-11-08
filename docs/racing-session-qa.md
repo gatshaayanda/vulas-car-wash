@@ -53,3 +53,10 @@ Report source checks, Vercel deployment status, offline persistence and actual d
 - The map legend identifies YOU and KAGO; the existing pit entry, exit and service-bay markings remain visible.
 - This is a HUD-only change. It does not alter player or bot physics, controls, camera, track geometry, collision handling, session flow or saves.
 - QA: confirm the player marker follows the car; Kago is absent in practice/qualifying; both markers appear at the race start and move independently; the Kago marker follows his actual car through corners and pit entry/exit.
+
+
+## Fresh deployment trigger — 8 November 2026
+
+- Documentation-only commit to request a new Vercel production build after the prior build-rate-limit response.
+- No gameplay source, controls, physics, camera, track, saves, or PWA assets are changed by this trigger.
+- Confirm the deployment is built from this exact main commit before asking for gameplay QA.
