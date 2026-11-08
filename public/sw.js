@@ -48,8 +48,8 @@ self.addEventListener("notificationclick", (event) => {
   }));
 });
 
-const CACHE_VERSION = "vula-shell-v56";
-const GAME_CACHE = "vula-game-v56";
+const CACHE_VERSION = "vula-shell-v57";
+const GAME_CACHE = "vula-game-v57";
 const MEDIA_CACHE = "vula-media-v1";
 const SHELL_CACHE = CACHE_VERSION;
 const STATIC_LIMIT = 160;
