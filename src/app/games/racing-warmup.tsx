@@ -49,7 +49,7 @@ function createPitResumeState(saved?: Race): Race {
   race.playerGarageExit = true; race.playerOutLap = false; race.playerPitting = false;
   race.playerPitProgress = .52; race.playerPitEntryProgress = 0; race.playerPitEntryTrackT = 0;
   race.playerPitServiceRemaining = 0; race.playerPitDone = false; race.playerPitServiced = false;
-  race.progress = 0; race.trackT = 0; race.elapsed = 0; race.lapTime = 0; race.lap = 1;
+  race.progress = 0; race.trackT = 0; race.elapsed = 0; race.lapTime = 0; race.last = 0; race.lap = 1;
   race.botRaceEnabled = false; race.botPitting = false; race.botPitDone = false;
   race.botPitProgress = 0; race.botPitServiceRemaining = 0; race.botPitServiced = false;
   race.botProgress = .025; race.botInitialized = false; race.botSpeed = 8.5;
@@ -116,9 +116,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [botDifficulty, setBotDifficulty] = useState<"Easy" | "Normal" | "Hard">(initialSave?.difficulty ?? "Normal");
   const botDifficultyRef = useRef<"Easy" | "Normal" | "Hard">(initialSave?.difficulty ?? "Normal");
   const [rivalGap, setRivalGap] = useState(0);
-  const [lapTime, setLapTime] = useState(initialSave?.race.lapTime ?? 0);
+  const [lapTime, setLapTime] = useState(0);
   const [bestLap, setBestLap] = useState<number | null>(initialSave?.race.bestLap ?? null);
-  const [lap, setLap] = useState(initialSave?.race.lap ?? (quickStart ? 3 : 1));
+  const [lap, setLap] = useState(1);
   const [nos, setNos] = useState(100);
   const [tyreChoice, setTyreChoice] = useState<"Soft" | "Medium" | "Hard">("Medium");
   const [carColor, setCarColor] = useState("#f04478");
@@ -1205,7 +1205,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} carColor={carColor} />
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
-        {(phase === "ready" || (phase === "running" && (raceRef.current.playerGarageExit || raceRef.current.playerPitting))) && <button type="button" className="warmup-pit-flow-trigger" onClick={() => { setPitFlowStep("activity"); setPitFlowOpen(true); }}>PIT MENU <span>↗</span></button>}
+        {(phase === "ready" || (phase === "running" && raceRef.current.playerGarageExit)) && <button type="button" className="warmup-pit-flow-trigger" onClick={() => { setPitFlowStep("activity"); setPitFlowOpen(true); }}>PIT MENU <span>↗</span></button>}
         {pitFlowOpen && <div className="warmup-pit-flow-panel" role="dialog" aria-modal="true" aria-label="Pit menu">
           <div className="warmup-pit-setup-heading"><div><span>VULA RACING · PIT CREW</span><strong>{pitFlowStep === "activity" ? "What are we driving?" : "Set up your car"}</strong></div><button type="button" aria-label="Close pit menu" onClick={() => setPitFlowOpen(false)}>×</button></div>
           {pitFlowStep === "activity" ? <section className="warmup-pit-activities">
