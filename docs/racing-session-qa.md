@@ -37,3 +37,10 @@ Report source checks, Vercel deployment status, offline persistence and actual d
 - Verification status: source restoration recorded; automated CI and Vercel deployment must be checked against the resulting commit. Live mobile gameplay and offline launch remain unverified until tested on-device.
 - QA priority: confirm the game opens into the playable circuit, the car can be driven freely, car colour can be changed in the pit, and the player can complete the existing practice → qualifying → pit review → Kago race → pit return loop.
 - Follow-up control-layout comparison: inspect the approved space-game controls and reproduce only their placement/interaction layout in Vula Racing if needed. Preserve Vula's existing analog steering and driving inputs unless the product owner explicitly approves a control change.
+
+
+## Deployment retry — 8 November 2026
+
+- Trigger a fresh production deployment from the restored `main` gameplay baseline.
+- This documentation-only chore does not alter racing source, controls, physics, save data, or PWA behaviour.
+- QA must use the deployment built from the current `main` commit, not an older cached deployment.
