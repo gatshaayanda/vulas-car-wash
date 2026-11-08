@@ -1153,11 +1153,6 @@ export default function RacingWarmup({ embedded = false, gameShell = false, init
           <div className="warmup-pit-session-results"><b>LAST QUALIFYING</b>{qualifyingResult ? <span>{qualifyingResult.valid ? fmt(qualifyingResult.elapsed) : "Invalid lap"} · Grid P{qualifyingResult.gridPosition}</span> : <span>No qualifying result yet · race starts from the back</span>}{raceResult && <span>Last race · {raceResult.position === 1 ? "Winner" : "Kago won"} · {fmt(raceResult.elapsed)}</span>}</div>
           <div className="warmup-pit-session-actions"><button type="button" onClick={startWarmup}>Warm-up practice ↗</button><button type="button" disabled={qualifyingUsed} onClick={startQualifying}>{qualifyingUsed ? "Qualifying completed" : "Start qualifying ↗"}</button><button type="button" onClick={startKagoRace}>Race Kago · {qualifyingResult?.valid ? "Grid P" + qualifyingResult.gridPosition : "Start from back"} ↗</button></div>
         </div>}
-
-      </div>
-
-      </div>
-
       </div>
       </section>}
       <div className="warmup-notification-slot" role="status" aria-live="polite" aria-atomic="true"><div className={"warmup-signal-chip " + signal.tone}><span />{signal.label}</div>{toast && <div className={"warmup-toast " + toast.kind}>{toast.text}</div>}</div>
