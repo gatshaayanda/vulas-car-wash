@@ -609,3 +609,41 @@
     font-size:clamp(10px,2.8vw,12px);
   }
 }
+
+
+/* In-world pit setup: proximity prompt and collapsible panel stay above the scene. */
+.warmup-circuit-wrap .warmup-pit-setup-trigger{
+  position:absolute;z-index:120;left:50%;bottom:76px;transform:translateX(-50%);
+  display:flex;align-items:center;gap:12px;padding:11px 17px;
+  border:2px solid #f2bd45;border-radius:999px;background:#17251ef5;color:#fff;
+  box-shadow:0 8px 28px #0008;font-size:12px;font-weight:1000;letter-spacing:.1em;
+  cursor:pointer;pointer-events:auto;white-space:nowrap;animation:warmup-pit-menu-in .2s ease-out;
+}
+.warmup-pit-setup-trigger span{color:#f2bd45;font-size:17px}
+.warmup-circuit-wrap .warmup-pit-setup-panel{
+  position:absolute;z-index:200;inset:50% auto auto 50%;transform:translate(-50%,-50%);
+  width:min(390px,calc(100% - 24px));max-height:calc(100% - 28px);overflow:auto;
+  display:grid;gap:16px;padding:17px;border:2px solid #f2bd45;border-radius:16px;
+  background:linear-gradient(150deg,#1b2c23f7,#09140ff7);color:#fff;
+  box-shadow:0 18px 60px #000b;backdrop-filter:blur(12px);pointer-events:auto;
+}
+.warmup-pit-setup-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.warmup-pit-setup-heading>div{display:grid;gap:4px}
+.warmup-pit-setup-heading span,.warmup-pit-setup-panel section>b{font-size:9px;letter-spacing:.13em;color:#f2cf70;font-weight:950}
+.warmup-pit-setup-heading strong{font-size:20px}
+.warmup-pit-setup-heading>button{width:36px;height:36px;border:1px solid #ffffff55;border-radius:9px;background:#ffffff12;color:#fff;font-size:24px;cursor:pointer}
+.warmup-pit-setup-panel section{display:grid;gap:10px}
+.warmup-pit-setup-panel section>b{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.warmup-pit-setup-panel section>b small{font-size:8px;color:#b9c8ba;letter-spacing:.04em}
+.warmup-pit-setup-colours{display:flex;flex-wrap:wrap;gap:13px;padding:4px}
+.warmup-pit-setup-colours button{width:34px;height:34px;border:2px solid #ffffffb0;border-radius:50%;cursor:pointer;box-shadow:0 2px 7px #0008}
+.warmup-pit-setup-colours button.selected{outline:3px solid #f2bd45;outline-offset:3px}
+.warmup-pit-setup-tyres{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.warmup-pit-setup-tyres button{min-height:42px;border:1px solid #ffffff45;border-radius:9px;background:#ffffff12;color:#fff;font-weight:900;cursor:pointer}
+.warmup-pit-setup-tyres button.selected{border-color:#f2bd45;background:#f2bd45;color:#172018}
+.warmup-pit-setup-done{min-height:44px;border:0;border-radius:9px;background:#d4f17b;color:#172018;font-weight:1000;letter-spacing:.06em;cursor:pointer}
+@media(max-width:480px){
+ .warmup-circuit-wrap .warmup-pit-setup-trigger{bottom:70px;padding:10px 14px;font-size:11px}
+ .warmup-circuit-wrap .warmup-pit-setup-panel{gap:13px;padding:14px;border-radius:13px}
+ .warmup-pit-setup-heading strong{font-size:18px}
+}
