@@ -16,7 +16,7 @@ export type Race = {
   longitudinalLoad: number; lateralG: number; wheelLock: number;
   worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; damage: number; lastImpactAt: number; trackT: number; botProgress: number; botSpeed: number;
   botWorldX: number; botWorldZ: number; botWorldYaw: number; botVelocityX: number; botVelocityZ: number; botSteering: number; botThrottle: number; botBrake: number; botDrift: number; botNos: number; botBoostActive: boolean; botInitialized: boolean; botRaceTyreChoice: "Soft" | "Hard";
-  botImpactX: number; botImpactZ: number; botImpactAt: number; botImpactStrength: number; botLineOffset: number; botNosCooldown: number; botRaceEnabled: boolean; qualifyingTime: number | null; qualifyingValid: boolean; botQualifyingTime: number | null; botPitting: boolean; botPitDone: boolean; botPitProgress: number; botPitServiceRemaining: number; botPitServiced: boolean; playerPitRequested: boolean; playerGarageExit: boolean; playerOutLap: boolean; playerPitting: boolean; playerPitEntryProgress: number; playerPitEntryTrackT: number; playerPitDone: boolean; playerPitProgress: number; playerPitServiceRemaining: number; playerPitServiced: boolean;
+  botImpactX: number; botImpactZ: number; botImpactAt: number; botImpactStrength: number; botLineOffset: number; botNosCooldown: number; botRaceEnabled: boolean; raceLapsCompleted: number; qualifyingTime: number | null; qualifyingValid: boolean; botQualifyingTime: number | null; botPitting: boolean; botPitDone: boolean; botPitProgress: number; botPitServiceRemaining: number; botPitServiced: boolean; playerPitRequested: boolean; playerGarageExit: boolean; playerOutLap: boolean; playerPitting: boolean; playerPitEntryProgress: number; playerPitEntryTrackT: number; playerPitDone: boolean; playerPitProgress: number; playerPitServiceRemaining: number; playerPitServiced: boolean;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const wrap = (n: number, max: number) => ((n % max) + max) % max;
@@ -37,7 +37,7 @@ export const newRace = (): Race => {
   const garagePoint = RACING_PIT_LANE.getPointAt(.52);
   const garageTangent = RACING_PIT_LANE.getTangentAt(.52).normalize();
   const garageYaw = Math.atan2(-garageTangent.x, -garageTangent.z);
-  return { progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: garagePoint.x, worldZ: garagePoint.z, worldYaw: garageYaw, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 17.9, botWorldX: 0, botWorldZ: 0, botWorldYaw: 0, botVelocityX: 0, botVelocityZ: 0, botSteering: 0, botThrottle: 0, botBrake: 0, botDrift: 0, botNos: 100, botBoostActive: false, botInitialized: false, botRaceTyreChoice: "Soft", botImpactX: 0, botImpactZ: 0, botImpactAt: 0, botImpactStrength: 0, botLineOffset: -2.45, botNosCooldown: 0, botRaceEnabled: false, qualifyingTime: null, qualifyingValid: false, botQualifyingTime: null, botPitting: false, botPitDone: false, botPitProgress: 0, botPitServiceRemaining: 0, botPitServiced: false, playerPitRequested: false, playerGarageExit: true, playerOutLap: false, playerPitting: false, playerPitEntryProgress: 0, playerPitEntryTrackT: 0, playerPitDone: false, playerPitProgress: .52, playerPitServiceRemaining: 0, playerPitServiced: false };
+  return { progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: garagePoint.x, worldZ: garagePoint.z, worldYaw: garageYaw, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0, botProgress: .025, botSpeed: 17.9, botWorldX: 0, botWorldZ: 0, botWorldYaw: 0, botVelocityX: 0, botVelocityZ: 0, botSteering: 0, botThrottle: 0, botBrake: 0, botDrift: 0, botNos: 100, botBoostActive: false, botInitialized: false, botRaceTyreChoice: "Soft", botImpactX: 0, botImpactZ: 0, botImpactAt: 0, botImpactStrength: 0, botLineOffset: -2.45, botNosCooldown: 0, botRaceEnabled: false, raceLapsCompleted: 0, qualifyingTime: null, qualifyingValid: false, botQualifyingTime: null, botPitting: false, botPitDone: false, botPitProgress: 0, botPitServiceRemaining: 0, botPitServiced: false, playerPitRequested: false, playerGarageExit: true, playerOutLap: false, playerPitting: false, playerPitEntryProgress: 0, playerPitEntryTrackT: 0, playerPitDone: false, playerPitProgress: .52, playerPitServiceRemaining: 0, playerPitServiced: false };
 };
 function createPitResumeState(saved?: Race): Race {
   const race = { ...newRace(), ...(saved ?? {}) };
@@ -121,7 +121,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [nos, setNos] = useState(raceRef.current.nos);
   const [tyreChoice, setTyreChoice] = useState<"Soft" | "Hard">("Soft");
   const [raceTyreChoice, setRaceTyreChoice] = useState<"Soft" | "Hard">("Soft");
-  const [botRaceTyreChoice, setBotRaceTyreChoice] = useState<"Soft" | "Hard">("Soft");
   const [racePitReplacementUsed, setRacePitReplacementUsed] = useState(false);
   const racePitReplacementUsedRef = useRef(false);
   const activeTyreRef = useRef<"Soft" | "Hard">("Soft");
@@ -290,7 +289,10 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         activeTyreRef.current = raceTyreChoice;
         sessionModeRef.current = "race";
         race.botRaceEnabled = true;
-        race.botRaceTyreChoice = botRaceTyreChoice;
+        // Kago independently selects a compound for this event; the player never
+        // configures the opponent. He changes to the opposite compound at his stop.
+        race.botRaceTyreChoice = Math.random() < 0.5 ? "Soft" : "Hard";
+        race.raceLapsCompleted = 0;
         race.progress = 2 + gridT; race.trackT = gridT; race.lap = 3;
         const playerGridSide = playerOnPole ? 1 : -1;
         const rearT = Math.max(.106, gridT - 3.2 / track.getLength());
@@ -811,9 +813,13 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           }
         } else {
           race.trackT = nearestT;
-          race.progress = nearestT < 0.08 && previousProgress % 1 > 0.82 && longitudinalVelocity > 0
+          const crossedStartFinish = nearestT < 0.08 && race.trackT > 0.82 && longitudinalVelocity > 0;
+          race.progress = crossedStartFinish
             ? Math.floor(previousProgress) + 1 + nearestT
             : Math.floor(previousProgress) + nearestT;
+          if (crossedStartFinish && sessionModeRef.current === "race" && race.botRaceEnabled) {
+            race.raceLapsCompleted = Math.min(2, race.raceLapsCompleted + 1);
+          }
         }
         if (!race.playerPitting && pitMenuPromptedRef.current) {
           pitMenuPromptedRef.current = false;
@@ -1166,7 +1172,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             notify(completedLapValid ? "RACE CONTROL · Qualifying complete. Review your grid position, then choose Start Race." : "RACE CONTROL · Qualifying lap invalid. You will start last if you choose a direct race.", completedLapValid ? "success" : "error");
             onSave?.({ race: { ...pitState }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString() });
             
-          } else if (sessionModeRef.current === "race" && lapNow >= 5 && !completedRef.current) {
+          } else if (sessionModeRef.current === "race" && race.raceLapsCompleted >= 2 && !completedRef.current) {
             completedRef.current = true;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
             const position: 1 | 2 = race.progress >= race.botProgress ? 1 : 2;
@@ -1307,7 +1313,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             </>}
             {selectedActivity === "race" && <>
               <section><b>MAIN RACE SET <small>ONE SET FOR THE EVENT</small></b><div className="warmup-pit-setup-tyres">{(["Soft","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={raceTyreChoice === tyre} className={raceTyreChoice === tyre ? "selected" : ""} onClick={() => chooseRaceTyre(tyre)}>{tyre}</button>)}</div></section>
-              <section><b>KAGO · RACE TYRE <small>INDEPENDENT AI SET · CHANGES AT HIS PIT STOP</small></b><div className="warmup-pit-setup-tyres">{(["Soft","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={botRaceTyreChoice === tyre} className={botRaceTyreChoice === tyre ? "selected" : ""} onClick={() => setBotRaceTyreChoice(tyre)}>{tyre}</button>)}</div></section>
             </>}
             <section className="warmup-pit-steering"><b>STEERING CONTROL</b><div><button type="button" aria-pressed={steeringMode === "analog"} className={steeringMode === "analog" ? "selected" : ""} onClick={() => chooseSteeringMode("analog")}>ANALOG STICK</button><button type="button" aria-pressed={steeringMode === "buttons"} className={steeringMode === "buttons" ? "selected" : ""} onClick={() => chooseSteeringMode("buttons")}>DIRECTIONAL</button></div></section>
             <section className="warmup-pit-difficulty"><b>KAGO · AI DIFFICULTY</b><select value={botDifficulty} onChange={event => { const next = event.target.value as "Easy" | "Normal" | "Hard"; botDifficultyRef.current = next; setBotDifficulty(next); }}><option>Easy</option><option>Normal</option><option>Hard</option></select></section>
