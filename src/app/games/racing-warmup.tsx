@@ -151,7 +151,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = null; setToast(null);
     setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
   }, []);
-  const startRace = useCallback(() => { completedRef.current = false; reset(true); }, [reset]);
   const startWarmup = useCallback(() => {
     sessionModeRef.current = "warmup"; setSessionMode("warmup"); setPitMenuOpen(false);
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
@@ -161,7 +160,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const startQualifying = useCallback(() => {
     sessionModeRef.current = "qualifying"; setSessionMode("qualifying"); setPitMenuOpen(false); setQualifyingUsed(true); setQualifyingResult(null);
     raceRef.current.progress = 0; raceRef.current.lap = 1; raceRef.current.elapsed = 0; raceRef.current.lapTime = 0;
-    raceRef.current.bestLap = null; raceRef.current.lapInvalid = false; raceRef.current.playerOutLap = false;
+    raceRef.current.bestLap = null; raceRef.current.lapInvalid = false; raceRef.current.playerOutLap = false; raceRef.current.playerPitEntryProgress = 0; raceRef.current.playerPitEntryTrackT = raceRef.current.trackT;
     setLap(1); setLapTime(0); setBestLap(null); setRaceResult(null);
     botQualifyingElapsedRef.current = 0; botQualifyingTimeRef.current = null;
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
@@ -671,7 +670,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           race.botPitServiced = false;
           notify("PIT CREW · Kago is entering the pit lane.", "info");
         }
-        const botTargetSpeed = race.botPitting ? (race.botPitServiceRemaining > 0 ? 0 : 9.2) : 24.11;
+        const botTargetSpeed = sessionModeRef.current === "race-complete" ? 0 : race.botPitting ? (race.botPitServiceRemaining > 0 ? 0 : 9.2) : 24.11;
         const botProfile = botLevel === "Easy"
           ? { aggression: .76, steeringGain: 1.78, steeringResponse: 4.0, cornerConfidence: .105, brakeMargin: .36, brakeResponse: .22, brakeLimit: .34, mistakeThreshold: .42, mistakeStrength: .19, nosDrain: 30, nosRegen: 10, nosStart: 42, nosReserve: 12, nosCooldown: 3.8, nosBoost: 1.045 }
           : botLevel === "Normal"
@@ -945,7 +944,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           const completedLapTime = race.lapTime;
           const completedLapValid = !race.lapInvalid;
           const practiceComplete = sessionModeRef.current === "warmup" && race.lap === 1 && lapNow === 2;
-          const qualifyingComplete = sessionModeRef.current === "qualifying" && lapNow >= 2;
           if (!practiceComplete && !race.lapInvalid && (race.bestLap === null || race.lapTime < race.bestLap)) {
             race.bestLap = race.lapTime;
             setBestLap(race.lapTime);
