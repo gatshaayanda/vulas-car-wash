@@ -81,7 +81,7 @@ type LocalRaceSave = { race: Race; difficulty: "Easy" | "Normal" | "Hard"; saved
 type RaceResult = { id: string; completedAt: string; difficulty: "Easy" | "Normal" | "Hard"; elapsed: number; bestLap: number | null; position: 1 | 2; laps: number };
 
 export default function RacingWarmup({ embedded = false, gameShell = false, initialSave, onSave, onComplete, onQualifyingComplete, onExit, quickStart = false, driverName = "Guest Driver" }: { embedded?: boolean; gameShell?: boolean; initialSave?: LocalRaceSave | null; onSave?: (save: LocalRaceSave) => void; onComplete?: (result: RaceResult) => void; onQualifyingComplete?: (result: QualifyingResult) => void; onExit?: () => void; quickStart?: boolean; driverName?: string }) {
-  const [expanded, setExpanded] = useState(!embedded);
+  const [expanded, setExpanded] = useState(!embedded || gameShell);
   const quickStartRef = useRef(quickStart);
   const sessionModeRef = useRef<SessionMode>(quickStart ? "race" : "warmup");
   const [sessionMode, setSessionMode] = useState<SessionMode>(quickStart ? "race" : "warmup");
@@ -1140,7 +1140,6 @@ export default function RacingWarmup({ embedded = false, gameShell = false, init
           <strong>{phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>
           <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>
         </div>
-      </div>
       {(phase === "pit" || phase === "ready") && <section className="warmup-pit-interface" aria-label="Pit garage interface">
         <button type="button" className="warmup-pit-menu-toggle" aria-expanded={pitMenuOpen} onClick={() => setPitMenuOpen(value => !value)}>{pitMenuOpen ? "Collapse pit interface" : "Open pit interface"}</button>
         {pitMenuOpen && <div className="warmup-pit-panel">
@@ -1154,6 +1153,8 @@ export default function RacingWarmup({ embedded = false, gameShell = false, init
           <div className="warmup-pit-session-results"><b>LAST QUALIFYING</b>{qualifyingResult ? <span>{qualifyingResult.valid ? fmt(qualifyingResult.elapsed) : "Invalid lap"} · Grid P{qualifyingResult.gridPosition}</span> : <span>No qualifying result yet · race starts from the back</span>}{raceResult && <span>Last race · {raceResult.position === 1 ? "Winner" : "Kago won"} · {fmt(raceResult.elapsed)}</span>}</div>
           <div className="warmup-pit-session-actions"><button type="button" onClick={startWarmup}>Warm-up practice ↗</button><button type="button" disabled={qualifyingUsed} onClick={startQualifying}>{qualifyingUsed ? "Qualifying completed" : "Start qualifying ↗"}</button><button type="button" onClick={startKagoRace}>Race Kago · {qualifyingResult?.valid ? "Grid P" + qualifyingResult.gridPosition : "Start from back"} ↗</button></div>
         </div>}
+
+      </div>
       </section>}
       <div className="warmup-notification-slot" role="status" aria-live="polite" aria-atomic="true"><div className={"warmup-signal-chip " + signal.tone}><span />{signal.label}</div>{toast && <div className={"warmup-toast " + toast.kind}>{toast.text}</div>}</div>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>

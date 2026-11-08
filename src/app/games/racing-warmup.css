@@ -629,3 +629,17 @@
  .race-hub-game-shell .warmup-circuit-controls .steering-stick{width:100px;height:100px}
  .race-hub-game-shell .warmup-driving button{min-height:64px;font-size:12px}
 }
+
+
+/* Keep the garage within the game viewport, never as a page section below it. */
+.race-hub-game-shell{min-height:0!important;overflow:hidden}
+.race-hub-game-shell .warmup-game{max-width:none!important;padding:0!important;margin:0!important}
+.race-hub-game-shell .warmup-canvas-wrap{position:relative;height:min(78svh,760px);min-height:440px;overflow:hidden;border:0;border-radius:0;box-shadow:none}
+.race-hub-game-shell .warmup-pit-interface{position:absolute;z-index:20;top:10px;right:10px;bottom:auto;left:auto;width:min(330px,calc(100% - 20px));max-height:calc(100% - 20px);margin:0;display:flex;flex-direction:column;align-items:stretch;gap:7px;pointer-events:none}
+.race-hub-game-shell .warmup-pit-menu-toggle{align-self:flex-end;pointer-events:auto;min-height:36px;margin:0;padding:8px 12px;background:#14251eef;color:#fff;border-color:#c9e17a}
+.race-hub-game-shell .warmup-pit-panel{min-height:0;max-height:calc(100% - 44px);overflow-y:auto;overscroll-behavior:contain;pointer-events:auto;padding:10px;gap:7px;border-color:#d5dfd2;background:#f1f5edF5;box-shadow:0 12px 34px #0008}
+.race-hub-game-shell .warmup-pit-panel-heading>strong{font-size:15px}
+.race-hub-game-shell .warmup-pit-panel-heading>p{font-size:10px}
+.race-hub-game-shell .warmup-pit-session-actions{display:grid;grid-template-columns:1fr;gap:6px}
+.race-hub-game-shell .warmup-pit-session-actions button{width:100%;min-height:40px}
+@media(max-width:640px){.race-hub-game-shell .warmup-canvas-wrap{height:calc(100svh - 48px);min-height:420px}.race-hub-game-shell .warmup-pit-interface{top:7px;right:7px;width:min(310px,calc(100% - 14px));max-height:calc(100% - 14px)}.race-hub-game-shell .warmup-pit-panel{max-height:calc(100% - 42px)}}
