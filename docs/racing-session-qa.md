@@ -78,3 +78,12 @@ Report source checks, Vercel deployment status, offline persistence and actual d
 - If browser storage is unavailable, colour selection still works for the current session and does not block gameplay.
 - QA: choose each colour in the pit garage, confirm the car body changes immediately, refresh/reopen and confirm the last choice is restored; verify wheels, glass, lights and Kago retain their own materials.
 - Visual-only garage addition. No vehicle physics, steering, throttle/brake/NOS inputs, camera, track, collision, pit movement, session timing or PWA cache behavior changed.
+
+
+## Collapsible garage setup — 8 November 2026
+
+- Added an accessible show/hide control to the existing ready-phase garage briefing. Tyre and paint choices, engineer note and checklist can be collapsed to reduce visual clustering before driving.
+- Setup starts expanded so first-time players still see the available choices. The collapsed summary keeps the selected tyre and paint visible; reopening restores the same controls.
+- This is presentation-only. It does not change phase transitions, pit-lane movement, driving controls, physics, camera, track, collision handling, race timing, saves, or PWA caching.
+- QA: on the garage screen, collapse and reopen setup; confirm tyre and paint selections remain unchanged; start driving with setup either open or collapsed and confirm the existing controls and pit exit behave exactly as before.
+- Source review only; automated checks, production deployment and device gameplay QA remain outstanding.

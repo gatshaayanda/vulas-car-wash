@@ -100,6 +100,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [nos, setNos] = useState(100);
   const [tyreChoice, setTyreChoice] = useState<"Soft" | "Medium" | "Hard">("Medium");
   const [carColor, setCarColor] = useState("#f04478");
+  const [garageSetupOpen, setGarageSetupOpen] = useState(true);
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem("vula-racing-car-paint-v1");
@@ -1093,15 +1094,21 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           <strong>{phase === "ready" ? "PIT GARAGE · RACE PREP" : phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "pit" ? "PIT STOP" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>
           {phase === "ready" ? <>
             <p>Pick your tyres, then hold the green GAS button to leave the garage. Follow the pit road to the circuit. Kago joins when you are ready to race.</p>
-            <div className="warmup-pit-tyres" aria-label="Starting tyre selection">
-              {(["Soft", "Medium", "Hard"] as const).map((tyre) => <button type="button" key={tyre} className={"warmup-pit-tyre " + tyre.toLowerCase() + (tyreChoice === tyre ? " selected" : "")} aria-pressed={tyreChoice === tyre} onClick={() => setTyreChoice(tyre)}><strong>{tyre}</strong><small>{tyre === "Soft" ? "Soft compound · visual choice" : tyre === "Medium" ? "Balanced compound · visual choice" : "Hard compound · visual choice"}</small></button>)}
-            </div>
-            <div className="warmup-pit-paint" aria-label="Choose car colour">
-              <strong>YOUR CAR COLOUR</strong>
-              <div>{[["#f04478","Pink"],["#e44361","Racing red"],["#2878d0","Blue"],["#f2c230","Yellow"],["#f0f1e9","White"],["#252b31","Graphite"]].map(([color, label]) => <button key={color} type="button" aria-label={`Choose ${label} paint`} aria-pressed={carColor === color} title={label} style={{ backgroundColor: color }} className={carColor === color ? "selected" : ""} onClick={() => chooseCarColor(color)} />)}</div>
-            </div>
-            <div className="warmup-pit-brief"><b>ENGINEER</b><span>{tyreChoice} selected. NOS is your only race resource: spend it on straights, then lift to recharge.</span></div>
-            <div className="warmup-pit-check"><span>✓ Car ready!</span><span>✓ Practice first!</span><span>✓ Kago joins later!</span></div>
+            <button type="button" className="warmup-pit-toggle" aria-expanded={garageSetupOpen} onClick={() => setGarageSetupOpen(open => !open)}>
+              <span>GARAGE SETUP · {tyreChoice.toUpperCase()} TYRES · {carColor.toUpperCase()}</span>
+              <strong>{garageSetupOpen ? "Hide setup −" : "Change setup +"}</strong>
+            </button>
+            {garageSetupOpen && <>
+              <div className="warmup-pit-tyres" aria-label="Starting tyre selection">
+                {(["Soft", "Medium", "Hard"] as const).map((tyre) => <button type="button" key={tyre} className={"warmup-pit-tyre " + tyre.toLowerCase() + (tyreChoice === tyre ? " selected" : "")} aria-pressed={tyreChoice === tyre} onClick={() => setTyreChoice(tyre)}><strong>{tyre}</strong><small>{tyre === "Soft" ? "Soft compound · visual choice" : tyre === "Medium" ? "Balanced compound · visual choice" : "Hard compound · visual choice"}</small></button>)}
+              </div>
+              <div className="warmup-pit-paint" aria-label="Choose car colour">
+                <strong>YOUR CAR COLOUR</strong>
+                <div>{[["#f04478","Pink"],["#e44361","Racing red"],["#2878d0","Blue"],["#f2c230","Yellow"],["#f0f1e9","White"],["#252b31","Graphite"]].map(([color, label]) => <button key={color} type="button" aria-label={`Choose ${label} paint`} aria-pressed={carColor === color} title={label} style={{ backgroundColor: color }} className={carColor === color ? "selected" : ""} onClick={() => chooseCarColor(color)} />)}</div>
+              </div>
+              <div className="warmup-pit-brief"><b>ENGINEER</b><span>{tyreChoice} selected. NOS is your only race resource: spend it on straights, then lift to recharge.</span></div>
+              <div className="warmup-pit-check"><span>✓ Car ready!</span><span>✓ Practice first!</span><span>✓ Kago joins later!</span></div>
+            </>}
           </> : <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>}
         </div>
         {null}
