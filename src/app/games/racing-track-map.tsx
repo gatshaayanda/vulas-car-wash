@@ -4,7 +4,7 @@ import { useEffect, useRef, type RefObject } from "react";
 import { createRacingTrack, createRacingPitLane, RACING_TRACK_POINTS } from "./racing-track";
 import type { Race } from "./racing-warmup";
 
-type Props = { raceRef: RefObject<Race>; carColor?: string };
+type Props = { raceRef: RefObject<Race> };
 
 const mapX = (x: number) => 100 + x * 1.65;
 const mapY = (z: number) => 100 + z * 1.08;
@@ -24,7 +24,7 @@ const pitEntryPoint = mapPitLane.getPointAt(0);
 const pitExitPoint = mapPitLane.getPointAt(1);
 const pitBoxPoint = mapPitLane.getPointAt(.52);
 
-export default function RacingTrackMap({ raceRef, carColor = "#f04478" }: Props) {
+export default function RacingTrackMap({ raceRef }: Props) {
   const playerMarker = useRef<SVGCircleElement>(null);
 
   useEffect(() => {
@@ -57,10 +57,10 @@ if (player) {
         <text x={mapX(pitEntryPoint.x)+7} y={mapY(pitEntryPoint.z)-5} className="racing-track-map-pit-label">PIT IN</text>
         <text x={mapX(pitExitPoint.x)+6} y={mapY(pitExitPoint.z)+9} className="racing-track-map-pit-label">OUT</text>
         <circle cx={mapX(RACING_TRACK_POINTS[0][0])} cy={mapY(RACING_TRACK_POINTS[0][2])} r="3" className="racing-track-map-start" />
-        <circle ref={playerMarker} cx={mapX(0)} cy={mapY(72)} r="6" className="racing-track-map-player" style={{ fill: carColor, stroke: "#f4f7ee" }} />
+        <circle ref={playerMarker} cx={mapX(0)} cy={mapY(72)} r="6" className="racing-track-map-player" />
       </svg>
       <div className="racing-track-map-legend">
-        <span><i className="player-dot" style={{ backgroundColor: carColor }} />YOU</span>
+        <span><i className="player-dot" />YOU</span>
       </div>
     </aside>
   );

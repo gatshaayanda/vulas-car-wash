@@ -125,10 +125,10 @@
 
 /* Cleaner mobile-first racing UI: scene-led feedback, no permanent coach/guide panels. */
 .warmup-line-legend,.warmup-engineer{display:none!important}
-
+.warmup-signal-chip{position:absolute;z-index:6;top:12px;left:12px;display:flex;align-items:center;gap:8px;max-width:calc(100% - 24px);padding:8px 11px;border:1px solid #ffffff48;border-radius:9px;background:#10251fd9;color:#f7f8f3;font-size:10px;font-weight:900;letter-spacing:.08em;box-shadow:0 4px 16px #07140e30;pointer-events:none}
 .warmup-signal-chip span{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:#a9e85b;box-shadow:0 0 0 3px #a9e85b25}
 .warmup-signal-chip.turn span{background:#ffd05a;box-shadow:0 0 0 3px #ffd05a25}.warmup-signal-chip.brake span{background:#ff7769;box-shadow:0 0 0 3px #ff776925}
-
+.warmup-toast{position:absolute;z-index:3;left:12px;bottom:12px;max-width:min(320px,calc(100% - 160px));padding:9px 12px;border:1px solid #ffffff45;border-radius:9px;background:#14241fdf;color:#f7f8f3;font-size:11px;font-weight:700;line-height:1.35;box-shadow:0 4px 16px #07140e30;pointer-events:none;animation:warmup-toast-in .16s ease-out}
 .warmup-toast.success{border-left:3px solid #a9e85b}.warmup-toast.info{border-left:3px solid #ffd05a}.warmup-toast.error{border-left:3px solid #ff7769}
 @keyframes warmup-toast-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:640px){
@@ -136,7 +136,7 @@
  .warmup-circuit-wrap{height:clamp(330px,48svh,430px);min-height:330px}.warmup-nos{margin:8px 0 2px;padding:8px 10px}
  .warmup-circuit-controls{margin-top:9px;grid-template-columns:78px minmax(0,1fr);gap:8px}.warmup-circuit-controls .warmup-steering .warmup-wheel{width:76px;height:76px;min-width:76px;min-height:76px}
  .warmup-circuit-controls .warmup-driving{gap:5px}.warmup-circuit-controls .warmup-driving button{min-height:54px;font-size:10px}.warmup-circuit-controls .warmup-actions{margin-top:2px}.warmup-help{font-size:10px;margin-top:8px}
- 
+ .warmup-signal-chip{top:8px;left:8px;padding:7px 9px;font-size:9px}.warmup-toast{left:8px;bottom:8px;max-width:min(260px,calc(100% - 160px));font-size:10px}
 }
 
 
@@ -493,20 +493,20 @@
 @media(max-width:480px){.warmup-circuit-wrap .warmup-pit-service-overlay{right:8px;bottom:52px;width:min(224px,calc(100% - 16px));padding:9px}.warmup-circuit-wrap .warmup-pit-service-overlay>strong{font-size:14px}.warmup-pit-service-progress{right:8px;bottom:8px;padding:8px 9px}}
 
 /* Big, friendly driving coach cues: readable on a phone at a glance. */
-
+.warmup-signal-chip{top:12px;left:50%;transform:translateX(-50%);justify-content:center;width:max-content;max-width:calc(100% - 20px);padding:11px 16px;border:2px solid #c9ee83;border-radius:999px;background:#142b20f2;color:#fff;font-size:clamp(12px,2.7vw,16px);font-weight:1000;letter-spacing:.025em;text-align:center;box-shadow:0 5px 18px #07140e66}
 .warmup-signal-chip.go{border-color:#c9ee83;background:#193a23f5}
 .warmup-signal-chip.turn{border-color:#ffd05a;background:#463714f5}
 .warmup-signal-chip.brake{border-color:#ff8879;background:#4a211df5}
 .warmup-signal-chip.pit{border-color:#ffd05a;background:#493817f5}
 .warmup-signal-chip span{width:10px;height:10px;flex-basis:10px}
-
+.warmup-toast{left:12px;right:auto;bottom:12px;transform:none;width:max-content;max-width:min(360px,calc(100% - 168px));padding:10px 13px;border:2px solid #c9ee83;border-radius:12px;background:#173323f7;color:#fff;font-size:clamp(12px,2.2vw,14px);font-weight:900;line-height:1.3;text-align:left;box-shadow:0 6px 18px #07140e55;animation:warmup-toast-in .16s ease-out}
 .warmup-toast.success{border-color:#c9ee83;background:#1c4329f7}
 .warmup-toast.info{border-color:#ffdc77;background:#443619f7}
 .warmup-toast.error{border-color:#ff9a8c;background:#4b211df7}
 
 @media(max-width:640px){
- 
- 
+ .warmup-signal-chip{top:8px;left:50%;padding:10px 13px;font-size:12px}
+ .warmup-toast{left:8px;right:auto;bottom:8px;max-width:calc(100% - 132px);padding:9px 11px;font-size:11px;text-align:left}
  .warmup-circuit-controls .warmup-driving .accelerate-button{min-height:70px;font-size:15px;font-weight:1000;letter-spacing:.04em;box-shadow:inset 0 -4px 0 #a7ca60,0 4px 10px #15251a22}
 }
 
@@ -517,59 +517,11 @@
 .warmup-canvas-wrap{--map-width:132px;isolation:isolate}
 .racing-3d-root{z-index:1}
 .racing-track-map{z-index:100;width:var(--map-width);background:rgba(16,37,31,.92);backdrop-filter:blur(8px);box-shadow:0 5px 18px #07140e66}
-
-
+.warmup-signal-chip{z-index:20;left:12px;right:calc(var(--map-width) + 24px);top:12px;max-width:none;width:max-content}
+.warmup-toast{z-index:10;left:12px;right:calc(var(--map-width) + 24px);bottom:12px;width:auto;max-width:360px;max-height:3.2em;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;pointer-events:none}
 @media(max-width:640px){
  .warmup-canvas-wrap{--map-width:104px}
  .racing-track-map{top:8px;right:8px}
- 
- 
-}
-
-
-/* Notifications occupy a dedicated, full-width row below the 3D scene and above NOS/controls. */
-.warmup-notification-slot{display:flex;flex-direction:column;align-items:stretch;gap:7px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;margin:8px 0 0}
-.warmup-notification-slot .warmup-signal-chip{position:relative;inset:auto;z-index:auto;transform:none;display:flex;align-items:center;justify-content:flex-start;align-self:flex-start;width:auto;max-width:100%;min-height:40px;margin:0;padding:10px 13px;box-sizing:border-box;border:2px solid #c9ee83;border-radius:999px;background:#142b20f2;color:#fff;font-size:clamp(12px,2.7vw,16px);font-weight:1000;letter-spacing:.025em;line-height:1.25;text-align:left;box-shadow:0 5px 18px #07140e66;white-space:normal;overflow-wrap:anywhere;pointer-events:none}
-.warmup-notification-slot .warmup-signal-chip.go{border-color:#c9ee83;background:#193a23f5}
-.warmup-notification-slot .warmup-signal-chip.turn{border-color:#ffd05a;background:#463714f5}
-.warmup-notification-slot .warmup-signal-chip.brake{border-color:#ff8879;background:#4a211df5}
-.warmup-notification-slot .warmup-signal-chip.pit{border-color:#ffd05a;background:#493817f5}
-.warmup-notification-slot .warmup-signal-chip span{width:10px;height:10px;flex:0 0 10px;border-radius:50%;background:#a9e85b;box-shadow:0 0 0 3px #a9e85b25}
-.warmup-notification-slot .warmup-signal-chip.turn span{background:#ffd05a;box-shadow:0 0 0 3px #ffd05a25}
-.warmup-notification-slot .warmup-signal-chip.brake span{background:#ff7769;box-shadow:0 0 0 3px #ff776925}
-.warmup-notification-slot .warmup-toast{position:relative;inset:auto;z-index:auto;transform:none;display:block;align-self:stretch;width:100%;max-width:100%;min-width:0;min-height:44px;margin:0;padding:10px 13px;box-sizing:border-box;border:2px solid #c9ee83;border-radius:12px;background:#173323f7;color:#fff;font-size:clamp(12px,2.2vw,14px);font-weight:900;line-height:1.35;text-align:left;box-shadow:0 6px 18px #07140e55;overflow:visible;overflow-wrap:anywhere;white-space:normal;pointer-events:none;animation:warmup-toast-in .16s ease-out}
-.warmup-notification-slot .warmup-toast.success{border-color:#c9ee83;background:#1c4329f7}
-.warmup-notification-slot .warmup-toast.info{border-color:#ffdc77;background:#443619f7}
-.warmup-notification-slot .warmup-toast.error{border-color:#ff9a8c;background:#4b211df7}
-@media(max-width:640px){.warmup-notification-slot{gap:6px;margin-top:7px}.warmup-notification-slot .warmup-toast{min-height:42px;padding:9px 11px;font-size:12px}}
-@media(prefers-reduced-motion:reduce){.warmup-notification-slot .warmup-toast{animation:none!important}}
-
-/* Pit garage identity choices; tyre compounds remain visual-only in this baseline. */
-.warmup-car-colours{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;width:min(100%,620px);margin:10px 0 4px}.warmup-car-colours b{font-size:10px;letter-spacing:.12em;color:#e8efe4;margin-right:5px}.warmup-car-colours button{width:30px;height:30px;border:2px solid #f3f6ed;border-radius:50%;box-shadow:0 0 0 1px #ffffff55;cursor:pointer}.warmup-car-colours button[aria-pressed="true"]{outline:3px solid #d4ff78;outline-offset:3px}
-.racing-menu-slot-actions{display:flex;gap:6px}.racing-menu-slot-actions button{white-space:nowrap}
-
-.warmup-pit-session-results{display:grid;gap:5px;margin:10px auto;padding:10px 12px;max-width:620px;border:1px solid #d6e4ce;border-radius:12px;background:#10251f;color:#edf6e9;text-align:left}.warmup-pit-session-results b{font-size:10px;letter-spacing:.12em;color:#c8f56b}.warmup-pit-session-results span{font-size:12px}.warmup-pit-session-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:10px}.warmup-pit-session-actions button,.warmup-pit-menu-toggle{border:1px solid #c9e17a;border-radius:10px;padding:10px 13px;background:#d3f47c;color:#1b2c20;font-weight:800}.warmup-pit-session-actions button:disabled{opacity:.45;cursor:not-allowed}.warmup-pit-session-actions button:last-child,.warmup-pit-menu-toggle{background:transparent;color:inherit;border-color:#a7b7aa}.warmup-pit-menu-toggle{display:block;margin:10px auto}
-
-
-/* Pit interaction is a separate expandable garage surface, never part of the
-   3D scene or the driving-control cluster. */
-.warmup-pit-interface{display:grid;gap:9px;width:100%;max-width:760px;margin:12px auto 4px}
-.warmup-pit-interface .warmup-pit-menu-toggle{justify-self:center;margin:0;min-height:40px;padding:9px 16px;font-size:11px;font-weight:900;letter-spacing:.04em}
-.warmup-pit-panel{display:grid;gap:10px;padding:14px;border:1px solid #d5dfd2;border-radius:16px;background:linear-gradient(145deg,#f9fbf5,#e9f0e5);color:#1c3025;box-shadow:0 8px 24px #10251f16}
-.warmup-pit-panel-heading{display:grid;gap:4px}
-.warmup-pit-panel-heading>span{font-size:9px;font-weight:950;letter-spacing:.16em;color:#63745e}
-.warmup-pit-panel-heading>strong{font-size:18px;line-height:1.1;color:#172820}
-.warmup-pit-panel-heading>p{margin:0;font-size:11px;line-height:1.4;color:#536254}
-.warmup-pit-panel .warmup-pit-tyres{width:100%;margin:2px 0}
-.warmup-pit-panel .warmup-pit-tyre{background:#17251e}
-.warmup-pit-panel .warmup-pit-brief{width:100%;margin:0;background:#17251e}
-.warmup-pit-panel .warmup-car-colours{width:100%;margin:2px 0 4px}
-.warmup-pit-panel .warmup-pit-session-results{width:100%;max-width:none;margin:0}
-.warmup-pit-panel .warmup-pit-session-actions{justify-content:flex-start;margin:0}
-.warmup-pit-panel .warmup-pit-session-actions button{min-height:42px}
-@media(max-width:560px){
- .warmup-pit-panel{padding:11px;gap:8px}
- .warmup-pit-panel-heading>strong{font-size:16px}
- .warmup-pit-panel .warmup-pit-session-actions{display:grid;grid-template-columns:1fr}
- .warmup-pit-panel .warmup-pit-session-actions button{width:100%}
+ .warmup-signal-chip{left:8px;right:calc(var(--map-width) + 16px);top:8px;width:max-content;max-width:none}
+ .warmup-toast{left:8px;right:calc(var(--map-width) + 16px);bottom:8px;max-width:none;max-height:3.2em;padding:9px 10px;font-size:11px}
 }
