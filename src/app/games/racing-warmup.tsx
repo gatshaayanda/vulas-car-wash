@@ -151,6 +151,34 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
   }, []);
   const startRace = useCallback(() => { completedRef.current = false; reset(true); }, [reset]);
+  const startWarmup = useCallback(() => {
+    sessionModeRef.current = "warmup"; setSessionMode("warmup"); setPitMenuOpen(false);
+    controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+    phaseRef.current = "running"; setPhase("running");
+    notify("WARM-UP PRACTICE · Drive as long as you like. No lap limit.", "success");
+  }, [notify]);
+  const startQualifying = useCallback(() => {
+    sessionModeRef.current = "qualifying"; setSessionMode("qualifying"); setPitMenuOpen(false);
+    raceRef.current.progress = 0; raceRef.current.lap = 1; raceRef.current.elapsed = 0; raceRef.current.lapTime = 0;
+    raceRef.current.bestLap = null; raceRef.current.lapInvalid = false; raceRef.current.playerOutLap = false;
+    setLap(1); setLapTime(0); setBestLap(null); setRaceResult(null);
+    botQualifyingElapsedRef.current = 0; botQualifyingTimeRef.current = null;
+    controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+    phaseRef.current = "running"; setPhase("running");
+    notify("QUALIFYING · One timed lap. Your result sets the next race grid.", "info");
+  }, [notify]);
+  const startKagoRace = useCallback(() => {
+    completedRef.current = false; sessionModeRef.current = "race"; setSessionMode("race"); setPitMenuOpen(false);
+    const race = raceRef.current;
+    race.progress = 2; race.lap = 3; race.elapsed = 0; race.lapTime = 0; race.lapInvalid = false;
+    race.playerPitEntryProgress = 2; race.playerPitEntryTrackT = race.trackT;
+    race.botProgress = 2; race.botPitDone = false; race.botPitting = false; race.botPitServiced = false;
+    race.botPitProgress = 0; race.botPitServiceRemaining = 0; race.botNos = 100; race.botNosCooldown = 0;
+    race.nos = 100; setLap(3); setLapTime(0); setNos(100); setRaceResult(null);
+    controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+    phaseRef.current = "countdown"; setPhase("countdown"); setCountdown(3);
+    notify(qualifyingResult ? "RACE CONTROL · Your qualifying grid is set. Kago is ready." : "RACE CONTROL · No qualifying time. You start from the back.", "info");
+  }, [qualifyingResult, notify]);
   const pauseRace = useCallback(() => {
     if (phaseRef.current === "running") {
       controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
