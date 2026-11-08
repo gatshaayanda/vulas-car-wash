@@ -564,7 +564,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, carColor
       const currentPhase = phaseRef.current;
       // Kago may be simulated invisibly for qualifying comparison, but leaves
       // no visual trace until the actual race is underway.
-      const botRaceActive = !preview && currentPhase === "running" && race.progress >= 2 && race.lap >= 3;
+      const botRaceActive = !preview && currentPhase === "running" && race.botRaceEnabled && !race.botPitting && race.progress >= 2 && race.lap >= 3;
       // Render the independent world-space vehicle state; track geometry is not a movement rail.
       const carWorld = new THREE.Vector3(race.worldX, .015, race.worldZ);
       // Keep the chase camera aligned to the car's nose. The sideways travel
