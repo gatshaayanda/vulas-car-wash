@@ -408,8 +408,8 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 ## Current playable Vula Racing golden baseline — 2026-11-08
 
 - The product owner explicitly approved the currently playable main build as the new golden rollback point on 8 November 2026.
-- Exact protected baseline commit: a6c674dd51a820b8e8b8d82914114879c1e8110e.
-- Protected reference branch: golden-baseline/vula-racing-2026-11-08-playable.
+- Exact protected baseline commit: 0a454a0da001ccecfff04dca0e79028ef257d366 (V62).
+- Protected reference branch: golden-baseline/vula-racing-2026-11-08-v62.
 - This instruction supersedes every earlier Vula Racing golden-baseline commit or branch reference in this document. Never roll back to an earlier checkpoint. Never move, delete, rewrite or force-push this protected branch.
 - All subsequent work must be additive and based on this playable checkpoint. If a change regresses playability, restore this exact checkpoint.
 - The HUD correction is visual-only. Preserve the current playable pit flow, vehicle physics, steering, throttle/brake/NOS, camera, AI, track, collisions, local saves, race results, and offline/PWA behavior.
@@ -449,3 +449,13 @@ This section supersedes every earlier statement that tyres are visual-only or th
 - Reset the race replacement allowance for each new event. Do not add tyre inventory, money, wear, temperature or degradation.
 - Do not change track geometry, collision handling, steering input semantics, braking, NOS behaviour, AI physics, result/save contracts, online APIs, camera or PWA installation.
 - Update both service-worker cache identifiers together for racing runtime changes. Report code/build/CI/deployment/device QA separately and never claim checks that were not run.
+
+
+## Kago main-race opponent loop — 2026-11-08
+
+- Kago is a live, independently simulated opponent only in the main race. The race flag `botRaceEnabled` is authoritative: warm-up and qualifying keep him invisible; the main race renders him from green light onward without depending on the player's current lap/progress projection.
+- Kago's paint must always contrast with the player's selected paint. Re-evaluate the bot colour whenever the player paint changes; never allow identical paint.
+- Kago has an independent Soft/Hard race-tyre selection in the race setup. Apply the approved Soft first-scored-lap speed/acceleration bonus and Hard lateral-grip behaviour to his own physics.
+- Kago makes one automatic compound change at his existing second-lap pit service, choosing the opposite compound. Hide the car, name tag, map marker and effects while `botPitting` is true; show the compact KAGO · IN PITS status. Restore him on rejoin.
+- Preserve Kago's existing driving AI, difficulty profiles, world-space movement, collision handling, pit route, player controls/physics, two-lap scoring, warm-up and qualifying flow, saves, online contracts and PWA installation. Do not redesign or replace the V62 foundation.
+- Bump both service-worker caches together for racing runtime changes. Confirm the production build before requesting device QA.

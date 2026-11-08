@@ -10,6 +10,16 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase>; carColor?: string; preview?: boolean; previewGraphics?: "procedural" | "kenney"; onGraphicsStatus?: (status: "loading" | "ready" | "error") => void };
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+function getBotPaint(playerColor: string) {
+  switch (playerColor.toLowerCase()) {
+    case "#2878d0": return "#f2bd45";
+    case "#f2c230": return "#2878d0";
+    case "#f0f1e9": return "#e44361";
+    case "#252b31": return "#f2c230";
+    case "#e44361": return "#2878d0";
+    default: return "#f2bd45";
+  }
+}
 
 function ribbon(curve: THREE.Curve<THREE.Vector3>, width: number, segments: number, y: number) {
   const positions: number[] = [];
@@ -455,7 +465,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, carColor
     // more visual room around it for steering on narrow mobile screens.
     car.scale.setScalar(0.82);
     scene.add(car);
-    const botCar = makeCar("#f2bd45");
+    const botCar = makeCar(getBotPaint(carColor));
     botCar.scale.setScalar(0.82);
     scene.add(botCar);
     const nameCanvas = document.createElement("canvas");
@@ -564,7 +574,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, carColor
       const currentPhase = phaseRef.current;
       // Kago may be simulated invisibly for qualifying comparison, but leaves
       // no visual trace until the actual race is underway.
-      const botRaceActive = !preview && currentPhase === "running" && race.botRaceEnabled && !race.botPitting && race.progress >= 2 && race.lap >= 3;
+      const botRaceActive = !preview && currentPhase === "running" && race.botRaceEnabled && !race.botPitting;
       // Render the independent world-space vehicle state; track geometry is not a movement rail.
       const carWorld = new THREE.Vector3(race.worldX, .015, race.worldZ);
       // Keep the chase camera aligned to the car's nose. The sideways travel
