@@ -8,7 +8,7 @@ import type { Controls, Phase, Race } from "./racing-warmup";
 import RacingTrackMap from "./racing-track-map";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
-type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase>; preview?: boolean; previewGraphics?: "procedural" | "kenney"; onGraphicsStatus?: (status: "loading" | "ready" | "error") => void };
+type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase>; carColor: string; preview?: boolean; previewGraphics?: "procedural" | "kenney"; onGraphicsStatus?: (status: "loading" | "ready" | "error") => void };
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 function ribbon(curve: THREE.Curve<THREE.Vector3>, width: number, segments: number, y: number) {
@@ -104,7 +104,7 @@ function makeCar(bodyColor = "#f04478") {
   return car;
 }
 
-export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview = false, previewGraphics = "procedural", onGraphicsStatus }: Props) {
+export default function Racing3DScene({ raceRef, controlsRef, phaseRef, carColor, preview = false, previewGraphics = "procedural", onGraphicsStatus }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const host = mountRef.current;
@@ -382,7 +382,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
         post.position.set(rail.position.x, .45, rail.position.z); post.rotation.y = rail.rotation.y; scene.add(post);
       }
     }
-    const car = makeCar();
+    const car = makeCar(carColor);
     const assetCar = new THREE.Group();
     assetCar.visible = false;
     scene.add(assetCar);
@@ -759,7 +759,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, preview 
       renderer.dispose();
       if (renderer.domElement.parentElement === host) host.removeChild(renderer.domElement);
     };
-  }, [raceRef, controlsRef, phaseRef, preview, previewGraphics, onGraphicsStatus]);
+  }, [raceRef, controlsRef, phaseRef, carColor, preview, previewGraphics, onGraphicsStatus]);
 
   return (
     <>
