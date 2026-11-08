@@ -1,5 +1,36 @@
 import * as THREE from "three";
 
+// Shared circuit dimensions: keep the rendered fence and the driving solver
+// on the same measured envelope. These match Big Brothers' proven circuit.
+export const RACING_FENCE_OFFSET = 8.4;
+export const RACING_TRACK_COLLISION_OFFSET = 7.15;
+export const RACING_PIT_LANE_OFFSET = 13.2;
+export const RACING_PIT_COLLISION_OFFSET = 3.5;
+export const RACING_CAR_HALF_LENGTH = 3.72 * 0.82 / 2;
+export const RACING_CAR_HALF_WIDTH = 2.16 * 0.82 / 2;
+
+/** Conservative support radius of the rotated player-car footprint along a track normal. */
+export function getVehicleSafeOffset(
+  tangentX: number,
+  tangentZ: number,
+  worldYaw: number,
+  fenceDistance: number,
+  baseOffset: number,
+) {
+  const tangentLength = Math.hypot(tangentX, tangentZ) || 1;
+  const normalX = -tangentZ / tangentLength;
+  const normalZ = tangentX / tangentLength;
+  const forwardX = -Math.sin(worldYaw);
+  const forwardZ = -Math.cos(worldYaw);
+  const lateralX = Math.cos(worldYaw);
+  const lateralZ = -Math.sin(worldYaw);
+  const supportRadius = Math.abs(normalX * forwardX + normalZ * forwardZ) * RACING_CAR_HALF_LENGTH
+    + Math.abs(normalX * lateralX + normalZ * lateralZ) * RACING_CAR_HALF_WIDTH;
+  // Keep the established aligned-car clearance unchanged; tighten only when
+  // the chassis rotates far enough for a corner to reach the physical rail.
+  return Math.min(baseOffset, Math.max(0.1, fenceDistance - supportRadius - 0.12));
+}
+
 export const RACING_TRACK_POINTS: [number, number, number][] = [
   [0, 0, 72], [30, 0, 65], [45, 0, 42], [40, 0, 16], [21, 0, 2],
   [38, 0, -24], [29, 0, -52], [0, 0, -66], [-32, 0, -54], [-43, 0, -28],
@@ -38,10 +69,10 @@ export function createRacingPitLane(track: THREE.CatmullRomCurve3) {
     const entryBlend = smoothstep(i / transitionLength);
     const exitBlend = smoothstep((divisions - i) / transitionLength);
     const lateralOffset = i < transitionLength
-      ? -6.6 - 6.6 * entryBlend
+      ? -RACING_PIT_LANE_OFFSET / 2 - RACING_PIT_LANE_OFFSET / 2 * entryBlend
       : i > divisions - transitionLength
-        ? -13.2 * exitBlend
-        : -13.2;
+        ? -RACING_PIT_LANE_OFFSET * exitBlend
+        : -RACING_PIT_LANE_OFFSET;
     point.addScaledVector(side, lateralOffset);
     samples.push(point);
   }
