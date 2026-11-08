@@ -451,14 +451,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           const mainConnectorOpening = mainSignedOffset < 0
             && ((mainT >= .905 && mainT <= .94) || (mainT >= .075 && mainT <= .11))
             && mainDistance <= 16;
-          // The pit lane only owns this sample when the car is physically
-          // closer to its centreline and still within its drivable envelope.
-          // Being near the pit spline must never disable the main circuit fence.
-          const pitRoadOwnsSample = pitDistance <= 8 && pitDistance < mainDistance;
-          const mainPenetration = mainConnectorOpening || pitRoadOwnsSample
-            ? Number.POSITIVE_INFINITY
-            : Math.max(mainDistance, Math.abs(mainSignedOffset)) - trackSafetyOffset;
-
           const pitDistance = Math.sqrt(pitDistanceSq);
           const pitDx = sampleX - pitX, pitDz = sampleZ - pitZ;
           const pitSideX = -pitTangentZ, pitSideZ = pitTangentX;
@@ -470,6 +462,13 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           // ordinary inner pit boundary applies again.
           const pitEntryOpening = nearestPitSample <= Math.round(sweepSamples * (12 / 84))
             && mainT >= .905 && mainT <= .94 && mainDistance <= 16;
+          // The pit lane only owns this sample when the car is physically
+          // closer to its centreline and still within its drivable envelope.
+          // Being near the pit spline must never disable the main circuit fence.
+          const pitRoadOwnsSample = pitDistance <= 8 && pitDistance < mainDistance;
+          const mainPenetration = mainConnectorOpening || pitRoadOwnsSample
+            ? Number.POSITIVE_INFINITY
+            : Math.max(mainDistance, Math.abs(mainSignedOffset)) - trackSafetyOffset;
           const pitPenetration = pitEntryOpening
             ? Number.NEGATIVE_INFINITY
             : pitSignedOffset > pitSafetyOffset
@@ -1135,8 +1134,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           <strong>{phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>
           <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>
         </div>
-        {null}
-        
       </div>
       {(phase === "pit" || phase === "ready") && <section className="warmup-pit-interface" aria-label="Pit garage interface">
         <button type="button" className="warmup-pit-menu-toggle" aria-expanded={pitMenuOpen} onClick={() => setPitMenuOpen(value => !value)}>{pitMenuOpen ? "Collapse pit interface" : "Open pit interface"}</button>
