@@ -22,6 +22,8 @@ Use the production customer entry point: https://vulas-car-wash.vercel.app/ → 
 - PIT MENU offers exactly Warm-up Laps, Qualifier and Start Race.
 - Warm-up starts from the pit, is solo, and remains open-ended. Completing a lap does not automatically start qualifying.
 - Qualifying starts alone from the grid. Kago may run an invisible benchmark, but no Kago car, name tag, map marker or collision is visible during qualifying.
+- Qualifying completion saves the player time and Kago benchmark, returns the car to the pit and opens the PIT MENU. It must not start the main race automatically.
+- The PIT MENU shows the latest qualifying time and whether it earned pole or second. The player explicitly chooses Start Race after reviewing it.
 - A valid qualifying lap determines pole/second against Kago's benchmark. An invalid or missing qualifying result means the player starts last in a direct race.
 - Direct race and qualifier-to-race transition use the same tight two-car grid just beyond the start/finish line. Kago appears only when the race begins.
 - Main race is exactly two scored laps. Verify both win and loss result paths, result timing and return-to-pit flow.

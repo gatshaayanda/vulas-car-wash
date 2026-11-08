@@ -19,7 +19,7 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Staff sign-in uses `/api/operations-login`, `FIREBASE_ADMIN_KEY`, and `VULA_OPERATIONS_WORD`. Never expose service-account credentials or staff secrets to the client.
 - Collections: `admins`, `customers`, `services`, `gallery`, `businessSettings`, `bookings`, `queueEntries`, `fleetRequests`, `loyaltyAccounts`, `reminderPreferences`, and `notificationTokens`.
 - Firestore authorization is in `firestore.rules`; image access is in `storage.rules`; indexes are in `firestore.indexes.json`.
-- `public/sw.js` uses isolated, versioned `vula-shell-v46` and `vula-game-v46` caches. It precaches the public game route, discovered Next.js assets, and the selected local racing model when available; the coloured procedural car remains the offline fallback. Bump cache versions when shipped game assets change. Keep early `beforeinstallprompt` capture and the explicit branded install click intact. Updates must wait for the existing app's Refresh action; do not force-reload during install. iOS installation guidance is at `/iphone-install`.
+- `public/sw.js` uses isolated, versioned `vula-shell-v61` and `vula-game-v61` caches. It precaches the public game route, discovered Next.js assets, and the selected local racing model when available; the coloured procedural car remains the offline fallback. Bump cache versions when shipped game assets change. Keep early `beforeinstallprompt` capture and the explicit branded install click intact. Updates must wait for the existing app's Refresh action; do not force-reload during install. iOS installation guidance is at `/iphone-install`.
 - Legacy foundation routes redirect to the active customer or staff journey via `src/middleware.ts`.
 
 ## Online/offline rules
@@ -402,7 +402,7 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Race notifications are rendered only in the dedicated `.warmup-notification-slot` immediately below the 3D scene. Do not restore the legacy lower-left overlay inside the canvas.
 - The legacy `.warmup-toast` positioning/clipping rules must not affect the notification slot; the slot-scoped styles own its position, width and overflow.
 - When a racing HUD/runtime update changes its rendered JS or CSS, bump both service-worker caches together. The toast-strip rollout had retained the same cache identifiers as the golden build, allowing installed PWAs to continue serving stale chunks/styles.
-- Current service-worker cache identifiers are `vula-shell-v59` and `vula-game-v59`. Verify both declarations match in `public/sw.js`.
+- Current service-worker cache identifiers are `vula-shell-v61` and `vula-game-v61`. Verify both declarations match in `public/sw.js`.
 - Distinguish a READY Vercel deployment from an installed PWA receiving the new assets. For a cache-related regression, bump both cache identifiers and confirm the resulting production deployment before requesting device QA.
 
 ## Current playable Vula Racing golden baseline — 2026-11-08

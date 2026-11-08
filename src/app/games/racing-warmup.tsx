@@ -1126,43 +1126,29 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             race.elapsed = 0;
             notify("RACE CONTROL · Warm-up lap complete. Keep practising or return to the pit.", "success");
           } else if (qualifyingComplete && sessionModeRef.current === "qualifying") {
-            sessionModeRef.current = "race";
-            activeTyreRef.current = raceTyreRef.current;
-            firstScoredRaceLapActiveRef.current = false;
-            racePitReplacementUsedRef.current = false;
-            setRacePitReplacementUsed(false);
-            const gridT = .12;
-            const gridPoint = botTrack.getPointAt(gridT);
-            const gridTangent = botTrack.getTangentAt(gridT).normalize();
-            const gridSideX = -gridTangent.z, gridSideZ = gridTangent.x;
-            const gridYaw = Math.atan2(-gridTangent.x, -gridTangent.z);
             const botQualifyingTime = botQualifyingTimeRef.current
               ?? (botQualifyingElapsedRef.current + trackRef.current!.getLength() * Math.max(0, 2 - race.botProgress) / Math.max(8.5, race.botSpeed));
-            const playerOnPole = completedLapValid && completedLapTime <= botQualifyingTime;
             race.qualifyingTime = completedLapTime;
             race.qualifyingValid = completedLapValid;
             race.botQualifyingTime = botQualifyingTime;
-            const playerGridSide = playerOnPole ? 1 : -1;
-            const rearT = Math.max(.106, gridT - 3.2 / botTrack.getLength());
-            const rearPoint = botTrack.getPointAt(rearT);
-            const playerT = playerOnPole ? gridT : rearT;
-            const botT = playerOnPole ? rearT : gridT;
-            const playerPoint = playerOnPole ? gridPoint : rearPoint;
-            const botPoint = playerOnPole ? rearPoint : gridPoint;
-            race.worldX = playerPoint.x + gridSideX * 2.45 * playerGridSide;
-            race.worldZ = playerPoint.z + gridSideZ * 2.45 * playerGridSide;
-            race.worldYaw = gridYaw; settlePlayerCar(race);
-            race.progress = 2 + playerT; race.trackT = playerT; race.botRaceEnabled = true;
-            race.botWorldX = botPoint.x - gridSideX * 2.45 * playerGridSide;
-            race.botWorldZ = botPoint.z - gridSideZ * 2.45 * playerGridSide;
-            race.botWorldYaw = gridYaw; race.botVelocityX = 0; race.botVelocityZ = 0; race.botSpeed = 0;
-            race.botProgress = 2 + botT; race.botInitialized = true;
-            race.botLineOffset = playerOnPole ? -2.45 : 2.45;
-            race.botPitDone = false; race.botPitting = false; race.botPitServiced = false; race.botPitProgress = 0; race.botPitServiceRemaining = 0;
-            race.elapsed = 0; race.lapTime = 0; race.botNos = 100; race.botNosCooldown = 0; race.botBoostActive = false; race.nos = 100;
+
+            // Qualifying is a separate session. Preserve its result, return the
+            // player to the pit, and let them explicitly choose Start Race.
+            const pitState = createPitResumeState(race);
+            raceRef.current = pitState;
+            sessionModeRef.current = "idle";
+            firstScoredRaceLapActiveRef.current = false;
+            racePitReplacementUsedRef.current = false;
+            setRacePitReplacementUsed(false);
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-            setSpeed(0); setLapTime(0); setNos(100); setCountdown(3);
-            phaseRef.current = "grid"; setPhase("grid");
+            setSpeed(0); setLapTime(0); setNos(pitState.nos); setLap(1);
+            setSelectedActivity("warmup");
+            setPitFlowStep("activity");
+            setPitFlowOpen(true);
+            phaseRef.current = "ready"; setPhase("ready");
+            setSignal({ label: "QUALIFIER COMPLETE · REVIEW YOUR GRID POSITION", tone: "go" });
+            notify(completedLapValid ? "RACE CONTROL · Qualifying complete. Review your grid position, then choose Start Race." : "RACE CONTROL · Qualifying lap invalid. You will start last if you choose a direct race.", completedLapValid ? "success" : "error");
+            onSave?.({ race: { ...pitState }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString() });
             
           } else if (sessionModeRef.current === "race" && lapNow >= 5 && !completedRef.current) {
             completedRef.current = true;
@@ -1295,7 +1281,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           {pitFlowStep === "activity" ? <>{sessionModeRef.current === "warmup" && <section className="warmup-practice-tyre-quick"><b>PRACTICE TYRE · FREE CHANGES</b><div className="warmup-pit-setup-tyres">{(["Soft","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={tyreChoice === tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => choosePracticeTyre(tyre)}>{tyre}</button>)}</div></section>}<section className="warmup-pit-activities">
             <button type="button" onClick={() => { setSelectedActivity("warmup"); setPitFlowStep("setup"); }}><strong>WARM-UP LAPS</strong><span>Practice from the pit. Kago stays off track.</span></button>
             <button type="button" onClick={() => { setSelectedActivity("qualifying"); setPitFlowStep("setup"); }}><strong>QUALIFIER</strong><span>Start alone from the grid and earn your position.</span></button>
-            <button type="button" onClick={() => { setSelectedActivity("race"); setPitFlowStep("setup"); }}><strong>START RACE</strong><span>{raceRef.current.qualifyingValid ? "Use your latest valid qualifying result." : "No valid qualifier yet · start from last."}</span></button>
+            <button type="button" onClick={() => { setSelectedActivity("race"); setPitFlowStep("setup"); }}><strong>START RACE</strong><span>{raceRef.current.qualifyingValid && raceRef.current.qualifyingTime !== null ? `${raceRef.current.qualifyingTime <= (raceRef.current.botQualifyingTime ?? Number.POSITIVE_INFINITY) ? "POLE" : "SECOND"} · You ${fmt(raceRef.current.qualifyingTime)} · Kago ${fmt(raceRef.current.botQualifyingTime)}` : "No valid qualifier yet · start from last."}</span></button>
           </section></> : <>
             <section><b>VEHICLE COLOUR</b><div className="warmup-pit-setup-colours">{[["#f04478","Pink"],["#e44361","Red"],["#2878d0","Blue"],["#f2c230","Yellow"],["#f0f1e9","White"],["#252b31","Graphite"]].map(([color,label]) => <button key={color} type="button" title={label} aria-label={`Choose ${label}`} aria-pressed={carColor === color} style={{backgroundColor:color}} className={carColor === color ? "selected" : ""} onClick={() => chooseCarColor(color)} />)}</div></section>
             {selectedActivity === "warmup" && <section><b>PRACTICE TYRE <small>FREE CHANGES · HARD ADDS GRIP</small></b><div className="warmup-pit-setup-tyres">{(["Soft","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={tyreChoice === tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => choosePracticeTyre(tyre)}>{tyre}</button>)}</div></section>}
