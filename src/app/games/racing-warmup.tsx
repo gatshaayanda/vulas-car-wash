@@ -175,6 +175,12 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     race.progress = playerGridProgress; race.lap = 3; race.elapsed = 0; race.lapTime = 0; race.lapInvalid = false;
     race.playerPitEntryProgress = playerGridProgress; race.playerPitEntryTrackT = race.trackT;
     race.botProgress = botGridProgress; race.botPitDone = false; race.botPitting = false; race.botPitServiced = false;
+    const gridPoint = trackRef.current!.getPointAt(0);
+    const gridTangent = trackRef.current!.getTangentAt(0).normalize();
+    const gridSideX = -gridTangent.z, gridSideZ = gridTangent.x;
+    race.botWorldX = gridPoint.x - gridSideX * 2.45; race.botWorldZ = gridPoint.z - gridSideZ * 2.45;
+    race.botWorldYaw = Math.atan2(-gridTangent.x, -gridTangent.z);
+    race.botVelocityX = 0; race.botVelocityZ = 0; race.botSpeed = 0; race.botInitialized = true;
     race.botPitProgress = 0; race.botPitServiceRemaining = 0; race.botNos = 100; race.botNosCooldown = 0;
     race.nos = 100; setLap(3); setLapTime(0); setNos(100); setRaceResult(null);
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
@@ -970,6 +976,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             onQualifyingComplete?.(result);
             onSave?.({ race: { ...race }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString(), carColor, qualifyingResult: result, qualifyingUsed: true, lastRaceResult: raceResult });
             sessionModeRef.current = "qualifying-complete"; setSessionMode("qualifying-complete");
+            race.botVelocityX = 0; race.botVelocityZ = 0; race.botSpeed = 0; race.botThrottle = 0; race.botBrake = 0;
             race.lap = 2; race.elapsed = 0; race.lapTime = 0;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
             notify(completedLapValid ? "QUALIFYING COMPLETE · Return to the pit to review your grid position." : "QUALIFYING INVALID · Return to the pit. You will start from the back.", completedLapValid ? "success" : "error");
