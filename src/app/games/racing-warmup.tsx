@@ -1114,7 +1114,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         {null}
         
       </div>
-      {phase === "pit" && <button type="button" className="warmup-pit-menu-toggle" onClick={() => setPitMenuOpen(value => !value)}>{pitMenuOpen ? "Close pit menu" : "Open pit menu"}</button>}<div className="warmup-notification-slot" role="status" aria-live="polite" aria-atomic="true"><div className={"warmup-signal-chip " + signal.tone}><span />{signal.label}</div>{toast && <div className={"warmup-toast " + toast.kind}>{toast.text}</div>}</div>
+      {(phase === "pit" || phase === "ready") && <button type="button" className="warmup-pit-menu-toggle" onClick={() => setPitMenuOpen(value => !value)}>{pitMenuOpen ? "Close pit menu" : "Open pit menu"}</button>}<div className="warmup-notification-slot" role="status" aria-live="polite" aria-atomic="true"><div className={"warmup-signal-chip " + signal.tone}><span />{signal.label}</div>{toast && <div className={"warmup-toast " + toast.kind}>{toast.text}</div>}</div>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
         <div className="warmup-steering" aria-label="Analog steering">
