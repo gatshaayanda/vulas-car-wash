@@ -44,3 +44,12 @@ Report source checks, Vercel deployment status, offline persistence and actual d
 - Trigger a fresh production deployment from the restored `main` gameplay baseline.
 - This documentation-only chore does not alter racing source, controls, physics, save data, or PWA behaviour.
 - QA must use the deployment built from the current `main` commit, not an older cached deployment.
+
+
+## Live circuit map — 8 November 2026
+
+- The map tracks the player's actual world-space position and Kago's independent world-space position.
+- Kago's marker is hidden during solo practice and qualifying, and appears from the scored race grid onward (lap 3+) only after his vehicle state is initialized.
+- The map legend identifies YOU and KAGO; the existing pit entry, exit and service-bay markings remain visible.
+- This is a HUD-only change. It does not alter player or bot physics, controls, camera, track geometry, collision handling, session flow or saves.
+- QA: confirm the player marker follows the car; Kago is absent in practice/qualifying; both markers appear at the race start and move independently; the Kago marker follows his actual car through corners and pit entry/exit.

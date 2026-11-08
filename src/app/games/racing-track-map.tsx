@@ -26,17 +26,29 @@ const pitBoxPoint = mapPitLane.getPointAt(.52);
 
 export default function RacingTrackMap({ raceRef }: Props) {
   const playerMarker = useRef<SVGCircleElement>(null);
+  const rivalMarker = useRef<SVGCircleElement>(null);
 
   useEffect(() => {
     let frame = 0;
     const update = () => {
       const race = raceRef.current;
       const player = playerMarker.current;
-if (player) {
+      const rival = rivalMarker.current;
+      if (player) {
         player.setAttribute("cx", mapX(race.worldX).toFixed(1));
         player.setAttribute("cy", mapY(race.worldZ).toFixed(1));
       }
-
+      // Kago is only a visible opponent from the scored race (lap 3 onward).
+      // Keep the map marker tied to his actual world-space simulation, never
+      // to spline progress or an estimated position.
+      if (rival) {
+        const rivalVisible = race.lap >= 3 && race.botInitialized;
+        rival.setAttribute("visibility", rivalVisible ? "visible" : "hidden");
+        if (rivalVisible) {
+          rival.setAttribute("cx", mapX(race.botWorldX).toFixed(1));
+          rival.setAttribute("cy", mapY(race.botWorldZ).toFixed(1));
+        }
+      }
       frame = window.requestAnimationFrame(update);
     };
     frame = window.requestAnimationFrame(update);
@@ -44,9 +56,9 @@ if (player) {
   }, [raceRef]);
 
   return (
-    <aside className="racing-track-map" aria-label="Live circuit map showing your car">
+    <aside className="racing-track-map" aria-label="Live circuit map showing your car and Kago during the race">
       <div className="racing-track-map-heading">CIRCUIT MAP</div>
-      <svg viewBox="0 0 200 200" role="img" aria-label="Track layout and your position">
+      <svg viewBox="0 0 200 200" role="img" aria-label="Track layout, pit lane, player and rival positions">
         <polyline points={trackPath} className="racing-track-map-road-edge" />
         <polyline points={trackPath} className="racing-track-map-road" />
         <polyline points={trackPath} className="racing-track-map-road-centre" />
@@ -58,9 +70,11 @@ if (player) {
         <text x={mapX(pitExitPoint.x)+6} y={mapY(pitExitPoint.z)+9} className="racing-track-map-pit-label">OUT</text>
         <circle cx={mapX(RACING_TRACK_POINTS[0][0])} cy={mapY(RACING_TRACK_POINTS[0][2])} r="3" className="racing-track-map-start" />
         <circle ref={playerMarker} cx={mapX(0)} cy={mapY(72)} r="6" className="racing-track-map-player" />
+        <circle ref={rivalMarker} cx={mapX(0)} cy={mapY(72)} r="6" className="racing-track-map-rival" visibility="hidden" />
       </svg>
       <div className="racing-track-map-legend">
         <span><i className="player-dot" />YOU</span>
+        <span><i className="rival-dot" />KAGO</span>
       </div>
     </aside>
   );
