@@ -48,13 +48,14 @@ self.addEventListener("notificationclick", (event) => {
   }));
 });
 
-const CACHE_VERSION = "vula-shell-v49";
-const GAME_CACHE = "vula-game-v49";
+const CACHE_VERSION = "vula-shell-v50";
+const GAME_CACHE = "vula-game-v50";
 const MEDIA_CACHE = "vula-media-v1";
 const SHELL_CACHE = CACHE_VERSION;
 const STATIC_LIMIT = 160;
 const PUBLIC_PAGE_LIMIT = 16;
 const APP_SHELL = [
+  // The homepage contains the racing menu and complete playable game shell.
   "/", "/games", "/games/career", "/offline", "/iphone-install", "/iphone-install.svg",
   "/vula-icon.svg", "/vula-icon-180.png", "/vula-icon-192.png",
   "/vula-icon-512.png", "/manifest.webmanifest"
