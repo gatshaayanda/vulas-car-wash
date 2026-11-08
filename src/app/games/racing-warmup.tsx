@@ -88,6 +88,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [pitMenuOpen, setPitMenuOpen] = useState(true);
   const [qualifyingResult, setQualifyingResult] = useState<QualifyingResult | null>(initialSave?.qualifyingResult ?? null);
   const [qualifyingUsed, setQualifyingUsed] = useState(initialSave?.qualifyingUsed ?? !!initialSave?.qualifyingResult);
+  const qualifyingResultRef = useRef<QualifyingResult | null>(initialSave?.qualifyingResult ?? null);
   const raceRef = useRef<Race>(initialSave?.race ? { ...newRace(), ...initialSave.race, playerGarageExit: initialSave.race.playerGarageExit ?? false, playerOutLap: initialSave.race.playerOutLap ?? false, playerPitEntryProgress: initialSave.race.playerPitEntryProgress ?? initialSave.race.progress ?? 0, playerPitEntryTrackT: initialSave.race.playerPitEntryTrackT ?? initialSave.race.trackT ?? 0 } : quickStart ? createQuickRaceState() : newRace());
   const trackRef = useRef<ReturnType<typeof createRacingTrack> | null>(null);
   if (!trackRef.current) trackRef.current = createRacingTrack();
@@ -107,6 +108,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [nos, setNos] = useState(100);
   const [tyreChoice, setTyreChoice] = useState<"Soft" | "Medium" | "Hard">("Medium");
   const [carColor, setCarColor] = useState(initialSave?.carColor ?? "#f04478");
+  const carColorRef = useRef(carColor);
+  carColorRef.current = carColor;
+  qualifyingResultRef.current = qualifyingResult;
   const [signal, setSignal] = useState({ label: "GREEN LIGHT · BUILD SPEED", tone: "go" });
   const botQualifyingElapsedRef = useRef(0);
   const botQualifyingTimeRef = useRef<number | null>(null);
@@ -116,6 +120,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [toast, setToast] = useState<{ text: string; kind: "success" | "error" | "info" } | null>(null);
   const [businessName, setBusinessName] = useState("Vula's Car Wash");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
   const raceReturnTimerRef = useRef<number | null>(null);
   phaseRef.current = phase;
 
@@ -976,7 +982,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             };
             setQualifyingResult(result);
             onQualifyingComplete?.(result);
-            onSave?.({ race: { ...race }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString(), carColor, qualifyingResult: result, qualifyingUsed: true, lastRaceResult: raceResult });
+            onSaveRef.current?.({ race: { ...race }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString(), carColor: carColorRef.current, qualifyingResult: result, qualifyingUsed: true, lastRaceResult: raceResult });
             sessionModeRef.current = "qualifying-complete"; setSessionMode("qualifying-complete");
             race.botVelocityX = 0; race.botVelocityZ = 0; race.botSpeed = 0; race.botThrottle = 0; race.botBrake = 0;
             race.lap = 2; race.elapsed = 0; race.lapTime = 0;
@@ -999,7 +1005,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             race.botVelocityX = 0; race.botVelocityZ = 0; race.botSpeed = 0;
             if (position === 1) notify("🏆 RACE CONTROL · YOU BEAT KAGO! Returning to the pit garage.", "success");
             else notify("CHEQUERED FLAG · Kago wins this one. Returning to the pit garage.", "info");
-            onSave?.({ race: { ...race }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString(), carColor, qualifyingResult, qualifyingUsed: false, lastRaceResult: result });
+            onSaveRef.current?.({ race: { ...race }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString(), carColor: carColorRef.current, qualifyingResult: qualifyingResultRef.current, qualifyingUsed: false, lastRaceResult: result });
             onComplete?.(result);
             if (raceReturnTimerRef.current !== null) window.clearTimeout(raceReturnTimerRef.current);
             raceReturnTimerRef.current = window.setTimeout(() => {
@@ -1009,7 +1015,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
               sessionModeRef.current = "warmup"; setSessionMode("warmup");
               phaseRef.current = "pit"; setPhase("pit"); setPitMenuOpen(true);
               setSpeed(0); setLapTime(0); setNos(100); setLap(1); setBestLap(null); setBoostActive(false);
-              onSave?.({ race: { ...garageRace }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString(), carColor, qualifyingResult, qualifyingUsed: false, lastRaceResult: result });
+              onSaveRef.current?.({ race: { ...garageRace }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString(), carColor: carColorRef.current, qualifyingResult: qualifyingResultRef.current, qualifyingUsed: false, lastRaceResult: result });
               notify("PIT GARAGE · Race complete. Review your result or choose your next session.", "info");
               raceReturnTimerRef.current = null;
             }, 3200);
