@@ -75,12 +75,18 @@ function fmt(seconds: number | null): string {
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
 }
 
-type LocalRaceSave = { race: Race; difficulty: "Easy" | "Normal" | "Hard"; savedAt: string; carColor?: string };
+export type QualifyingResult = { id: string; completedAt: string; driverName: string; elapsed: number; valid: boolean; gridPosition: 1 | 2 };
+type SessionMode = "warmup" | "qualifying" | "qualifying-complete" | "race" | "race-complete";
+type LocalRaceSave = { race: Race; difficulty: "Easy" | "Normal" | "Hard"; savedAt: string; carColor?: string; qualifyingResult?: QualifyingResult | null };
 type RaceResult = { id: string; completedAt: string; difficulty: "Easy" | "Normal" | "Hard"; elapsed: number; bestLap: number | null; position: 1 | 2; laps: number };
 
-export default function RacingWarmup({ embedded = false, initialSave, onSave, onComplete, onExit, quickStart = false, driverName = "Guest Driver" }: { embedded?: boolean; initialSave?: LocalRaceSave | null; onSave?: (save: LocalRaceSave) => void; onComplete?: (result: RaceResult) => void; onExit?: () => void; quickStart?: boolean; driverName?: string }) {
+export default function RacingWarmup({ embedded = false, initialSave, onSave, onComplete, onQualifyingComplete, onExit, quickStart = false, driverName = "Guest Driver" }: { embedded?: boolean; initialSave?: LocalRaceSave | null; onSave?: (save: LocalRaceSave) => void; onComplete?: (result: RaceResult) => void; onQualifyingComplete?: (result: QualifyingResult) => void; onExit?: () => void; quickStart?: boolean; driverName?: string }) {
   const [expanded, setExpanded] = useState(!embedded);
   const quickStartRef = useRef(quickStart);
+  const sessionModeRef = useRef<SessionMode>(quickStart ? "race" : "warmup");
+  const [sessionMode, setSessionMode] = useState<SessionMode>(quickStart ? "race" : "warmup");
+  const [pitMenuOpen, setPitMenuOpen] = useState(true);
+  const [qualifyingResult, setQualifyingResult] = useState<QualifyingResult | null>(initialSave?.qualifyingResult ?? null);
   const raceRef = useRef<Race>(initialSave?.race ? { ...newRace(), ...initialSave.race, playerGarageExit: initialSave.race.playerGarageExit ?? false, playerOutLap: initialSave.race.playerOutLap ?? false, playerPitEntryProgress: initialSave.race.playerPitEntryProgress ?? initialSave.race.progress ?? 0, playerPitEntryTrackT: initialSave.race.playerPitEntryTrackT ?? initialSave.race.trackT ?? 0 } : quickStart ? createQuickRaceState() : newRace());
   const trackRef = useRef<ReturnType<typeof createRacingTrack> | null>(null);
   if (!trackRef.current) trackRef.current = createRacingTrack();
@@ -900,8 +906,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         if (lapNow > race.lap) {
           const completedLapTime = race.lapTime;
           const completedLapValid = !race.lapInvalid;
-          const practiceComplete = race.lap === 1 && lapNow === 2;
-          const qualifyingComplete = race.lap === 2 && lapNow === 3;
+          const practiceComplete = sessionModeRef.current === "warmup" && race.lap === 1 && lapNow === 2;
+          const qualifyingComplete = sessionModeRef.current === "qualifying" && lapNow >= 2;
           if (!practiceComplete && !race.lapInvalid && (race.bestLap === null || race.lapTime < race.bestLap)) {
             race.bestLap = race.lapTime;
             setBestLap(race.lapTime);
@@ -912,28 +918,12 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           race.lapInvalid = false;
           setLap(lapNow);
           if (practiceComplete) {
-            race.progress = 1;
-            race.lap = 2;
+            // Warm-up is open play. Completing a lap never auto-starts qualifying.
             race.elapsed = 0;
             race.lapTime = 0;
-            const qualifyingPoint = botTrack.getPointAt(0);
-            const qualifyingTangent = botTrack.getTangentAt(0).normalize();
-            const qualifyingSideX = -qualifyingTangent.z, qualifyingSideZ = qualifyingTangent.x;
-            const qualifyingYaw = Math.atan2(-qualifyingTangent.x, -qualifyingTangent.z);
-            race.botProgress = 1;
-            botQualifyingElapsedRef.current = 0; botQualifyingTimeRef.current = null;
-            race.botWorldX = qualifyingPoint.x - qualifyingSideX * 2.45;
-            race.botWorldZ = qualifyingPoint.z - qualifyingSideZ * 2.45;
-            race.botWorldYaw = qualifyingYaw;
-            race.botVelocityX = -Math.sin(qualifyingYaw) * 8.5;
-            race.botVelocityZ = -Math.cos(qualifyingYaw) * 8.5;
-            race.botInitialized = true;
-            race.botPitDone = false; race.botPitting = false; race.botPitServiced = false;
-            race.botPitProgress = 0; race.botPitServiceRemaining = 0;
-            controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-            setSpeed(0); setLapTime(0);
-            
-          } else if (qualifyingComplete) {
+            race.lap = lapNow;
+            setLap(lapNow);
+          } else if (sessionModeRef.current === "race" && lapNow >= 5 && !completedRef.current) {
             const gridPoint = botTrack.getPointAt(0);
             const gridTangent = botTrack.getTangentAt(0).normalize();
             const gridSideX = -gridTangent.z, gridSideZ = gridTangent.x;
