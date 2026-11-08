@@ -547,36 +547,3 @@
 .warmup-notification-slot{position:relative;display:flex;align-items:center;justify-content:flex-start;width:100%;min-height:48px;padding:4px 0 0;isolation:isolate}
 .warmup-notification-slot .warmup-toast{position:relative;inset:auto;left:auto;right:auto;top:auto;bottom:auto;transform:none;width:max-content;max-width:100%;max-height:none;overflow:visible;display:block;-webkit-line-clamp:unset;-webkit-box-orient:initial;margin:0;padding:9px 13px;white-space:normal;overflow-wrap:anywhere;line-height:1.4;pointer-events:none}
 @media(max-width:640px){.warmup-notification-slot{min-height:46px;padding-top:4px}.warmup-notification-slot .warmup-toast{max-width:100%;padding:8px 10px;font-size:11px}}
-
-/* Racing HUD rebuild — one clear information hierarchy, without touching gameplay. */
-.warmup-opponent-menu{min-height:58px;margin:0 0 8px;padding:9px 13px;border:1px solid #294438;border-radius:12px;background:linear-gradient(110deg,#14271f,#20392d);box-shadow:0 5px 16px #14271f12;color:#f4f7ee}
-.warmup-opponent-menu>div>span,.warmup-opponent-menu label{color:#b7cbb9;font-size:8px;letter-spacing:.14em}
-.warmup-opponent-menu strong{color:#f7faef;font-size:14px}
-.warmup-opponent-menu small{color:#b9c9bb;font-size:9px}
-.warmup-opponent-menu select{min-height:32px;border-color:#607767;background:#f4f7ee;color:#172820;font-size:11px}
-.warmup-circuit-hud{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:5px;margin:0 0 8px;padding:5px;border:1px solid #294438;border-radius:12px;background:#14271f;box-shadow:0 5px 16px #14271f12}
-.warmup-circuit-hud>div{min-width:0;min-height:54px;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:7px 9px;border:1px solid #ffffff12;border-radius:8px;background:#20392d}
-.warmup-circuit-hud>div>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#b9cbb9;font-size:8px;line-height:1.1;letter-spacing:.09em}
-.warmup-circuit-hud>div>strong{min-width:0;color:#f7faef;font:800 clamp(13px,1.7vw,18px)/1.05 "Space Grotesk",system-ui,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
-.warmup-circuit-hud>div>strong small{display:inline;color:#b9cbb9;font-size:8px;font-weight:700}
-.warmup-circuit-hud>div:last-child strong{font-size:clamp(11px,1.4vw,15px)}
-.warmup-circuit-hud>div:last-child strong small{display:block;margin-top:2px;font-size:8px;white-space:normal}
-.warmup-circuit-wrap{height:clamp(360px,64svh,560px);min-height:360px;border:1px solid #294438;border-radius:14px;box-shadow:0 12px 30px #10201824}
-.warmup-circuit-wrap .warmup-signal-chip{top:12px;left:12px;right:calc(var(--map-width,104px) + 24px);width:auto;max-width:none;min-height:38px;justify-content:flex-start;padding:9px 12px;border-width:1px;border-radius:10px;font-size:clamp(10px,1.4vw,13px);line-height:1.2;text-align:left;box-shadow:0 4px 14px #07140e55}
-.warmup-circuit-wrap .racing-track-map{top:10px;right:10px;width:var(--map-width,132px);border:1px solid #d8eadb55;background:rgba(13,31,24,.94);box-shadow:0 5px 18px #07140e66;backdrop-filter:blur(8px)}
-.warmup-notification-slot{min-height:44px;margin:0;padding:5px 0 0;justify-content:center;align-items:flex-start}
-.warmup-notification-slot .warmup-toast{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;transform:none!important;display:block!important;width:fit-content;max-width:min(100%,560px);max-height:none!important;overflow:visible!important;-webkit-line-clamp:unset!important;-webkit-box-orient:initial!important;margin:0;padding:8px 14px;border-width:1px;border-radius:10px;font-size:12px;line-height:1.35;text-align:center;white-space:normal;overflow-wrap:anywhere;box-shadow:0 3px 12px #14271f18}
-.warmup-nos{grid-template-columns:auto minmax(0,1fr);align-items:center;gap:12px;margin:4px 0 6px;padding:8px 12px;border:1px solid #294438;border-radius:10px;background:#14271f;color:#f7faef}
-.warmup-nos>div:first-child{gap:10px;color:#d9e8d8;font-size:10px}
-.warmup-nos>div:first-child strong{color:#d4ff78;font-size:10px;letter-spacing:.14em}
-.warmup-nos>div:first-child span{color:#f7faef;font-size:11px}
-.nos-track{height:7px;background:#405247}
-.nos-track span{background:linear-gradient(90deg,#8fc83c,#d4ff78)}
-@media(max-width:640px){
- .warmup-opponent-menu{min-height:52px;padding:8px 10px;gap:8px}.warmup-opponent-menu strong{font-size:12px}.warmup-opponent-menu small{font-size:8px}.warmup-opponent-menu label{min-width:88px;font-size:8px}.warmup-opponent-menu select{min-height:30px;padding:5px 20px 5px 7px;font-size:10px}
- .warmup-circuit-hud{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:3px;padding:4px}.warmup-circuit-hud>div{min-height:49px;padding:6px 4px;gap:4px;border-radius:7px}.warmup-circuit-hud>div>span{font-size:7px;letter-spacing:.02em}.warmup-circuit-hud>div>strong{font-size:clamp(11px,3.2vw,14px)}.warmup-circuit-hud>div>strong small{font-size:7px}.warmup-circuit-hud>div:last-child strong{font-size:10px}
- .warmup-circuit-wrap{height:clamp(340px,54svh,440px);min-height:340px}.warmup-circuit-wrap .warmup-signal-chip{top:8px;left:8px;right:calc(var(--map-width,104px) + 16px);min-height:34px;padding:7px 9px;font-size:10px}.warmup-circuit-wrap .racing-track-map{top:8px;right:8px}
- .warmup-notification-slot{min-height:40px;padding-top:4px}.warmup-notification-slot .warmup-toast{max-width:100%;padding:7px 10px;font-size:10px}
- .warmup-nos{gap:9px;margin:3px 0 5px;padding:7px 9px}.warmup-circuit-controls{margin-top:7px}
-}
-@media(max-width:360px){.warmup-circuit-hud>div{padding-inline:3px}.warmup-circuit-hud>div>span{font-size:6px}.warmup-circuit-hud>div>strong{font-size:10px}.warmup-circuit-hud>div:last-child strong{font-size:9px}}
