@@ -172,19 +172,20 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   }, []);
   useEffect(() => { if (!embedded) document.title = businessName + " · Racing warm-up"; }, [businessName, embedded]);
 
-  const reset = useCallback((start: boolean) => {
-    raceRef.current = createPitResumeState(); sessionModeRef.current = "idle";
+  const reset = useCallback(() => {
+    const previous = raceRef.current;
+    raceRef.current = createPitResumeState(previous); sessionModeRef.current = "idle";
     botQualifyingElapsedRef.current = 0; botQualifyingTimeRef.current = null; lastPitPromptLapRef.current = -1;
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-    setSpeed(0); setLapTime(0); setBestLap(null); setLap(quickStartRef.current ? 3 : 1); setNos(100); setBoostActive(false); setRivalGap(0); setRaceResult(null);
+    setSpeed(0); setLapTime(0); setBestLap(raceRef.current.bestLap); setLap(1); setNos(100); setBoostActive(false); setRivalGap(0); setRaceResult(null);
     if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = null; setToast(null);
     pitMenuPromptedRef.current = false; pitMenuAvailableRef.current = false; pitMenuOpenRef.current = false;
     setPitMenuAvailable(false); setPitMenuOpen(false);
     setPitFlowOpen(false); setPitFlowStep("activity");
     setCountdown(3); phaseRef.current = "ready"; setPhase("ready");
   }, []);
-  const startRace = useCallback(() => { completedRef.current = false; reset(false); setPitFlowOpen(true); }, [reset]);
+  const startRace = useCallback(() => { completedRef.current = false; reset(); setPitFlowOpen(true); }, [reset]);
   const startDriving = () => {
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
     sessionModeRef.current = "idle";
