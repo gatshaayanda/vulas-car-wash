@@ -997,8 +997,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             sessionModeRef.current = "race-complete"; setSessionMode("race-complete"); setQualifyingUsed(false);
             phaseRef.current = "finished"; setPhase("finished");
             race.botVelocityX = 0; race.botVelocityZ = 0; race.botSpeed = 0;
-            if (position === 1) notify("🏆 RACE CONTROL · YOU BEAT KAGO! Return to the pit when ready.", "success");
-            else notify("CHEQUERED FLAG · Kago wins this one. Return to the pit when ready.", "info");
+            if (position === 1) notify("🏆 RACE CONTROL · YOU BEAT KAGO! Returning to the pit garage.", "success");
+            else notify("CHEQUERED FLAG · Kago wins this one. Returning to the pit garage.", "info");
             onSave?.({ race: { ...race }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString(), carColor, qualifyingResult, qualifyingUsed: false, lastRaceResult: result });
             onComplete?.(result);
             if (raceReturnTimerRef.current !== null) window.clearTimeout(raceReturnTimerRef.current);
