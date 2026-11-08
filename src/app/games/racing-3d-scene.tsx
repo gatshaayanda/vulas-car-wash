@@ -3,7 +3,7 @@
 import { useEffect, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { createRacingTrack, createRacingPitLane, getTrackTurn } from "./racing-track";
+import { createRacingTrack, createRacingPitLane, getTrackTurn, RACING_FENCE_OFFSET } from "./racing-track";
 import type { Controls, Phase, Race } from "./racing-warmup";
 import RacingTrackMap from "./racing-track-map";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -375,7 +375,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, carColor
         const pitExitOpening = t >= .075 && t <= .11;
         if (s === -1 && (pitEntryOpening || pitExitOpening)) continue;
         const rail = new THREE.Mesh(new THREE.BoxGeometry(.22, .62, 2.9), i % 5 === 0 ? redKerb : barrierMat);
-        rail.position.set(p.x + side.x * s * 8.4, .58, p.z + side.z * s * 8.4);
+        rail.position.set(p.x + side.x * s * RACING_FENCE_OFFSET, .58, p.z + side.z * s * RACING_FENCE_OFFSET);
         rail.rotation.y = Math.atan2(tangent.x, tangent.z);
         rail.castShadow = true; rail.receiveShadow = true; scene.add(rail);
         const post = new THREE.Mesh(new THREE.BoxGeometry(.25, .9, .18), darkBarrier);
