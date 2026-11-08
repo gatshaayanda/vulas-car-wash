@@ -404,3 +404,15 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - When a racing HUD/runtime update changes its rendered JS or CSS, bump both service-worker caches together. The toast-strip rollout had retained the same cache identifiers as the golden build, allowing installed PWAs to continue serving stale chunks/styles.
 - Current service-worker cache identifiers are `vula-shell-v47` and `vula-game-v47`. Verify both declarations match in `public/sw.js`.
 - Distinguish a READY Vercel deployment from an installed PWA receiving the new assets. For a cache-related regression, bump both cache identifiers and confirm the resulting production deployment before requesting device QA.
+
+## Current playable Vula Racing golden baseline — 2026-11-08
+
+- The product owner explicitly approved the currently playable main build as the new golden rollback point on 8 November 2026.
+- Exact protected baseline commit: a6c674dd51a820b8e8b8d82914114879c1e8110e.
+- Protected reference branch: golden-baseline/vula-racing-2026-11-08-playable.
+- This instruction supersedes every earlier Vula Racing golden-baseline commit or branch reference in this document. Never roll back to an earlier checkpoint. Never move, delete, rewrite or force-push this protected branch.
+- All subsequent work must be additive and based on this playable checkpoint. If a change regresses playability, restore this exact checkpoint.
+- The HUD correction is visual-only. Preserve the current playable pit flow, vehicle physics, steering, throttle/brake/NOS, camera, AI, track, collisions, local saves, race results, and offline/PWA behavior.
+- The HUD must read as one coherent system: compact live timing/status strip above the scene; clear persistent driving cue at the scene's upper-left; compact live map at upper-right; event notification in a dedicated full-width strip below the scene; NOS meter immediately below notifications and above the controls. Do not leave conflicting legacy toast positioning or clipping rules active.
+- The HUD must remain legible at 320px portrait and landscape widths without covering the road, map, or touch controls. The scene must not jump in height when a notification appears or disappears.
+- Bump both service-worker cache identifiers together for HUD runtime changes. Report CI, deployment readiness and real-device QA separately.
