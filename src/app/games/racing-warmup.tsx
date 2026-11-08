@@ -462,17 +462,18 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           // ordinary inner pit boundary applies again.
           const pitEntryOpening = nearestPitSample <= Math.round(sweepSamples * (12 / 84))
             && mainT >= .905 && mainT <= .94 && mainDistance <= 16;
-          // The pit lane only owns this sample when the car is physically
-          // closer to its centreline and still within its drivable envelope.
-          // Being near the pit spline must never disable the main circuit fence.
+          // The pit lane owns a sample only when it is the physically nearer
+          // road surface. Once it owns the sample, both pit-road edges must
+          // remain solid; only the circuit-facing edge is open at the actual
+          // connector taper. This prevents a gap on the far side of the pit road.
           const pitRoadOwnsSample = pitDistance <= 8 && pitDistance < mainDistance;
           const mainPenetration = mainConnectorOpening || pitRoadOwnsSample
             ? Number.POSITIVE_INFINITY
             : Math.max(mainDistance, Math.abs(mainSignedOffset)) - trackSafetyOffset;
-          const pitPenetration = pitEntryOpening
-            ? Number.NEGATIVE_INFINITY
-            : pitSignedOffset > pitSafetyOffset
-              ? pitSignedOffset - pitSafetyOffset
+          const pitPenetration = pitSignedOffset > pitSafetyOffset
+            ? (pitEntryOpening ? Number.POSITIVE_INFINITY : pitSignedOffset - pitSafetyOffset)
+            : -pitSignedOffset > pitSafetyOffset
+              ? -pitSignedOffset - pitSafetyOffset
               : Number.POSITIVE_INFINITY;
 
           const usePitBoundary = pitPenetration < mainPenetration;
@@ -532,7 +533,13 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           }
         }
         race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 290 : 255);
-        if (race.playerPitting && race.playerPitProgress >= .49 && race.playerPitProgress <= .55 && race.speed <= 2.2 && phaseRef.current === "running") {
+        if (race.playerPitting && race.playerPitProgress >= .49 && race.playerPitProgress <= .55 && race.speed <= 2.2
+          && phaseRef.current === "running"
+          && sessionModeRef.current !== "qualifying"
+          && sessionModeRef.current !== "race") {
+          // A physical pit visit during qualifying or the race is not a session
+          // transition. The driver may stop and lose time, but the live session
+          // and its clock continue until their normal completion conditions.
           settlePlayerCar(race);
           controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
           phaseRef.current = "pit"; setPhase("pit"); setPitMenuOpen(true);
