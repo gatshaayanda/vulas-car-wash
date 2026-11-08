@@ -100,7 +100,6 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [nos, setNos] = useState(100);
   const [tyreChoice, setTyreChoice] = useState<"Soft" | "Medium" | "Hard">("Medium");
   const [carColor, setCarColor] = useState("#f04478");
-  const [garageSetupOpen, setGarageSetupOpen] = useState(true);
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem("vula-racing-car-paint-v1");
@@ -1087,18 +1086,13 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} carColor={carColor} />
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
-        {toast && <div className={"warmup-toast " + toast.kind} role="status">{toast.text}</div>}
         {phase === "finished" && raceResult && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.position === 1 ? "YOU BEAT KAGO!" : "YOU FINISHED THE RACE!"}</strong><p>{fmt(raceResult.elapsed)} · 2 scored laps · {raceResult.difficulty}</p><button type="button" onClick={startRace}>RACE AGAIN ↗</button></div>}
         <div className={"warmup-3d-overlay" + (phase === "ready" ? " is-interactive" : "")} hidden={phase === "running" || phase === "finished" || phase === "pit"} aria-live="polite">
           <span>🏁 VULA RACING · LET’S PLAY!</span>
           <strong>{phase === "ready" ? "PIT GARAGE · RACE PREP" : phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "pit" ? "PIT STOP" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>
           {phase === "ready" ? <>
             <p>Pick your tyres, then hold the green GAS button to leave the garage. Follow the pit road to the circuit. Kago joins when you are ready to race.</p>
-            <button type="button" className="warmup-pit-toggle" aria-expanded={garageSetupOpen} onClick={() => setGarageSetupOpen(open => !open)}>
-              <span>GARAGE SETUP · {tyreChoice.toUpperCase()} TYRES · {carColor.toUpperCase()}</span>
-              <strong>{garageSetupOpen ? "Hide setup −" : "Change setup +"}</strong>
-            </button>
-            {garageSetupOpen && <>
+            <>
               <div className="warmup-pit-tyres" aria-label="Starting tyre selection">
                 {(["Soft", "Medium", "Hard"] as const).map((tyre) => <button type="button" key={tyre} className={"warmup-pit-tyre " + tyre.toLowerCase() + (tyreChoice === tyre ? " selected" : "")} aria-pressed={tyreChoice === tyre} onClick={() => setTyreChoice(tyre)}><strong>{tyre}</strong><small>{tyre === "Soft" ? "Soft compound · visual choice" : tyre === "Medium" ? "Balanced compound · visual choice" : "Hard compound · visual choice"}</small></button>)}
               </div>
@@ -1108,12 +1102,12 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
               </div>
               <div className="warmup-pit-brief"><b>ENGINEER</b><span>{tyreChoice} selected. NOS is your only race resource: spend it on straights, then lift to recharge.</span></div>
               <div className="warmup-pit-check"><span>✓ Car ready!</span><span>✓ Practice first!</span><span>✓ Kago joins later!</span></div>
-            </>}
           </> : <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>}
         </div>
         {null}
         
       </div>
+      <div className="warmup-notification-slot">{toast && <div className={"warmup-toast " + toast.kind} role="status" aria-atomic="true">{toast.text}</div>}</div>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
         <div className="warmup-steering" aria-label="Analog steering">

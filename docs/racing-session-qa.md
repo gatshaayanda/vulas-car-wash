@@ -87,3 +87,15 @@ Report source checks, Vercel deployment status, offline persistence and actual d
 - This is presentation-only. It does not change phase transitions, pit-lane movement, driving controls, physics, camera, track, collision handling, race timing, saves, or PWA caching.
 - QA: on the garage screen, collapse and reopen setup; confirm tyre and paint selections remain unchanged; start driving with setup either open or collapsed and confirm the existing controls and pit exit behave exactly as before.
 - Source review only; automated checks, production deployment and device gameplay QA remain outstanding.
+
+
+## Racing HUD toast placement correction — 8 November 2026
+
+- Follow the HUD decision recorded in AGENTS.md: the 3D scene remains clean; the map stays in the upper-right; the persistent driving signal remains its own top guidance layer; transient event toasts render only in the dedicated notification strip immediately below the 3D scene and above NOS.
+- The notification strip reserves vertical space so a toast does not cover the road or controls or cause the game viewport to jump. Toast text wraps naturally, is not clipped or line-clamped, and retains `role="status"` with `aria-atomic="true"`.
+- Removed the obsolete canvas-overlay toast placement and its map-width reservation/clipping effect. Kept the existing map and signal-chip positioning, game loop and driving controls unchanged.
+- Reverted the newly added collapsible starting-garage presentation for this QA pass. Starting tyre and paint choices remain expanded; the collapsible garage work is deferred until the product owner has approved the HUD.
+- Bumped both service-worker cache identifiers from v50 to v51 so installed PWAs can fetch the updated racing JS/CSS.
+- QA: inspect narrow portrait and landscape; confirm toast appears below the 3D scene and above NOS, wraps without clipping, never covers map/road/controls, and the scene height stays stable with and without a toast. Verify signal chip and map remain in their own lanes. Then test event messages and refresh an installed PWA to confirm v51 assets.
+- Pit-time reopening of setup/paint is recorded as a separate follow-up and is not changed in this HUD-only pass.
+- Source changes only; build, Vercel deployment and physical device gameplay QA must be reported separately.
