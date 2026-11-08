@@ -126,3 +126,10 @@ Report source checks, Vercel deployment status, offline persistence and actual d
 - Bumped both service-worker caches from v52 to v53 so installed PWAs can refresh the new HUD CSS/JS.
 - QA required at 320px portrait, wider portrait and landscape: check every metric remains readable, signal does not overlap the map, toast is centred below the scene without clipping or scene-height movement, NOS sits above controls, and the road remains unobstructed.
 - This is a visual source change only; physical gameplay and installed-PWA QA remain outstanding until checked on-device.
+## Fresh production deployment retry — 8 November 2026
+
+- Product owner requested another fresh Git commit/push after the HUD layout rebuild was merged.
+- This commit is intentionally documentation-only; it does not alter the approved playable baseline or any game source.
+- It is intended to trigger a new production deployment attempt for the already-merged HUD correction.
+- Previous Vercel response for HUD commit 8db4b369203cc8cda13d065ffcf48ab2a9c615ab was: deployment rate limited, retry in 24 hours. A fresh commit may still be rejected until that limit resets; verify the Vercel status before sharing a QA URL.
+- Keep the HUD implementation and protected golden baseline unchanged while deployment is retried.
