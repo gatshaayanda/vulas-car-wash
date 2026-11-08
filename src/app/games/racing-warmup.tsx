@@ -1128,11 +1128,17 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
                     ? { label: "BRAKE BEFORE THE CORNER ↓", tone: "brake" }
                     : upcomingBend > 0.34
                       ? { label: upcomingTurn < 0 ? "STEER LEFT ←" : "STEER RIGHT →", tone: "turn" }
-                      : race.progress < 1
-                        ? { label: race.speed < 10 ? "HOLD GAS TO DRIVE" : "PRACTICE LAP · KEEP GOING", tone: "go" }
-                        : race.progress < 2
-                          ? { label: "QUALIFYING · SET YOUR LAP", tone: "go" }
-                          : { label: "RACE ON · KEEP GOING", tone: "go" };
+                      : sessionModeRef.current === "warmup"
+                        ? { label: race.speed < 10 ? "HOLD GAS TO DRIVE" : "WARM-UP LAP · KEEP GOING", tone: "go" }
+                        : sessionModeRef.current === "qualifying"
+                          ? { label: "QUALIFIER · SET YOUR LAP", tone: "go" }
+                          : sessionModeRef.current === "race"
+                            ? { label: "RACE ON · KEEP GOING", tone: "go" }
+                            : race.progress < 1
+                              ? { label: race.speed < 10 ? "HOLD GAS TO DRIVE" : "PRACTICE LAP · KEEP GOING", tone: "go" }
+                              : race.progress < 2
+                                ? { label: "QUALIFYING · SET YOUR LAP", tone: "go" }
+                                : { label: "RACE ON · KEEP GOING", tone: "go" };
           setSignal(cue);
         }
       }
@@ -1234,10 +1240,10 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         </div>
         <div className="warmup-hud warmup-circuit-hud" aria-label="Live race timing">
           <div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div>
-          <div><span>{lap <= 1 ? "Session" : "Race lap"}</span><strong>{lap === 1 ? "Practice" : lap === 2 ? "Qualifying" : Math.min(lap - 2, 2) + "/2"}</strong></div>
+          <div><span>{sessionModeRef.current === "warmup" || sessionModeRef.current === "qualifying" ? "Session" : "Race lap"}</span><strong>{sessionModeRef.current === "warmup" ? "Warm-up" : sessionModeRef.current === "qualifying" ? "Qualifier" : sessionModeRef.current === "race" ? Math.min(Math.max(1, lap - 2), 2) + "/2" : "Pit"}</strong></div>
           <div><span>Current lap</span><strong>{fmt(lapTime)}</strong></div>
           <div><span>Best lap</span><strong>{fmt(bestLap)}</strong></div>
-          <div><span>{raceRef.current.botPitting ? "Opponent" : lap >= 3 ? "Rival gap" : "Opponent"}</span><strong>{raceRef.current.botPitting ? <small>KAGO IN PITS</small> : lap >= 3 ? <>{Math.abs(Math.round(rivalGap))}m <small>{rivalGap >= 0 ? "Kago ahead" : "You ahead"}</small></> : <small>Joins race</small>}</strong></div>
+          <div><span>{raceRef.current.botPitting ? "Opponent" : sessionModeRef.current === "race" ? "Rival gap" : "Opponent"}</span><strong>{raceRef.current.botPitting ? <small>KAGO IN PITS</small> : sessionModeRef.current === "race" ? <>{Math.abs(Math.round(rivalGap))}m <small>{rivalGap >= 0 ? "Kago ahead" : "You ahead"}</small></> : <small>SOLO SESSION</small>}</strong></div>
         </div>
         {phase === "finished" && raceResult && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.position === 1 ? "YOU BEAT KAGO!" : "YOU FINISHED THE RACE!"}</strong><p>{fmt(raceResult.elapsed)} · 2 scored laps · {raceResult.difficulty}</p><button type="button" onClick={startRace}>RACE AGAIN ↗</button></div>}
         {phase === "running" && raceRef.current.botPitting && <div className="warmup-kago-pit-status" role="status">KAGO · IN PITS</div>}
