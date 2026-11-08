@@ -99,6 +99,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [lap, setLap] = useState(initialSave?.race.lap ?? (quickStart ? 3 : 1));
   const [nos, setNos] = useState(100);
   const [tyreChoice, setTyreChoice] = useState<"Soft" | "Medium" | "Hard">("Medium");
+  const [pitMenuOpen, setPitMenuOpen] = useState(false);
   const [signal, setSignal] = useState({ label: "GREEN LIGHT · BUILD SPEED", tone: "go" });
   const botQualifyingElapsedRef = useRef(0);
   const botQualifyingTimeRef = useRef<number | null>(null);
@@ -191,6 +192,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           }
           if (entryDistanceSq <= 8.5 * 8.5) {
             race.playerPitting = true;
+            race.playerPitRequested = false;
             race.playerPitProgress = 0;
             race.playerPitEntryProgress = race.progress;
             race.playerPitEntryTrackT = race.trackT;
@@ -556,6 +558,13 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           }
         } else if (race.playerPitting) {
           race.playerPitProgress = nearestT;
+          // Offer the tyre menu at the service-box section of the pit lane.
+          // This is a UI prompt only: the car continues to obey player input.
+          if (race.playerPitProgress >= .46 && race.playerPitProgress <= .62 && !race.playerPitRequested) {
+            race.playerPitRequested = true;
+            setPitMenuOpen(true);
+            notify("PIT CREW · Choose a tyre compound, or keep driving.", "info");
+          }
           // Forward exit: the pit curve ends on the main circuit centreline at
           // T=.105. Require the car to reach that endpoint physically.
           if (race.playerPitProgress >= .985 && race.playerPitServiceRemaining <= 0) {
@@ -563,6 +572,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             const mergeDistance = Math.hypot(race.worldX - mergePoint.x, race.worldZ - mergePoint.z);
             if (mergeDistance <= 4.8) {
               race.playerPitting = false;
+              setPitMenuOpen(false);
               const entryProgress = race.playerPitEntryProgress;
               const entryTrackT = race.playerPitEntryTrackT;
               race.trackT = .105;
@@ -577,6 +587,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             const entryDistance = Math.hypot(race.worldX - entryPoint.x, race.worldZ - entryPoint.z);
             if (reversingAlongPit && entryDistance <= 4.8) {
               race.playerPitting = false;
+              setPitMenuOpen(false);
               race.trackT = race.playerPitEntryTrackT;
               race.progress = race.playerPitEntryProgress;
             }
@@ -1074,8 +1085,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>{lap <= 1 ? "Session" : "Race lap"}</span><strong>{lap === 1 ? "Practice" : lap === 2 ? "Qualifying" : Math.min(lap - 2, 2) + "/2"}</strong></div><div><span>Current lap</span><strong>{fmt(lapTime)}</strong></div><div><span>Best lap</span><strong>{fmt(bestLap)}</strong></div><div><span>{lap >= 3 ? "Rival gap" : "Opponent"}</span><strong>{lap >= 3 ? <>{Math.abs(Math.round(rivalGap))}m <small>{rivalGap >= 0 ? "Kago ahead" : "You ahead"}</small></> : <small>Joins race</small>}</strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} />
-        <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
-        
+
         {phase === "finished" && raceResult && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.position === 1 ? "YOU BEAT KAGO!" : "YOU FINISHED THE RACE!"}</strong><p>{fmt(raceResult.elapsed)} · 2 scored laps · {raceResult.difficulty}</p><button type="button" onClick={startRace}>RACE AGAIN ↗</button></div>}
         <div className={"warmup-3d-overlay" + (phase === "ready" ? " is-interactive" : "")} hidden={phase === "running" || phase === "finished" || phase === "pit"} aria-live="polite">
           <span>🏁 VULA RACING · LET’S PLAY!</span>
@@ -1092,7 +1102,15 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         {null}
         
       </div>
-      <div className="warmup-notification-slot" role="status" aria-live="polite" aria-atomic="true">{toast && <div className={"warmup-toast " + toast.kind}>{toast.text}</div>}</div>
+      <div className="warmup-notification-slot" aria-live="polite" aria-atomic="true">
+        <div className={"warmup-signal-chip " + signal.tone}><span />{signal.label}</div>
+        {toast && <div className={"warmup-toast " + toast.kind}>{toast.text}</div>}
+      </div>
+      {pitMenuOpen && <section className="warmup-pit-menu" aria-label="Pit tyre selection" role="group">
+        <div className="warmup-pit-menu-heading"><div><span>PIT SERVICE · OPTIONAL</span><strong>Choose your tyres</strong><small>Your car remains under your control while you choose.</small></div><button type="button" onClick={() => setPitMenuOpen(false)} aria-label="Close tyre menu">×</button></div>
+        <div className="warmup-pit-menu-options">{(["Soft", "Medium", "Hard"] as const).map(tyre => <button type="button" key={tyre} className={"warmup-pit-tyre " + tyre.toLowerCase() + (tyreChoice === tyre ? " selected" : "")} aria-pressed={tyreChoice === tyre} onClick={() => { raceRef.current.playerPitServiced = true; raceRef.current.playerPitRequested = true; setTyreChoice(tyre); setPitMenuOpen(false); notify("PIT CREW · " + tyre.toUpperCase() + " tyres selected.", "success"); }}><strong>{tyre}</strong><small>{tyre === "Soft" ? "Responsive feel" : tyre === "Medium" ? "Balanced feel" : "Steady feel"}</small></button>)}</div>
+        <button type="button" className="warmup-pit-skip" onClick={() => setPitMenuOpen(false)}>Keep driving without changing tyres</button>
+      </section>}
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
         <div className="warmup-steering" aria-label="Analog steering">
