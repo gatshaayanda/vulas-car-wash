@@ -49,7 +49,7 @@ export default function RacingMainMenu({ embedded = false }: { embedded?: boolea
   const commit = (next: LocalData) => { if (writeData(next)) { setData(next); setNotice("Saved on this device."); } else setNotice("Storage is unavailable. Your game was not saved."); };
   const newGame = () => {
     if (data.slots.length >= 5) { setNotice("All five save slots are in use. Load a slot before starting another game."); return; }
-    const slot: SaveSlot = { id: `slot-${Date.now()}`, name: `Race save ${data.slots.length + 1}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), state: null };
+    const slot: SaveSlot = { id: `slot-${Date.now()}`, name: `Driver ${data.slots.length + 1}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), state: null };
     const next = { ...data, activeSlotId: slot.id, slots: [...data.slots, slot].slice(-5) };
     if (!writeData(next)) { setNotice("Could not create a save on this device."); return; }
     setData(next); setActiveSlotId(slot.id); setQuickStart(false); setSession(true); setNotice("");
@@ -75,7 +75,7 @@ export default function RacingMainMenu({ embedded = false }: { embedded?: boolea
     commit(next);
   };
   const completeRace = (result: RaceResult) => { commit({ ...data, scores: [result, ...data.scores.filter(item => item.id !== result.id)].slice(0, 100) }); };
-  if (session) return <Root className={`racing-menu-game${embedded ? " racing-menu-game-embedded" : ""}`}><div className="racing-menu-gamebar"><button type="button" onClick={() => setSession(false)}>← Racing menu</button><span>QUICK RACE · KAGO OFFLINE AI</span></div><RacingWarmup initialSave={activeSlot?.state ?? null} quickStart={quickStart} onSave={saveGame} onComplete={completeRace} onExit={() => setSession(false)} /></Root>;
+  if (session) return <Root className={`racing-menu-game${embedded ? " racing-menu-game-embedded" : ""}`}><div className="racing-menu-gamebar"><button type="button" onClick={() => setSession(false)}>← Racing menu</button><span>QUICK RACE · KAGO OFFLINE AI</span></div><RacingWarmup initialSave={activeSlot?.state ?? null} quickStart={quickStart} driverName={activeSlot?.name ?? "Guest Driver"} onSave={saveGame} onComplete={completeRace} onExit={() => setSession(false)} /></Root>;
   return <Root className={`racing-main-menu${embedded ? " racing-main-menu-embedded" : ""}`}>
     <div className="racing-menu-topline"><Link href="/" className="racing-menu-brand"><span className="racing-menu-mark">V</span><span>VULA RACING<small>GABORONE CIRCUIT</small></span></Link><span className="racing-menu-status"><i /> OFFLINE</span></div>
     <section className="racing-menu-hero">
