@@ -1139,8 +1139,7 @@ export default function RacingWarmup({ embedded = false, gameShell = false, init
           <span>🏁 VULA RACING · {driverName}</span>
           <strong>{phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>
           <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>
-        </div>
-      {(phase === "pit" || phase === "ready") && <section className="warmup-pit-interface" aria-label="Pit garage interface">
+        {(phase === "pit" || phase === "ready") && <section className="warmup-pit-interface" aria-label="Pit garage interface">
         <button type="button" className="warmup-pit-menu-toggle" aria-expanded={pitMenuOpen} onClick={() => setPitMenuOpen(value => !value)}>{pitMenuOpen ? "Collapse pit interface" : "Open pit interface"}</button>
         {pitMenuOpen && <div className="warmup-pit-panel">
           <div className="warmup-pit-panel-heading"><span>VULA RACING / GARAGE</span><strong>{phase === "ready" ? "Race preparation" : "Back in the pit"}</strong><p>{phase === "ready" ? "Choose your setup, then drive out of the garage. Warm-up is unlimited; qualifying and racing are optional." : "Review your result and choose what happens next. Your car remains in the physical pit bay."}</p></div>
@@ -1153,6 +1152,8 @@ export default function RacingWarmup({ embedded = false, gameShell = false, init
           <div className="warmup-pit-session-results"><b>LAST QUALIFYING</b>{qualifyingResult ? <span>{qualifyingResult.valid ? fmt(qualifyingResult.elapsed) : "Invalid lap"} · Grid P{qualifyingResult.gridPosition}</span> : <span>No qualifying result yet · race starts from the back</span>}{raceResult && <span>Last race · {raceResult.position === 1 ? "Winner" : "Kago won"} · {fmt(raceResult.elapsed)}</span>}</div>
           <div className="warmup-pit-session-actions"><button type="button" onClick={startWarmup}>Warm-up practice ↗</button><button type="button" disabled={qualifyingUsed} onClick={startQualifying}>{qualifyingUsed ? "Qualifying completed" : "Start qualifying ↗"}</button><button type="button" onClick={startKagoRace}>Race Kago · {qualifyingResult?.valid ? "Grid P" + qualifyingResult.gridPosition : "Start from back"} ↗</button></div>
         </div>}
+
+      </div>
 
       </div>
       </section>}
