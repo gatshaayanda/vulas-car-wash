@@ -608,6 +608,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
               const entryTrackT = race.playerPitEntryTrackT;
               race.trackT = .105;
               race.progress = entryProgress + wrap(.105 - entryTrackT, 1);
+              if (sessionModeRef.current === "qualifying" || sessionModeRef.current === "warmup") { race.progress = 0; race.playerOutLap = true; }
             }
           } else if (race.playerPitProgress <= .015 && race.playerPitServiceRemaining <= 0) {
             // Reverse exit is also allowed through the same open entry. It does
@@ -966,6 +967,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             };
             setQualifyingResult(result);
             onQualifyingComplete?.(result);
+            onSave?.({ race: { ...race }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString(), carColor, qualifyingResult: result });
             sessionModeRef.current = "qualifying-complete"; setSessionMode("qualifying-complete");
             race.lap = 2; race.elapsed = 0; race.lapTime = 0;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
@@ -1093,7 +1095,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} carColor={carColor} />
         
         
-        {phase === "finished" && raceResult && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.position === 1 ? "YOU BEAT KAGO!" : "YOU FINISHED THE RACE!"}</strong><p>{fmt(raceResult.elapsed)} · 2 scored laps · {raceResult.difficulty}</p><button type="button" onClick={startRace}>RACE AGAIN ↗</button></div>}
+        {raceResult && sessionMode === "race-complete" && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.position === 1 ? "YOU BEAT KAGO!" : "YOU FINISHED THE RACE!"}</strong><p>{fmt(raceResult.elapsed)} · 2 scored laps · {raceResult.difficulty}</p><p>Drive back to the pit to review your result and choose the next session.</p></div>}
         <div className={"warmup-3d-overlay" + (phase === "ready" ? " is-interactive" : "")} hidden={phase === "running" || phase === "finished" || (phase === "pit" && !pitMenuOpen)} aria-live="polite">
           <span>🏁 VULA RACING · {driverName}</span>
           <strong>{phase === "ready" ? "PIT GARAGE · RACE PREP" : phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "pit" ? "PIT STOP" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>
