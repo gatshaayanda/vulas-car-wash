@@ -402,7 +402,7 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - Race notifications are rendered only in the dedicated `.warmup-notification-slot` immediately below the 3D scene. Do not restore the legacy lower-left overlay inside the canvas.
 - The legacy `.warmup-toast` positioning/clipping rules must not affect the notification slot; the slot-scoped styles own its position, width and overflow.
 - When a racing HUD/runtime update changes its rendered JS or CSS, bump both service-worker caches together. The toast-strip rollout had retained the same cache identifiers as the golden build, allowing installed PWAs to continue serving stale chunks/styles.
-- Current service-worker cache identifiers are `vula-shell-v47` and `vula-game-v47`. Verify both declarations match in `public/sw.js`.
+- Current service-worker cache identifiers are `vula-shell-v59` and `vula-game-v59`. Verify both declarations match in `public/sw.js`.
 - Distinguish a READY Vercel deployment from an installed PWA receiving the new assets. For a cache-related regression, bump both cache identifiers and confirm the resulting production deployment before requesting device QA.
 
 ## Current playable Vula Racing golden baseline — 2026-11-08
@@ -423,7 +423,7 @@ This section is the latest explicit product-owner decision and supersedes older 
 - New Game, Continue and Load Game all open the same playable 3D pit scene. Continue/Load restore the saved driver identity, best lap, valid latest qualifying record and difficulty, but place the car safely in the pit with zero residual motion. Do not resume a saved car in the middle of the circuit.
 - The opening scene is not a pre-race setup screen. Remove the cluttered opponent/difficulty/tyre/paint selection overlay. The player can press Start Driving or open the contextual PIT MENU in the pit.
 - PIT MENU offers exactly three session choices: Warm-up Laps, Qualifier, Start Race. Do not expose a separate Skip to Race action on the main menu.
-- After choosing a session, reveal the next setup step: vehicle paint, visual-only Soft/Medium/Hard tyre choice, and Kago difficulty. No selection is mandatory merely to enter the pit scene; sensible defaults are active.
+- After choosing a session, reveal the next setup step: vehicle paint, Soft/Hard tyre allocation appropriate to the selected session, and Kago difficulty. No selection is mandatory merely to enter the pit scene; sensible defaults are active.
 - Warm-up begins from the pit and is solo. Kago must be completely absent from the rendered circuit and must not collide with the player.
 - Qualifying begins alone from the grid. Kago may run an invisible qualifying benchmark. A valid latest qualifying time determines pole/second place against that benchmark; an invalid or missing result means the player starts last when choosing a direct race.
 - Direct race starts from a real grid just beyond the start/finish line, with the chequered line behind the cars. Grid rows are tightly and consistently staggered: pole position is one car-length ahead, not separated by arbitrary gaps. The qualifier-to-race transition uses the same grid.
@@ -431,5 +431,21 @@ This section is the latest explicit product-owner decision and supersedes older 
 - When Kago pits, hide his car, name tag, map/race presence and effects for the duration of service. Keep his AI pit state and race progress running; show only a small KAGO · IN PITS status. Restore his visible car when he rejoins. Do not teleport or otherwise alter player movement.
 - Keep this as a flow/presentation refactor around the existing local race engine. Preserve online/multiplayer integration and API contracts, local save slots, high scores, race result contracts, player physics, controls, AI motion, track, pit routing, collision solver, camera, HUD, PWA installation and offline behavior.
 - The 3D driving scene remains visible and usable. Do not wrap the game in a modal or replace the scene with a full-screen menu. PIT MENU is a compact in-scene overlay only.
-- Tyres remain presentation-only. Do not change grip, speed, steering, braking or lap timing.
+- Tyre performance follows the newer approved Soft/Hard specification appended below; do not alter unrelated steering, braking, lap timing or vehicle dynamics.
 - Bump both vula-shell and vula-game service-worker cache identifiers together for racing runtime changes. Report actual CI/build/deployment/device QA results separately; never claim unrun checks.
+
+
+## Approved Soft and Hard tyre performance and allocations — 2026-11-08
+
+This section supersedes every earlier statement that tyres are visual-only or that Medium is available.
+
+- Only Soft and Hard compounds exist.
+- Soft: during exactly the first scored lap of the main race, apply +8% to the current normal/NOS maximum-speed cap and +5% forward drive acceleration. Start the effect only when the race countdown reaches green; do not apply it in warm-up or qualifying. End it on the first scored-lap crossing, including an invalid lap. It must not restart after a pit stop.
+- Hard: apply 20% more available lateral grip and modestly stronger lateral-slip recovery. Preserve the existing world-space velocity integration and allow sustained, controllable drifting; do not lock the car to its heading.
+- Warm-up/practice: unrestricted Soft/Hard selection and changes while in the pit.
+- Qualifying: one selected compound locked for that qualifying session.
+- Main race: a separate independent one-set allocation. The race compound can differ from the qualifying compound.
+- During a race, allow one actual compound change at the marked pit service bay. The original set is consumed; the replacement is final and locked. Selecting the already-fitted compound does not consume the replacement.
+- Reset the race replacement allowance for each new event. Do not add tyre inventory, money, wear, temperature or degradation.
+- Do not change track geometry, collision handling, steering input semantics, braking, NOS behaviour, AI physics, result/save contracts, online APIs, camera or PWA installation.
+- Update both service-worker cache identifiers together for racing runtime changes. Report code/build/CI/deployment/device QA separately and never claim checks that were not run.

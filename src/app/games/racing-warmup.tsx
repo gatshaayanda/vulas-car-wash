@@ -120,6 +120,12 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [lap, setLap] = useState(1);
   const [nos, setNos] = useState(raceRef.current.nos);
   const [tyreChoice, setTyreChoice] = useState<"Soft" | "Hard">("Soft");
+  const [raceTyreChoice, setRaceTyreChoice] = useState<"Soft" | "Hard">("Soft");
+  const [racePitReplacementUsed, setRacePitReplacementUsed] = useState(false);
+  const racePitReplacementUsedRef = useRef(false);
+  const activeTyreRef = useRef<"Soft" | "Hard">("Soft");
+  const raceTyreRef = useRef<"Soft" | "Hard">("Soft");
+  const firstScoredRaceLapActiveRef = useRef(false);
   const [steeringMode, setSteeringMode] = useState<"analog" | "buttons">("analog");
   const directionalSteerRef = useRef({ left: false, right: false });
   const [carColor, setCarColor] = useState("#f04478");
@@ -139,6 +145,24 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const chooseCarColor = (color: string) => {
     setCarColor(color);
     try { window.localStorage.setItem("vula-racing-car-paint-v1", color); } catch { /* Session-only selection remains usable. */ }
+  };
+  const choosePracticeTyre = (tyre: "Soft" | "Hard") => {
+    setTyreChoice(tyre);
+    if (sessionModeRef.current === "warmup") activeTyreRef.current = tyre;
+  };
+  const chooseRaceTyre = (tyre: "Soft" | "Hard") => {
+    setRaceTyreChoice(tyre);
+    raceTyreRef.current = tyre;
+    if (sessionModeRef.current !== "race") activeTyreRef.current = tyre;
+  };
+  const chooseRacePitTyre = (tyre: "Soft" | "Hard") => {
+    if (racePitReplacementUsedRef.current || tyre === raceTyreRef.current) return;
+    raceTyreRef.current = tyre;
+    activeTyreRef.current = tyre;
+    setRaceTyreChoice(tyre);
+    racePitReplacementUsedRef.current = true;
+    setRacePitReplacementUsed(true);
+    notify("PIT CREW · Replacement set fitted. This compound is locked for the rest of the race.", "success");
   };
   const chooseSteeringMode = (mode: "analog" | "buttons") => {
     setSteeringMode(mode);
@@ -188,6 +212,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const reset = useCallback(() => {
     const previous = raceRef.current;
     raceRef.current = createPitResumeState(previous); sessionModeRef.current = "idle";
+    firstScoredRaceLapActiveRef.current = false;
+    racePitReplacementUsedRef.current = false;
+    setRacePitReplacementUsed(false);
     botQualifyingElapsedRef.current = 0; botQualifyingTimeRef.current = null; lastPitPromptLapRef.current = -1;
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
@@ -217,7 +244,11 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
     setRaceResult(null); setSpeed(0); setLapTime(0); setNos(100); setBestLap(race.bestLap);
     setLap(1); setRivalGap(0); setBoostActive(false);
+    firstScoredRaceLapActiveRef.current = false;
+    racePitReplacementUsedRef.current = false;
+    setRacePitReplacementUsed(false);
     if (selectedActivity === "warmup") {
+      activeTyreRef.current = tyreChoice;
       sessionModeRef.current = "warmup";
       race.botRaceEnabled = false;
       race.progress = 0; race.trackT = 0; race.lap = 1;
@@ -239,6 +270,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         && race.botQualifyingTime !== null
         && race.qualifyingTime <= race.botQualifyingTime;
       if (selectedActivity === "qualifying") {
+        activeTyreRef.current = tyreChoice;
+        raceTyreRef.current = raceTyreChoice;
         sessionModeRef.current = "qualifying";
         race.botRaceEnabled = false;
         race.progress = 1 + gridT; race.trackT = gridT; race.lap = 2;
@@ -252,6 +285,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         race.botInitialized = true;
         setLap(2);
       } else {
+        raceTyreRef.current = raceTyreChoice;
+        activeTyreRef.current = raceTyreChoice;
         sessionModeRef.current = "race";
         race.botRaceEnabled = true;
         race.progress = 2 + gridT; race.trackT = gridT; race.lap = 3;
@@ -299,7 +334,14 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     if (phase !== "countdown") return;
     const timer = window.setTimeout(() => {
       if (countdown <= 1) {
-        setCountdown(0); raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running");
+        setCountdown(0);
+        if (sessionModeRef.current === "race") {
+          activeTyreRef.current = raceTyreRef.current;
+          firstScoredRaceLapActiveRef.current = true;
+          racePitReplacementUsedRef.current = false;
+          setRacePitReplacementUsed(false);
+        }
+        raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running");
       } else setCountdown(n => n - 1);
     }, 650);
     return () => window.clearTimeout(timer);
@@ -425,7 +467,11 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // creates a stronger yaw response under a high-speed trail-brake, rather than
         // the brake simply scrubbing speed and keeping the car planted.
         const targetYawRate = Math.tan(steerAngle) * longitudinalVelocity / 2.65 * (1 + brakeTurnSlide * 0.48);
-        const gripLimit = 8.2 * clamp(1.04 - race.brakePressure * 0.48 - race.wheelLock * 0.58, 0.28, 1.04);
+        const hardTyre = activeTyreRef.current === "Hard";
+        const softBonusActive = sessionModeRef.current === "race"
+          && activeTyreRef.current === "Soft" && firstScoredRaceLapActiveRef.current;
+        const gripLimit = 8.2 * (hardTyre ? 1.2 : 1)
+          * clamp(1.04 - race.brakePressure * 0.48 - race.wheelLock * 0.58, 0.28, 1.04);
         // Braking and cornering share tyre grip. Hard trail-braking therefore
         // leaves less lateral force available and can naturally start a slide.
         const brakeGripShare = clamp(race.brakePressure * 1.05, 0, 0.97);
@@ -438,7 +484,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         race.worldYaw += targetYawRate * yawGrip * dt;
         race.worldYaw = Math.atan2(Math.sin(race.worldYaw), Math.cos(race.worldYaw));
 
-        const driveAccel = (race.throttle * 20 + (boost ? 20 : 0)) * (longitudinalVelocity < 0 ? 1.7 : 1);
+        const driveAccel = (race.throttle * 20 + (boost ? 20 : 0))
+          * (longitudinalVelocity < 0 ? 1.7 : 1)
+          * (softBonusActive && longitudinalVelocity >= 0 ? 1.05 : 1);
         const brakeAccel = race.brakePressure * 13.5 * brakeEfficiency;
         const dragAccel = longitudinalVelocity * (0.24 + Math.abs(longitudinalVelocity) * 0.009);
         const nextLongitudinal = clamp(longitudinalVelocity + (driveAccel - brakeAccel - dragAccel) * dt, -7, 22.5);
@@ -446,7 +494,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // Normal grip recentres lateral slip progressively. Once the friction
         // circle is exceeded, weaker recovery lets momentum carry the car sideways
         // until the driver counter-steers or eases off the brake/throttle.
-        const slipRecovery = gripRatio < 0.98 ? 0.42 : 1.65;
+        const slipRecovery = gripRatio < 0.98
+          ? 0.42 * (hardTyre ? 1.1 : 1)
+          : 1.65 * (hardTyre ? 1.2 : 1);
         const lateralAccel = clamp(demandedLateralAccel - lateralVelocity * slipRecovery,
           -availableLateralGrip, availableLateralGrip);
 
@@ -458,7 +508,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // velocity from a freshly rotated chassis basis (which suppresses drifting).
         race.velocityX += (forwardX * longitudinalAccel + lateralX * lateralAccel) * dt;
         race.velocityZ += (forwardZ * longitudinalAccel + lateralZ * lateralAccel) * dt;
-        const maxWorldSpeed = (boost ? 290 : 255) * 0.28 / 3.6;
+        const maxWorldSpeed = (boost ? 290 : 255) * (softBonusActive ? 1.08 : 1) * 0.28 / 3.6;
         const worldSpeed = Math.hypot(race.velocityX, race.velocityZ);
         if (worldSpeed > maxWorldSpeed) {
           const speedScale = maxWorldSpeed / worldSpeed;
@@ -619,7 +669,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             }
           }
         }
-        race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 290 : 255);
+        race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, (boost ? 290 : 255) * (sessionModeRef.current === "race" && activeTyreRef.current === "Soft" && firstScoredRaceLapActiveRef.current ? 1.08 : 1));
         const finalForwardX = -Math.sin(race.worldYaw);
         const finalForwardZ = -Math.cos(race.worldYaw);
         const finalLateralX = Math.cos(race.worldYaw);
@@ -1055,6 +1105,10 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         if (lapNow > race.lap) {
           const completedLapTime = race.lapTime;
           const completedLapValid = !race.lapInvalid;
+          if (sessionModeRef.current === "race" && firstScoredRaceLapActiveRef.current && lapNow > 3) {
+            firstScoredRaceLapActiveRef.current = false;
+            notify("SOFT TYRE · One-lap performance boost complete.", "info");
+          }
           const practiceComplete = race.lap === 1 && lapNow === 2;
           const qualifyingComplete = race.lap === 2 && lapNow === 3;
           if (!practiceComplete && !race.lapInvalid && (race.bestLap === null || race.lapTime < race.bestLap)) {
@@ -1073,6 +1127,10 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             notify("RACE CONTROL · Warm-up lap complete. Keep practising or return to the pit.", "success");
           } else if (qualifyingComplete && sessionModeRef.current === "qualifying") {
             sessionModeRef.current = "race";
+            activeTyreRef.current = raceTyreRef.current;
+            firstScoredRaceLapActiveRef.current = false;
+            racePitReplacementUsedRef.current = false;
+            setRacePitReplacementUsed(false);
             const gridT = .12;
             const gridPoint = botTrack.getPointAt(gridT);
             const gridTangent = botTrack.getTangentAt(gridT).normalize();
@@ -1234,13 +1292,18 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         {(phase === "ready" || (phase === "running" && (raceRef.current.playerGarageExit || (raceRef.current.playerPitting && sessionModeRef.current !== "race")))) && <button type="button" className="warmup-pit-flow-trigger" onClick={() => { setPitFlowStep("activity"); setPitFlowOpen(true); }}>PIT MENU <span>↗</span></button>}
         {pitFlowOpen && <div className="warmup-pit-flow-panel" role="dialog" aria-modal="true" aria-label="Pit menu">
           <div className="warmup-pit-setup-heading"><div><span>VULA RACING · PIT CREW</span><strong>{pitFlowStep === "activity" ? "What are we driving?" : "Set up your car"}</strong></div><button type="button" aria-label="Close pit menu" onClick={() => setPitFlowOpen(false)}>×</button></div>
-          {pitFlowStep === "activity" ? <section className="warmup-pit-activities">
+          {pitFlowStep === "activity" ? <>{sessionModeRef.current === "warmup" && <section className="warmup-practice-tyre-quick"><b>PRACTICE TYRE · FREE CHANGES</b><div className="warmup-pit-setup-tyres">{(["Soft","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={tyreChoice === tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => choosePracticeTyre(tyre)}>{tyre}</button>)}</div></section>}<section className="warmup-pit-activities">
             <button type="button" onClick={() => { setSelectedActivity("warmup"); setPitFlowStep("setup"); }}><strong>WARM-UP LAPS</strong><span>Practice from the pit. Kago stays off track.</span></button>
             <button type="button" onClick={() => { setSelectedActivity("qualifying"); setPitFlowStep("setup"); }}><strong>QUALIFIER</strong><span>Start alone from the grid and earn your position.</span></button>
             <button type="button" onClick={() => { setSelectedActivity("race"); setPitFlowStep("setup"); }}><strong>START RACE</strong><span>{raceRef.current.qualifyingValid ? "Use your latest valid qualifying result." : "No valid qualifier yet · start from last."}</span></button>
-          </section> : <>
+          </section></> : <>
             <section><b>VEHICLE COLOUR</b><div className="warmup-pit-setup-colours">{[["#f04478","Pink"],["#e44361","Red"],["#2878d0","Blue"],["#f2c230","Yellow"],["#f0f1e9","White"],["#252b31","Graphite"]].map(([color,label]) => <button key={color} type="button" title={label} aria-label={`Choose ${label}`} aria-pressed={carColor === color} style={{backgroundColor:color}} className={carColor === color ? "selected" : ""} onClick={() => chooseCarColor(color)} />)}</div></section>
-            <section><b>TYRE CHOICE <small>VISUAL ONLY · NO GRIP CHANGE</small></b><div className="warmup-pit-setup-tyres">{(["Soft","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={tyreChoice === tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => setTyreChoice(tyre)}>{tyre}</button>)}</div></section>
+            {selectedActivity === "warmup" && <section><b>PRACTICE TYRE <small>FREE CHANGES · HARD ADDS GRIP</small></b><div className="warmup-pit-setup-tyres">{(["Soft","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={tyreChoice === tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => choosePracticeTyre(tyre)}>{tyre}</button>)}</div></section>}
+            {selectedActivity === "qualifying" && <>
+              <section><b>QUALIFYING SET <small>LOCKED FOR THIS SESSION</small></b><div className="warmup-pit-setup-tyres">{(["Soft","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={tyreChoice === tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => setTyreChoice(tyre)}>{tyre}</button>)}</div></section>
+              <section><b>MAIN RACE SET <small>SEPARATE ALLOCATION</small></b><div className="warmup-pit-setup-tyres">{(["Soft","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={raceTyreChoice === tyre} className={raceTyreChoice === tyre ? "selected" : ""} onClick={() => chooseRaceTyre(tyre)}>{tyre}</button>)}</div></section>
+            </>}
+            {selectedActivity === "race" && <section><b>MAIN RACE SET <small>ONE SET FOR THE EVENT</small></b><div className="warmup-pit-setup-tyres">{(["Soft","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={raceTyreChoice === tyre} className={raceTyreChoice === tyre ? "selected" : ""} onClick={() => chooseRaceTyre(tyre)}>{tyre}</button>)}</div></section>}
             <section className="warmup-pit-steering"><b>STEERING CONTROL</b><div><button type="button" aria-pressed={steeringMode === "analog"} className={steeringMode === "analog" ? "selected" : ""} onClick={() => chooseSteeringMode("analog")}>ANALOG STICK</button><button type="button" aria-pressed={steeringMode === "buttons"} className={steeringMode === "buttons" ? "selected" : ""} onClick={() => chooseSteeringMode("buttons")}>DIRECTIONAL</button></div></section>
             <section className="warmup-pit-difficulty"><b>KAGO · AI DIFFICULTY</b><select value={botDifficulty} onChange={event => { const next = event.target.value as "Easy" | "Normal" | "Hard"; botDifficultyRef.current = next; setBotDifficulty(next); }}><option>Easy</option><option>Normal</option><option>Hard</option></select></section>
             <button type="button" className="warmup-pit-setup-done" onClick={beginSelectedActivity}>{selectedActivity === "warmup" ? "START WARM-UP" : selectedActivity === "qualifying" ? "START QUALIFIER" : "START RACE"} ↗</button>
@@ -1250,7 +1313,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         {pitMenuAvailable && raceRef.current.playerPitting && sessionModeRef.current === "race" && pitMenuOpen && <div className="warmup-pit-setup-panel" role="dialog" aria-label="Pit setup">
           <div className="warmup-pit-setup-heading"><div><span>PIT CREW · OPTIONAL SETUP</span><strong>Quick adjustments</strong></div><button type="button" aria-label="Close pit setup" onClick={() => { pitMenuOpenRef.current = false; setPitMenuOpen(false); }}>×</button></div>
           <section><b>VEHICLE COLOUR</b><div className="warmup-pit-setup-colours">{[["#f04478","Pink"],["#e44361","Red"],["#2878d0","Blue"],["#f2c230","Yellow"],["#f0f1e9","White"],["#252b31","Graphite"]].map(([color,label]) => <button key={color} type="button" title={label} aria-label={`Choose ${label}`} aria-pressed={carColor === color} style={{backgroundColor:color}} className={carColor === color ? "selected" : ""} onClick={() => chooseCarColor(color)} />)}</div></section>
-          <section><b>TYRE CHOICE <small>VISUAL ONLY · NO GRIP CHANGE</small></b><div className="warmup-pit-setup-tyres">{(["Soft","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={tyreChoice === tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => setTyreChoice(tyre)}>{tyre}</button>)}</div></section>
+          <section><b>RACE TYRE SET <small>{racePitReplacementUsed ? "REPLACEMENT USED · SET LOCKED" : "ONE COMPOUND CHANGE AVAILABLE"}</small></b><div className="warmup-pit-setup-tyres">{(["Soft","Hard"] as const).map(tyre => <button key={tyre} type="button" disabled={racePitReplacementUsed || raceTyreChoice === tyre} aria-pressed={raceTyreChoice === tyre} className={raceTyreChoice === tyre ? "selected" : ""} onClick={() => chooseRacePitTyre(tyre)}>{tyre}</button>)}</div></section>
             <section className="warmup-pit-steering"><b>STEERING CONTROL</b><div><button type="button" aria-pressed={steeringMode === "analog"} className={steeringMode === "analog" ? "selected" : ""} onClick={() => chooseSteeringMode("analog")}>ANALOG STICK</button><button type="button" aria-pressed={steeringMode === "buttons"} className={steeringMode === "buttons" ? "selected" : ""} onClick={() => chooseSteeringMode("buttons")}>DIRECTIONAL</button></div></section>
           <button type="button" className="warmup-pit-setup-done" onClick={() => { pitMenuOpenRef.current = false; setPitMenuOpen(false); }}>DONE · BACK TO RACE</button>
         </div>
@@ -1296,7 +1359,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         </div>
         <div className="warmup-actions">{phase === "paused" && onSave && <button type="button" className="vula-button secondary" onClick={() => onSave({ race: { ...raceRef.current }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString() })}>Save game</button>}{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startDriving}>Start driving ↗</button> : phase === "countdown" || phase === "grid" ? <button type="button" className="vula-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Back to pit ↻</button>}{onExit && <button type="button" className="vula-button secondary" onClick={onExit}>Racing menu</button>}</div>
       </div>
-      <p className="warmup-help">Phone: start in the pit, open PIT MENU and choose Warm-up, Qualifier or Race. Choose paint, Soft or Hard tyres, and your steering control. Hold GAS with your right thumb while steering with the left analogue stick or by holding LEFT/RIGHT. BRAKE slows you before corners. During a race, steer into the marked pit entry when called; Kago disappears from the circuit while his crew services the car. Tap NOS once for a burst, tap again to stop; lifting off the gas recharges it faster. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause.</p>
+      <p className="warmup-help">Phone: start in the pit, open PIT MENU and choose Warm-up, Qualifier or Race. Soft gives +8% speed and +5% acceleration for the first scored race lap; Hard adds 20% lateral grip and reduces sliding. Qualifying and race sets are separate; one race tyre replacement is allowed. Choose paint and steering control. Hold GAS with your right thumb while steering with the left analogue stick or by holding LEFT/RIGHT. BRAKE slows you before corners. During a race, steer into the marked pit entry when called; Kago disappears from the circuit while his crew services the car. Tap NOS once for a burst, tap again to stop; lifting off the gas recharges it faster. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause.</p>
     </section>
     {!embedded && <footer className="vula-footer"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></Link><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></footer>}
   </div>;
