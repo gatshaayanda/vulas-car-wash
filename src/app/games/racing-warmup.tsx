@@ -777,7 +777,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         race.botWorldX += race.botVelocityX * dt; race.botWorldZ += race.botVelocityZ * dt;
         // Local projection is for lap progress and gradual off-line recovery only.
         const previousBotProgress = race.botProgress;
-        if (race.progress >= 1 && race.progress < 2 && botQualifyingTimeRef.current === null) botQualifyingElapsedRef.current += dt;
+        if (sessionModeRef.current === "qualifying" && race.botProgress < 1 && botQualifyingTimeRef.current === null) botQualifyingElapsedRef.current += dt;
         let botNearestT = botCurrentT, botNearestDistance = Number.POSITIVE_INFINITY;
         let botNearestPoint = botTrack.getPointAt(botCurrentT), botNearestTangent = botTrack.getTangentAt(botCurrentT).normalize();
         if (race.botPitting) {
@@ -838,8 +838,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             ? Math.floor(previousBotProgress) + 1 + botNearestT
             : Math.floor(previousBotProgress) + botNearestT;
         }
-        if (race.progress >= 1 && race.progress < 2 && botQualifyingTimeRef.current === null
-          && previousBotProgress < 2 && race.botProgress >= 2) {
+        if (sessionModeRef.current === "qualifying" && botQualifyingTimeRef.current === null
+          && previousBotProgress < 1 && race.botProgress >= 1) {
           botQualifyingTimeRef.current = botQualifyingElapsedRef.current;
         }
 
