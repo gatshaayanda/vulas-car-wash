@@ -69,3 +69,12 @@ Report source checks, Vercel deployment status, offline persistence and actual d
 - The game session bar identifies the active driver. Name persistence is device-local and is not represented as account-wide or server-synced identity.
 - QA: set a name, refresh, confirm it remains; create a new save and verify the slot label; complete a race and verify the high-score entry shows the saved driver; load an older save and confirm it still works.
 - This change is isolated to the racing menu's local data/UI. No driving physics, controls, camera, track, collision, pit movement, race timing or PWA assets are changed.
+
+
+## Garage car paint — 8 November 2026
+
+- Added six paint choices to the existing starting garage: pink, racing red, blue, yellow, white and graphite.
+- The selected paint is applied to the player's procedural 3D car and saved locally under a separate versioned key. Existing race saves and high scores are untouched.
+- If browser storage is unavailable, colour selection still works for the current session and does not block gameplay.
+- QA: choose each colour in the pit garage, confirm the car body changes immediately, refresh/reopen and confirm the last choice is restored; verify wheels, glass, lights and Kago retain their own materials.
+- Visual-only garage addition. No vehicle physics, steering, throttle/brake/NOS inputs, camera, track, collision, pit movement, session timing or PWA cache behavior changed.
