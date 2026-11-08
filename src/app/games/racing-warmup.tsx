@@ -98,7 +98,6 @@ type RaceResult = { id: string; completedAt: string; difficulty: "Easy" | "Norma
 
 export default function RacingWarmup({ embedded = false, initialSave, onSave, onComplete, onExit, quickStart = false }: { embedded?: boolean; initialSave?: LocalRaceSave | null; onSave?: (save: LocalRaceSave) => void; onComplete?: (result: RaceResult) => void; onExit?: () => void; quickStart?: boolean }) {
   const [expanded, setExpanded] = useState(!embedded);
-  const quickStartRef = useRef(quickStart);
   const raceRef = useRef<Race>(initialSave?.race ? createPitResumeState(initialSave.race) : quickStart ? createQuickRaceState() : newRace());
   const trackRef = useRef<ReturnType<typeof createRacingTrack> | null>(null);
   if (!trackRef.current) trackRef.current = createRacingTrack();
@@ -119,7 +118,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [lapTime, setLapTime] = useState(0);
   const [bestLap, setBestLap] = useState<number | null>(initialSave?.race.bestLap ?? null);
   const [lap, setLap] = useState(1);
-  const [nos, setNos] = useState(100);
+  const [nos, setNos] = useState(raceRef.current.nos);
   const [tyreChoice, setTyreChoice] = useState<"Soft" | "Medium" | "Hard">("Medium");
   const [carColor, setCarColor] = useState("#f04478");
   const [pitMenuAvailable, setPitMenuAvailable] = useState(false);
@@ -178,7 +177,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     botQualifyingElapsedRef.current = 0; botQualifyingTimeRef.current = null; lastPitPromptLapRef.current = -1;
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-    setSpeed(0); setLapTime(0); setBestLap(raceRef.current.bestLap); setLap(1); setNos(100); setBoostActive(false); setRivalGap(0); setRaceResult(null);
+    setSpeed(0); setLapTime(0); setBestLap(raceRef.current.bestLap); setLap(1); setNos(raceRef.current.nos); setBoostActive(false); setRivalGap(0); setRaceResult(null);
     if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = null; setToast(null);
     pitMenuPromptedRef.current = false; pitMenuAvailableRef.current = false; pitMenuOpenRef.current = false;
     setPitMenuAvailable(false); setPitMenuOpen(false);
