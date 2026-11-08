@@ -119,7 +119,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [bestLap, setBestLap] = useState<number | null>(initialSave?.race.bestLap ?? null);
   const [lap, setLap] = useState(1);
   const [nos, setNos] = useState(raceRef.current.nos);
-  const [tyreChoice, setTyreChoice] = useState<"Soft" | "Medium" | "Hard">("Medium");
+  const [tyreChoice, setTyreChoice] = useState<"Soft" | "Hard">("Soft");
+  const [steeringMode, setSteeringMode] = useState<"analog" | "buttons">("analog");
+  const directionalSteerRef = useRef({ left: false, right: false });
   const [carColor, setCarColor] = useState("#f04478");
   const [pitMenuAvailable, setPitMenuAvailable] = useState(false);
   const [pitMenuOpen, setPitMenuOpen] = useState(false);
@@ -130,11 +132,23 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     try {
       const saved = window.localStorage.getItem("vula-racing-car-paint-v1");
       if (saved && /^#[0-9a-fA-F]{6}$/.test(saved)) setCarColor(saved);
+      const savedSteering = window.localStorage.getItem("vula-racing-steering-v1");
+      if (savedSteering === "analog" || savedSteering === "buttons") setSteeringMode(savedSteering);
     } catch { /* Storage restrictions must not block driving. */ }
   }, []);
   const chooseCarColor = (color: string) => {
     setCarColor(color);
     try { window.localStorage.setItem("vula-racing-car-paint-v1", color); } catch { /* Session-only selection remains usable. */ }
+  };
+  const chooseSteeringMode = (mode: "analog" | "buttons") => {
+    setSteeringMode(mode);
+    directionalSteerRef.current = { left: false, right: false };
+    controlsRef.current.steer = 0;
+    try { window.localStorage.setItem("vula-racing-steering-v1", mode); } catch { /* Session-only selection remains usable. */ }
+  };
+  const setDirectionalSteer = (direction: "left" | "right", pressed: boolean) => {
+    directionalSteerRef.current[direction] = pressed;
+    controlsRef.current.steer = Number(directionalSteerRef.current.right) - Number(directionalSteerRef.current.left);
   };
   const [signal, setSignal] = useState({ label: "GREEN LIGHT · BUILD SPEED", tone: "go" });
   const botQualifyingElapsedRef = useRef(0);
@@ -1226,7 +1240,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             <button type="button" onClick={() => { setSelectedActivity("race"); setPitFlowStep("setup"); }}><strong>START RACE</strong><span>{raceRef.current.qualifyingValid ? "Use your latest valid qualifying result." : "No valid qualifier yet · start from last."}</span></button>
           </section> : <>
             <section><b>VEHICLE COLOUR</b><div className="warmup-pit-setup-colours">{[["#f04478","Pink"],["#e44361","Red"],["#2878d0","Blue"],["#f2c230","Yellow"],["#f0f1e9","White"],["#252b31","Graphite"]].map(([color,label]) => <button key={color} type="button" title={label} aria-label={`Choose ${label}`} aria-pressed={carColor === color} style={{backgroundColor:color}} className={carColor === color ? "selected" : ""} onClick={() => chooseCarColor(color)} />)}</div></section>
-            <section><b>TYRE CHOICE <small>VISUAL ONLY · NO GRIP CHANGE</small></b><div className="warmup-pit-setup-tyres">{(["Soft","Medium","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={tyreChoice === tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => setTyreChoice(tyre)}>{tyre}</button>)}</div></section>
+            <section><b>TYRE CHOICE <small>VISUAL ONLY · NO GRIP CHANGE</small></b><div className="warmup-pit-setup-tyres">{(["Soft","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={tyreChoice === tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => setTyreChoice(tyre)}>{tyre}</button>)}</div></section>
+            <section className="warmup-pit-steering"><b>STEERING CONTROL</b><div><button type="button" aria-pressed={steeringMode === "analog"} className={steeringMode === "analog" ? "selected" : ""} onClick={() => chooseSteeringMode("analog")}>ANALOG STICK</button><button type="button" aria-pressed={steeringMode === "buttons"} className={steeringMode === "buttons" ? "selected" : ""} onClick={() => chooseSteeringMode("buttons")}>DIRECTIONAL</button></div></section>
             <section className="warmup-pit-difficulty"><b>KAGO · AI DIFFICULTY</b><select value={botDifficulty} onChange={event => { const next = event.target.value as "Easy" | "Normal" | "Hard"; botDifficultyRef.current = next; setBotDifficulty(next); }}><option>Easy</option><option>Normal</option><option>Hard</option></select></section>
             <button type="button" className="warmup-pit-setup-done" onClick={beginSelectedActivity}>{selectedActivity === "warmup" ? "START WARM-UP" : selectedActivity === "qualifying" ? "START QUALIFIER" : "START RACE"} ↗</button>
           </>}
@@ -1235,7 +1250,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         {pitMenuAvailable && raceRef.current.playerPitting && sessionModeRef.current === "race" && pitMenuOpen && <div className="warmup-pit-setup-panel" role="dialog" aria-label="Pit setup">
           <div className="warmup-pit-setup-heading"><div><span>PIT CREW · OPTIONAL SETUP</span><strong>Quick adjustments</strong></div><button type="button" aria-label="Close pit setup" onClick={() => { pitMenuOpenRef.current = false; setPitMenuOpen(false); }}>×</button></div>
           <section><b>VEHICLE COLOUR</b><div className="warmup-pit-setup-colours">{[["#f04478","Pink"],["#e44361","Red"],["#2878d0","Blue"],["#f2c230","Yellow"],["#f0f1e9","White"],["#252b31","Graphite"]].map(([color,label]) => <button key={color} type="button" title={label} aria-label={`Choose ${label}`} aria-pressed={carColor === color} style={{backgroundColor:color}} className={carColor === color ? "selected" : ""} onClick={() => chooseCarColor(color)} />)}</div></section>
-          <section><b>TYRE CHOICE <small>VISUAL ONLY · NO GRIP CHANGE</small></b><div className="warmup-pit-setup-tyres">{(["Soft","Medium","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={tyreChoice === tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => setTyreChoice(tyre)}>{tyre}</button>)}</div></section>
+          <section><b>TYRE CHOICE <small>VISUAL ONLY · NO GRIP CHANGE</small></b><div className="warmup-pit-setup-tyres">{(["Soft","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={tyreChoice === tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => setTyreChoice(tyre)}>{tyre}</button>)}</div></section>
+            <section className="warmup-pit-steering"><b>STEERING CONTROL</b><div><button type="button" aria-pressed={steeringMode === "analog"} className={steeringMode === "analog" ? "selected" : ""} onClick={() => chooseSteeringMode("analog")}>ANALOG STICK</button><button type="button" aria-pressed={steeringMode === "buttons"} className={steeringMode === "buttons" ? "selected" : ""} onClick={() => chooseSteeringMode("buttons")}>DIRECTIONAL</button></div></section>
           <button type="button" className="warmup-pit-setup-done" onClick={() => { pitMenuOpenRef.current = false; setPitMenuOpen(false); }}>DONE · BACK TO RACE</button>
         </div>
         <div className="warmup-hud warmup-circuit-hud" aria-label="Live race timing">
@@ -1258,9 +1274,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       <div className="warmup-notification-slot">{toast && <div className={"warmup-toast " + toast.kind} role="status" aria-atomic="true">{toast.text}</div>}</div>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
-        <div className="warmup-steering" aria-label="Analog steering">
-           
-          <div className={"steering-stick" + (phase !== "running" ? " is-disabled" : "")}
+        <div className="warmup-steering" aria-label={steeringMode === "analog" ? "Analogue steering" : "Directional steering"}>
+          {steeringMode === "analog" ? <div className={"steering-stick" + (phase !== "running" ? " is-disabled" : "")}
             role="slider" aria-label="Steering thumbstick" aria-valuemin={-100} aria-valuemax={100} aria-valuenow={Math.round(controlsRef.current.steer * 100)}
             tabIndex={phase === "running" ? 0 : -1}
             onPointerDown={e => { if (phase !== "running") return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); steerStickPointer(e); }}
@@ -1268,10 +1283,11 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             onPointerUp={releaseSteerStick} onPointerCancel={releaseSteerStick} onLostPointerCapture={releaseSteerStick}
             onKeyDown={e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); const steer = e.key === "ArrowLeft" ? -0.72 : 0.72; controlsRef.current.steer = steer; const knob = e.currentTarget.querySelector<HTMLElement>(".steering-stick-knob"); if (knob) knob.style.transform = `translate3d(${steer * 25}px, 0, 0)`; } }}
             onKeyUp={e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") releaseSteerStick({currentTarget:e.currentTarget}); }}>
-            <span className="steering-stick-track" />
-            <span className="steering-stick-knob"><span>●</span></span>
-          </div>
-           
+            <span className="steering-stick-track" /><span className="steering-stick-knob"><span>●</span></span>
+          </div> : <div className="steering-pad" aria-label="Hold to steer">
+            <button type="button" className="steer-button" aria-label="Steer left" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); setDirectionalSteer("left", true); }} onPointerUp={() => setDirectionalSteer("left", false)} onPointerCancel={() => setDirectionalSteer("left", false)} onLostPointerCapture={() => setDirectionalSteer("left", false)}>←</button>
+            <button type="button" className="steer-button" aria-label="Steer right" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); setDirectionalSteer("right", true); }} onPointerUp={() => setDirectionalSteer("right", false)} onPointerCancel={() => setDirectionalSteer("right", false)} onLostPointerCapture={() => setDirectionalSteer("right", false)}>→</button>
+          </div>}
         </div>
         <div className="warmup-driving"> 
           <button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>BRAKE ↓</button>
@@ -1280,7 +1296,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         </div>
         <div className="warmup-actions">{phase === "paused" && onSave && <button type="button" className="vula-button secondary" onClick={() => onSave({ race: { ...raceRef.current }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString() })}>Save game</button>}{phase === "ready" ? <button type="button" className="vula-button primary" onClick={startDriving}>Start driving ↗</button> : phase === "countdown" || phase === "grid" ? <button type="button" className="vula-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="vula-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="vula-button primary" onClick={startRace}>Back to pit ↻</button>}{onExit && <button type="button" className="vula-button secondary" onClick={onExit}>Racing menu</button>}</div>
       </div>
-      <p className="warmup-help">Phone: start in the pit, open PIT MENU and choose Warm-up, Qualifier or Race. Choose paint and tyres after choosing your session. Hold GAS with your right thumb while sweeping the left thumbstick left and right. BRAKE slows you before corners. During a race, steer into the marked pit entry when called; Kago disappears from the circuit while his crew services the car. Tap NOS once for a burst, tap again to stop; lifting off the gas recharges it faster. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause.</p>
+      <p className="warmup-help">Phone: start in the pit, open PIT MENU and choose Warm-up, Qualifier or Race. Choose paint, Soft or Hard tyres, and your steering control. Hold GAS with your right thumb while steering with the left analogue stick or by holding LEFT/RIGHT. BRAKE slows you before corners. During a race, steer into the marked pit entry when called; Kago disappears from the circuit while his crew services the car. Tap NOS once for a burst, tap again to stop; lifting off the gas recharges it faster. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause.</p>
     </section>
     {!embedded && <footer className="vula-footer"><Link href="/" className="vula-brand"><span className="vula-mark">V</span><span>{businessName}<small>Wash. Care. Go.</small></span></Link><Link href="/#request">Book a wash</Link><Link href="/#my-wash">My Wash</Link></footer>}
   </div>;
