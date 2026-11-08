@@ -525,3 +525,12 @@
  .warmup-signal-chip{left:8px;right:calc(var(--map-width) + 16px);top:8px;width:max-content;max-width:none}
  .warmup-toast{left:8px;right:calc(var(--map-width) + 16px);bottom:8px;max-width:none;max-height:3.2em;padding:9px 10px;font-size:11px}
 }
+
+
+/* Compact garage paint selector; visible only in the existing pit preparation overlay. */
+.warmup-pit-paint{display:grid;gap:8px;width:min(100%,340px);padding:10px 12px;border:1px solid #ffffff38;border-radius:10px;background:#10251fc9;text-align:left}
+.warmup-pit-paint>strong{font-size:9px;letter-spacing:.13em;color:#d4ff78}
+.warmup-pit-paint>div{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.warmup-pit-paint button{width:30px;height:30px;flex:0 0 30px;border:2px solid #ffffffaa;border-radius:50%;box-shadow:0 2px 5px #0005;cursor:pointer}
+.warmup-pit-paint button.selected{outline:3px solid #d4ff78;outline-offset:3px}
+.warmup-pit-paint button:focus-visible{outline:3px solid #fff;outline-offset:4px}
