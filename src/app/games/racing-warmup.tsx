@@ -214,7 +214,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       setSignal({ label: "HOLD GAS TO LEAVE THE PIT ↑", tone: "go" });
     } else {
       const track = trackRef.current!;
-      const gridT = .025;
+      const gridT = .112;
       const point = track.getPointAt(gridT);
       const tangent = track.getTangentAt(gridT).normalize();
       const sideX = -tangent.z, sideZ = tangent.x;
@@ -232,8 +232,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         race.worldYaw = yaw; settlePlayerCar(race);
         race.playerGarageExit = false; race.playerOutLap = false;
         race.botProgress = 1 + gridT;
-        race.botWorldX = point.x - sideX * 2.45 - tangent.x * 3.2;
-        race.botWorldZ = point.z - sideZ * 2.45 - tangent.z * 3.2;
+        race.botWorldX = point.x - sideX * 2.45;
+        race.botWorldZ = point.z - sideZ * 2.45;
         race.botWorldYaw = yaw; race.botVelocityX = -Math.sin(yaw) * 8.5; race.botVelocityZ = -Math.cos(yaw) * 8.5;
         race.botInitialized = true;
         setLap(2);
@@ -1056,7 +1056,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             notify("RACE CONTROL · Warm-up lap complete. Keep practising or return to the pit.", "success");
           } else if (qualifyingComplete && sessionModeRef.current === "qualifying") {
             sessionModeRef.current = "race";
-            const gridT = .025;
+            const gridT = .112;
             const gridPoint = botTrack.getPointAt(gridT);
             const gridTangent = botTrack.getTangentAt(gridT).normalize();
             const gridSideX = -gridTangent.z, gridSideZ = gridTangent.x;
