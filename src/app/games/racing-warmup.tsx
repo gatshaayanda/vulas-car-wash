@@ -78,7 +78,7 @@ function fmt(seconds: number | null): string {
 type LocalRaceSave = { race: Race; difficulty: "Easy" | "Normal" | "Hard"; savedAt: string; carColor?: string };
 type RaceResult = { id: string; completedAt: string; difficulty: "Easy" | "Normal" | "Hard"; elapsed: number; bestLap: number | null; position: 1 | 2; laps: number };
 
-export default function RacingWarmup({ embedded = false, initialSave, onSave, onComplete, onExit, quickStart = false }: { embedded?: boolean; initialSave?: LocalRaceSave | null; onSave?: (save: LocalRaceSave) => void; onComplete?: (result: RaceResult) => void; onExit?: () => void; quickStart?: boolean }) {
+export default function RacingWarmup({ embedded = false, initialSave, onSave, onComplete, onExit, quickStart = false, driverName = "Guest Driver" }: { embedded?: boolean; initialSave?: LocalRaceSave | null; onSave?: (save: LocalRaceSave) => void; onComplete?: (result: RaceResult) => void; onExit?: () => void; quickStart?: boolean; driverName?: string }) {
   const [expanded, setExpanded] = useState(!embedded);
   const quickStartRef = useRef(quickStart);
   const raceRef = useRef<Race>(initialSave?.race ? { ...newRace(), ...initialSave.race, playerGarageExit: initialSave.race.playerGarageExit ?? false, playerOutLap: initialSave.race.playerOutLap ?? false, playerPitEntryProgress: initialSave.race.playerPitEntryProgress ?? initialSave.race.progress ?? 0, playerPitEntryTrackT: initialSave.race.playerPitEntryTrackT ?? initialSave.race.trackT ?? 0 } : quickStart ? createQuickRaceState() : newRace());
@@ -1079,7 +1079,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         
         {phase === "finished" && raceResult && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.position === 1 ? "YOU BEAT KAGO!" : "YOU FINISHED THE RACE!"}</strong><p>{fmt(raceResult.elapsed)} · 2 scored laps · {raceResult.difficulty}</p><button type="button" onClick={startRace}>RACE AGAIN ↗</button></div>}
         <div className={"warmup-3d-overlay" + (phase === "ready" ? " is-interactive" : "")} hidden={phase === "running" || phase === "finished" || phase === "pit"} aria-live="polite">
-          <span>🏁 VULA RACING · LET’S PLAY!</span>
+          <span>🏁 VULA RACING · {driverName}</span>
           <strong>{phase === "ready" ? "PIT GARAGE · RACE PREP" : phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "pit" ? "PIT STOP" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>
           {phase === "ready" ? <>
             <p>Pick your tyres, then hold the green GAS button to leave the garage. Follow the pit road to the circuit. Kago joins when you are ready to race.</p>
