@@ -77,7 +77,7 @@ function fmt(seconds: number | null): string {
 
 export type QualifyingResult = { id: string; completedAt: string; driverName: string; elapsed: number; valid: boolean; gridPosition: 1 | 2 };
 type SessionMode = "warmup" | "qualifying" | "qualifying-complete" | "race" | "race-complete";
-type LocalRaceSave = { race: Race; difficulty: "Easy" | "Normal" | "Hard"; savedAt: string; carColor?: string; qualifyingResult?: QualifyingResult | null };
+type LocalRaceSave = { race: Race; difficulty: "Easy" | "Normal" | "Hard"; savedAt: string; carColor?: string; qualifyingResult?: QualifyingResult | null; qualifyingUsed?: boolean; lastRaceResult?: RaceResult | null };
 type RaceResult = { id: string; completedAt: string; difficulty: "Easy" | "Normal" | "Hard"; elapsed: number; bestLap: number | null; position: 1 | 2; laps: number };
 
 export default function RacingWarmup({ embedded = false, initialSave, onSave, onComplete, onQualifyingComplete, onExit, quickStart = false, driverName = "Guest Driver" }: { embedded?: boolean; initialSave?: LocalRaceSave | null; onSave?: (save: LocalRaceSave) => void; onComplete?: (result: RaceResult) => void; onQualifyingComplete?: (result: QualifyingResult) => void; onExit?: () => void; quickStart?: boolean; driverName?: string }) {
@@ -87,6 +87,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [sessionMode, setSessionMode] = useState<SessionMode>(quickStart ? "race" : "warmup");
   const [pitMenuOpen, setPitMenuOpen] = useState(true);
   const [qualifyingResult, setQualifyingResult] = useState<QualifyingResult | null>(initialSave?.qualifyingResult ?? null);
+  const [qualifyingUsed, setQualifyingUsed] = useState(initialSave?.qualifyingUsed ?? !!initialSave?.qualifyingResult);
   const raceRef = useRef<Race>(initialSave?.race ? { ...newRace(), ...initialSave.race, playerGarageExit: initialSave.race.playerGarageExit ?? false, playerOutLap: initialSave.race.playerOutLap ?? false, playerPitEntryProgress: initialSave.race.playerPitEntryProgress ?? initialSave.race.progress ?? 0, playerPitEntryTrackT: initialSave.race.playerPitEntryTrackT ?? initialSave.race.trackT ?? 0 } : quickStart ? createQuickRaceState() : newRace());
   const trackRef = useRef<ReturnType<typeof createRacingTrack> | null>(null);
   if (!trackRef.current) trackRef.current = createRacingTrack();
@@ -95,7 +96,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [phase, setPhase] = useState<Phase>(initialSave ? "paused" : quickStart ? "countdown" : "ready");
   const completedRef = useRef(false);
   const [countdown, setCountdown] = useState(3);
-  const [raceResult, setRaceResult] = useState<RaceResult | null>(null);
+  const [raceResult, setRaceResult] = useState<RaceResult | null>(initialSave?.lastRaceResult ?? null);
   const [speed, setSpeed] = useState(0);
   const [botDifficulty, setBotDifficulty] = useState<"Easy" | "Normal" | "Hard">(initialSave?.difficulty ?? "Normal");
   const botDifficultyRef = useRef<"Easy" | "Normal" | "Hard">(initialSave?.difficulty ?? "Normal");
@@ -158,7 +159,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     notify("WARM-UP PRACTICE · Drive as long as you like. No lap limit.", "success");
   }, [notify]);
   const startQualifying = useCallback(() => {
-    sessionModeRef.current = "qualifying"; setSessionMode("qualifying"); setPitMenuOpen(false);
+    sessionModeRef.current = "qualifying"; setSessionMode("qualifying"); setPitMenuOpen(false); setQualifyingUsed(true); setQualifyingResult(null);
     raceRef.current.progress = 0; raceRef.current.lap = 1; raceRef.current.elapsed = 0; raceRef.current.lapTime = 0;
     raceRef.current.bestLap = null; raceRef.current.lapInvalid = false; raceRef.current.playerOutLap = false;
     setLap(1); setLapTime(0); setBestLap(null); setRaceResult(null);
@@ -969,7 +970,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             };
             setQualifyingResult(result);
             onQualifyingComplete?.(result);
-            onSave?.({ race: { ...race }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString(), carColor, qualifyingResult: result });
+            onSave?.({ race: { ...race }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString(), carColor, qualifyingResult: result, qualifyingUsed: true, lastRaceResult: raceResult });
             sessionModeRef.current = "qualifying-complete"; setSessionMode("qualifying-complete");
             race.lap = 2; race.elapsed = 0; race.lapTime = 0;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
@@ -986,7 +987,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
               position, laps: 2,
             };
             setRaceResult(result);
-            sessionModeRef.current = "race-complete"; setSessionMode("race-complete");
+            sessionModeRef.current = "race-complete"; setSessionMode("race-complete"); setQualifyingUsed(false);
             race.botVelocityX = 0; race.botVelocityZ = 0; race.botSpeed = 0;
             if (position === 1) notify("🏆 RACE CONTROL · YOU BEAT KAGO! Return to the pit when ready.", "success");
             else notify("CHEQUERED FLAG · Kago wins this one. Return to the pit when ready.", "info");
@@ -1108,7 +1109,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             </div>
             <div className="warmup-pit-brief"><b>ENGINEER</b><span>{tyreChoice} selected. NOS is your only race resource: spend it on straights, then lift to recharge.</span></div>
             <div className="warmup-car-colours" aria-label="Choose car colour"><b>CAR COLOUR</b>{[["#f04478","Pink"],["#27a9e0","Blue"],["#f2c64e","Yellow"],["#f3f2e9","White"],["#35a66f","Green"],["#9a70d6","Purple"]].map(([value,label])=><button key={value} type="button" aria-label={label+" car"} aria-pressed={carColor===value} style={{backgroundColor:value}} onClick={()=>setCarColor(value)} />)}</div>
-            <div className="warmup-pit-session-results"><b>LAST QUALIFYING</b>{qualifyingResult ? <span>{qualifyingResult.valid ? fmt(qualifyingResult.elapsed) : "Invalid lap"} · Grid P{qualifyingResult.gridPosition}</span> : <span>No qualifying result yet · race starts from the back</span>}{raceResult && <span>Last race · {raceResult.position === 1 ? "Winner" : "Kago won"} · {fmt(raceResult.elapsed)}</span>}</div><div className="warmup-pit-session-actions"><button type="button" onClick={startWarmup}>Warm-up practice ↗</button><button type="button" disabled={!!qualifyingResult} onClick={startQualifying}>{qualifyingResult ? "Qualifying completed" : "Start qualifying ↗"}</button><button type="button" disabled={!qualifyingResult} onClick={startKagoRace}>Race Kago · {qualifyingResult ? "Grid P" + qualifyingResult.gridPosition : "Start from back"} ↗</button>{phase === "pit" && <button type="button" onClick={() => setPitMenuOpen(false)}>Collapse pit menu</button>}</div>
+            <div className="warmup-pit-session-results"><b>LAST QUALIFYING</b>{qualifyingResult ? <span>{qualifyingResult.valid ? fmt(qualifyingResult.elapsed) : "Invalid lap"} · Grid P{qualifyingResult.gridPosition}</span> : <span>No qualifying result yet · race starts from the back</span>}{raceResult && <span>Last race · {raceResult.position === 1 ? "Winner" : "Kago won"} · {fmt(raceResult.elapsed)}</span>}</div><div className="warmup-pit-session-actions"><button type="button" onClick={startWarmup}>Warm-up practice ↗</button><button type="button" disabled={qualifyingUsed} onClick={startQualifying}>{qualifyingUsed ? "Qualifying completed" : "Start qualifying ↗"}</button><button type="button" onClick={startKagoRace}>Race Kago · {qualifyingResult ? "Grid P" + qualifyingResult.gridPosition : "Start from back"} ↗</button>{phase === "pit" && <button type="button" onClick={() => setPitMenuOpen(false)}>Collapse pit menu</button>}</div>
           </> : <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>}
         </div>
         {null}
