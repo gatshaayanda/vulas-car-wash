@@ -214,7 +214,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       setSignal({ label: "HOLD GAS TO LEAVE THE PIT ↑", tone: "go" });
     } else {
       const track = trackRef.current!;
-      const gridT = .112;
+      const gridT = .12;
       const point = track.getPointAt(gridT);
       const tangent = track.getTangentAt(gridT).normalize();
       const sideX = -tangent.z, sideZ = tangent.x;
@@ -1059,7 +1059,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             notify("RACE CONTROL · Warm-up lap complete. Keep practising or return to the pit.", "success");
           } else if (qualifyingComplete && sessionModeRef.current === "qualifying") {
             sessionModeRef.current = "race";
-            const gridT = .112;
+            const gridT = .12;
             const gridPoint = botTrack.getPointAt(gridT);
             const gridTangent = botTrack.getTangentAt(gridT).normalize();
             const gridSideX = -gridTangent.z, gridSideZ = gridTangent.x;
