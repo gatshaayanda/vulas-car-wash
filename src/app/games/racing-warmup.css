@@ -541,3 +541,9 @@
 .warmup-pit-toggle span{min-width:0;overflow-wrap:anywhere;font-size:10px;font-weight:850;letter-spacing:.08em;color:#d4ff78}
 .warmup-pit-toggle strong{flex:0 0 auto;font-size:11px}
 .warmup-pit-toggle:focus-visible{outline:3px solid #fff;outline-offset:3px}
+
+
+/* HUD notification lane: reserve space below the 3D viewport and above NOS. */
+.warmup-notification-slot{position:relative;display:flex;align-items:center;justify-content:flex-start;width:100%;min-height:48px;padding:4px 0 0;isolation:isolate}
+.warmup-notification-slot .warmup-toast{position:relative;inset:auto;left:auto;right:auto;top:auto;bottom:auto;transform:none;width:max-content;max-width:100%;max-height:none;overflow:visible;display:block;-webkit-line-clamp:unset;-webkit-box-orient:initial;margin:0;padding:9px 13px;white-space:normal;overflow-wrap:anywhere;line-height:1.4;pointer-events:none}
+@media(max-width:640px){.warmup-notification-slot{min-height:46px;padding-top:4px}.warmup-notification-slot .warmup-toast{max-width:100%;padding:8px 10px;font-size:11px}}
