@@ -66,3 +66,9 @@
 .racing-menu-graphics-status{max-width:100%;padding:6px 8px;border:1px solid #ffffff30;border-radius:5px;background:#071116c9;color:#dce7e3;font-size:7px;font-weight:900;letter-spacing:.1em;pointer-events:none}
 
 .racing-menu-preview{min-width:0;display:grid;gap:8px;align-content:start}
+
+.racing-menu-driver{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;margin:0 0 12px;padding:11px 12px;border:1px solid #ffffff24;border-radius:7px;background:#111d23}
+.racing-menu-driver label{color:var(--lime);font-size:8px;font-weight:900;letter-spacing:.16em}
+.racing-menu-driver input{width:100%;min-height:42px;padding:9px 11px;border:1px solid #ffffff35;border-radius:5px;background:#081116;color:#f5f7f3;font:700 15px Arial,Helvetica,sans-serif;outline:none}
+.racing-menu-driver input:focus{border-color:var(--lime);box-shadow:0 0 0 2px #d7ff5430}
+.racing-menu-driver small{color:#aebbbf;font-size:10px;line-height:1.4}
