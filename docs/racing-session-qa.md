@@ -60,3 +60,12 @@ Report source checks, Vercel deployment status, offline persistence and actual d
 - Documentation-only commit to request a new Vercel production build after the prior build-rate-limit response.
 - No gameplay source, controls, physics, camera, track, saves, or PWA assets are changed by this trigger.
 - Confirm the deployment is built from this exact main commit before asking for gameplay QA.
+
+
+## Saved driver identity — 8 November 2026
+
+- Added an editable driver-name field to Race Control. The name is saved in the existing device-local racing data record, without changing the storage key or version, so existing save slots and high scores remain readable.
+- New save slots use the driver's name; completed local high-score entries capture the name at finish. Older records without a name remain valid and display as Driver.
+- The game session bar identifies the active driver. Name persistence is device-local and is not represented as account-wide or server-synced identity.
+- QA: set a name, refresh, confirm it remains; create a new save and verify the slot label; complete a race and verify the high-score entry shows the saved driver; load an older save and confirm it still works.
+- This change is isolated to the racing menu's local data/UI. No driving physics, controls, camera, track, collision, pit movement, race timing or PWA assets are changed.
