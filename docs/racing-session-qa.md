@@ -110,3 +110,10 @@ Report source checks, Vercel deployment status, offline persistence and actual d
 - Bumped the service-worker game and shell caches to v52 so installed PWAs can fetch the updated game code.
 - QA: test both sides of the circuit at shallow and near-perpendicular impact angles, including sustained drift along the fence; confirm the chassis stays on the driving side, slows/rebounds without snapping to another track segment, and can reverse away. Repeat through pit entry, the service lane and pit exit. Test portrait, landscape and a refreshed installed PWA.
 - Source change only until automated checks and a current production deployment are confirmed; do not treat the code merge itself as physical gameplay QA.
+
+
+## Production build retry — 8 November 2026
+
+- Circuit/fence footprint correction and HUD toast placement correction are merged to `main`.
+- GitHub Actions passed for the circuit/fence change (TypeScript, lint, identity/PWA checks and production build).
+- Trigger a fresh production deployment from this commit after the Vercel daily deployment-rate limit blocked the prior automatic deployment. This commit changes documentation only; it does not change gameplay code.
