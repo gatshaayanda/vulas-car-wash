@@ -75,7 +75,7 @@ export default function RacingMainMenu({ embedded = false }: { embedded?: boolea
     commit(next);
   };
   const completeRace = (result: RaceResult) => { commit({ ...data, scores: [result, ...data.scores.filter(item => item.id !== result.id)].slice(0, 100) }); };
-  if (session) return <Root className={`racing-menu-game${embedded ? " racing-menu-game-embedded" : ""}`}><div className="racing-menu-gamebar"><button type="button" onClick={() => setSession(false)}>← Racing menu</button><span>QUICK RACE · KAGO OFFLINE AI</span></div><RacingWarmup embedded={embedded} gameShell initialSave={activeSlot?.state ?? null} quickStart={quickStart} driverName={activeSlot?.name ?? "Guest Driver"} onSave={saveGame} onComplete={completeRace} onExit={() => setSession(false)} /></Root>;
+  if (session) return <Root className={`racing-menu-game${embedded ? " racing-menu-game-embedded" : ""}`}><div className="racing-menu-gamebar"><button type="button" onClick={() => setSession(false)}>← Racing menu</button><span>QUICK RACE · KAGO OFFLINE AI</span></div><RacingWarmup initialSave={activeSlot?.state ?? null} quickStart={quickStart} driverName={activeSlot?.name ?? "Guest Driver"} onSave={saveGame} onComplete={completeRace} onExit={() => setSession(false)} /></Root>;
   return <Root className={`racing-main-menu${embedded ? " racing-main-menu-embedded" : ""}`}>
     <div className="racing-menu-topline"><Link href="/" className="racing-menu-brand"><span className="racing-menu-mark">V</span><span>VULA RACING<small>GABORONE CIRCUIT</small></span></Link><span className="racing-menu-status"><i /> OFFLINE</span></div>
     <section className="racing-menu-hero">
