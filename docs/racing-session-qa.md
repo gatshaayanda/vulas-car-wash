@@ -26,3 +26,14 @@ Use the normal customer entry point: https://vulas-car-wash.vercel.app/ → Vula
 - Test both a race win and loss, then repeat using the saved qualifying position.
 
 Report source checks, Vercel deployment status, offline persistence and actual device gameplay QA separately. Do not claim physical or visual QA unless it has been performed in the live game.
+
+## Recovery record — 8 November 2026
+
+- Restored the racing gameplay files to the protected, product-owner-approved golden baseline recorded in `AGENTS.md`.
+- Restored files: `racing-warmup.tsx`, `racing-warmup.css`, `racing-main-menu.tsx`, `racing-3d-scene.tsx`, and `racing-track-map.tsx`.
+- This removes the later single-viewport boxed garage/game-shell implementation and returns the pit interface, HUD, scene and driving controls to the approved baseline structure.
+- No steering model, throttle/brake/NOS input semantics, vehicle physics, camera tuning or track geometry was intentionally changed by this recovery.
+- Service-worker/PWA cache updates, app identity, and the protected golden-baseline reference branch were left untouched.
+- Verification status: source restoration recorded; automated CI and Vercel deployment must be checked against the resulting commit. Live mobile gameplay and offline launch remain unverified until tested on-device.
+- QA priority: confirm the game opens into the playable circuit, the car can be driven freely, car colour can be changed in the pit, and the player can complete the existing practice → qualifying → pit review → Kago race → pit return loop.
+- Follow-up control-layout comparison: inspect the approved space-game controls and reproduce only their placement/interaction layout in Vula Racing if needed. Preserve Vula's existing analog steering and driving inputs unless the product owner explicitly approves a control change.
