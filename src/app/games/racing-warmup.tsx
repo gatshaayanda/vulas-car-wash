@@ -957,31 +957,21 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             race.lapTime = 0;
             race.lap = lapNow;
             setLap(lapNow);
-          } else if (sessionModeRef.current === "race" && lapNow >= 5 && !completedRef.current) {
-            const gridPoint = botTrack.getPointAt(0);
-            const gridTangent = botTrack.getTangentAt(0).normalize();
-            const gridSideX = -gridTangent.z, gridSideZ = gridTangent.x;
-            const gridYaw = Math.atan2(-gridTangent.x, -gridTangent.z);
-            const botQualifyingTime = botQualifyingTimeRef.current
-              ?? (botQualifyingElapsedRef.current + trackRef.current!.getLength() * Math.max(0, 2 - race.botProgress) / Math.max(8.5, race.botSpeed));
-            const playerOnPole = completedLapValid && completedLapTime <= botQualifyingTime;
-            const playerGridSide = playerOnPole ? 1 : -1;
-            race.worldX = gridPoint.x + gridSideX * 2.45 * playerGridSide;
-            race.worldZ = gridPoint.z + gridSideZ * 2.45 * playerGridSide;
-            race.worldYaw = gridYaw; settlePlayerCar(race);
-            race.progress = 2; race.trackT = 0;
-            race.botWorldX = gridPoint.x - gridSideX * 2.45 * playerGridSide;
-            race.botWorldZ = gridPoint.z - gridSideZ * 2.45 * playerGridSide;
-            race.botWorldYaw = gridYaw; race.botVelocityX = 0; race.botVelocityZ = 0; race.botSpeed = 0;
-            race.botProgress = 2; race.botInitialized = true;
-            race.botLineOffset = playerOnPole ? -2.45 : 2.45;
-            race.botPitDone = false; race.botPitting = false; race.botPitServiced = false; race.botPitProgress = 0; race.botPitServiceRemaining = 0;
-            race.elapsed = 0; race.lapTime = 0; race.botNos = 100; race.botNosCooldown = 0; race.botBoostActive = false; race.nos = 100;
+          } else if (sessionModeRef.current === "qualifying" && lapNow >= 2) {
+            const playerOnPole = completedLapValid && (botQualifyingTimeRef.current === null || completedLapTime <= botQualifyingTimeRef.current);
+            const result: QualifyingResult = {
+              id: "qualifying-" + Date.now(), completedAt: new Date().toISOString(),
+              driverName, elapsed: completedLapTime, valid: completedLapValid,
+              gridPosition: playerOnPole ? 1 : 2,
+            };
+            setQualifyingResult(result);
+            onQualifyingComplete?.(result);
+            sessionModeRef.current = "qualifying-complete"; setSessionMode("qualifying-complete");
+            race.lap = 2; race.elapsed = 0; race.lapTime = 0;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
-            setSpeed(0); setLapTime(0); setNos(100); setCountdown(3);
-            phaseRef.current = "grid"; setPhase("grid");
-            
-          } else if (lapNow >= 5 && !completedRef.current) {
+            notify(completedLapValid ? "QUALIFYING COMPLETE · Return to the pit to review your grid position." : "QUALIFYING INVALID · Return to the pit. You will start from the back.", completedLapValid ? "success" : "error");
+          } else if (sessionModeRef.current === "race" && lapNow >= 5 && !completedRef.current) {
+
             completedRef.current = true;
             controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
             const position: 1 | 2 = race.progress >= race.botProgress ? 1 : 2;
@@ -992,8 +982,10 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
               position, laps: 2,
             };
             setRaceResult(result);
-            phaseRef.current = "finished"; setPhase("finished");
-            if (position === 1) notify("🏆 RACE CONTROL · YOU BEAT KAGO! RACE WINNER!", "success");
+            sessionModeRef.current = "race-complete"; setSessionMode("race-complete");
+            race.botVelocityX = 0; race.botVelocityZ = 0; race.botSpeed = 0;
+            if (position === 1) notify("🏆 RACE CONTROL · YOU BEAT KAGO! Return to the pit when ready.", "success");
+            else notify("CHEQUERED FLAG · Kago wins this one. Return to the pit when ready.", "info");
             onComplete?.(result);
           }
         }
