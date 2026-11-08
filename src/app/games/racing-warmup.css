@@ -536,5 +536,5 @@
 
 /* Keep every racing notification in normal flow below the live canvas. */
 .warmup-notification-slot{display:flex;flex-direction:column;align-items:stretch;gap:7px;min-height:0;margin:8px 0 0}
-.warmup-notification-slot .warmup-signal-chip{position:relative;inset:auto;z-index:auto;width:auto;max-width:100%;margin:0;box-sizing:border-box;pointer-events:none}
+.warmup-notification-slot .warmup-signal-chip{position:relative;inset:auto;z-index:auto;transform:none;width:100%;max-width:100%;margin:0;box-sizing:border-box;justify-content:flex-start;pointer-events:none}
 .warmup-notification-slot .warmup-toast{position:relative;inset:auto;z-index:auto;width:100%;max-width:none;margin:0;box-sizing:border-box;pointer-events:none}
