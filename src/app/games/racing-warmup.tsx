@@ -116,6 +116,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const [toast, setToast] = useState<{ text: string; kind: "success" | "error" | "info" } | null>(null);
   const [businessName, setBusinessName] = useState("Vula's Car Wash");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const raceReturnTimerRef = useRef<number | null>(null);
   phaseRef.current = phase;
 
   const notify = useCallback((text: string, kind: "success" | "error" | "info" = "success") => {
@@ -132,7 +133,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       setToast(null);
     }
   }, [phase]);
-  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); if (raceReturnTimerRef.current !== null) window.clearTimeout(raceReturnTimerRef.current); }, []);
   useEffect(() => {
     const stop = subscribeSettings(settings => {
       const name = settings?.businessName;
@@ -170,7 +171,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const startKagoRace = useCallback(() => {
     completedRef.current = false; sessionModeRef.current = "race"; setSessionMode("race"); setPitMenuOpen(false);
     const race = raceRef.current;
-    const playerGridProgress = qualifyingUsed && qualifyingResult?.valid && qualifyingResult.gridPosition === 1 ? 2.02 : 2;
+    const playerGridProgress = qualifyingResult?.valid && qualifyingResult.gridPosition === 1 ? 2.02 : 2;
     const botGridProgress = qualifyingResult?.valid && qualifyingResult.gridPosition === 1 ? 2 : 2.02;
     race.progress = playerGridProgress; race.lap = 3; race.elapsed = 0; race.lapTime = 0; race.lapInvalid = false;
     race.playerPitEntryProgress = playerGridProgress; race.playerPitEntryTrackT = race.trackT;
@@ -185,7 +186,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     race.nos = 100; setLap(3); setLapTime(0); setNos(100); setRaceResult(null);
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
     phaseRef.current = "countdown"; setPhase("countdown"); setCountdown(3);
-    notify(qualifyingUsed && qualifyingResult?.valid ? "RACE CONTROL · Your qualifying grid is set. Kago is ready." : "RACE CONTROL · No qualifying time this cycle. You start from the back.", "info");
+    notify(qualifyingResult?.valid ? "RACE CONTROL · Your saved qualifying grid is set. Kago is ready." : "RACE CONTROL · No qualifying time this cycle. You start from the back.", "info");
   }, [qualifyingResult, notify]);
   const pauseRace = useCallback(() => {
     if (phaseRef.current === "running") {
@@ -994,11 +995,24 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             };
             setRaceResult(result);
             sessionModeRef.current = "race-complete"; setSessionMode("race-complete"); setQualifyingUsed(false);
+            phaseRef.current = "finished"; setPhase("finished");
             race.botVelocityX = 0; race.botVelocityZ = 0; race.botSpeed = 0;
             if (position === 1) notify("🏆 RACE CONTROL · YOU BEAT KAGO! Return to the pit when ready.", "success");
             else notify("CHEQUERED FLAG · Kago wins this one. Return to the pit when ready.", "info");
             onSave?.({ race: { ...race }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString(), carColor, qualifyingResult, qualifyingUsed: false, lastRaceResult: result });
             onComplete?.(result);
+            if (raceReturnTimerRef.current !== null) window.clearTimeout(raceReturnTimerRef.current);
+            raceReturnTimerRef.current = window.setTimeout(() => {
+              const garageRace = newRace();
+              raceRef.current = garageRace;
+              controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+              sessionModeRef.current = "warmup"; setSessionMode("warmup");
+              phaseRef.current = "pit"; setPhase("pit"); setPitMenuOpen(true);
+              setSpeed(0); setLapTime(0); setNos(100); setLap(1); setBestLap(null); setBoostActive(false);
+              onSave?.({ race: { ...garageRace }, difficulty: botDifficultyRef.current, savedAt: new Date().toISOString(), carColor, qualifyingResult, qualifyingUsed: false, lastRaceResult: result });
+              notify("PIT GARAGE · Race complete. Review your result or choose your next session.", "info");
+              raceReturnTimerRef.current = null;
+            }, 3200);
           }
         }
         if (now - lastUi > 33) {
@@ -1105,7 +1119,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} carColor={carColor} />
         
         
-        {raceResult && sessionMode === "race-complete" && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.position === 1 ? "YOU BEAT KAGO!" : "YOU FINISHED THE RACE!"}</strong><p>{fmt(raceResult.elapsed)} · 2 scored laps · {raceResult.difficulty}</p><p>Drive back to the pit to review your result and choose the next session.</p></div>}
+        {raceResult && sessionMode === "race-complete" && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.position === 1 ? "YOU BEAT KAGO!" : "YOU FINISHED THE RACE!"}</strong><p>{fmt(raceResult.elapsed)} · 2 scored laps · {raceResult.difficulty}</p><p>Returning to the pit garage…</p></div>}
         <div className={"warmup-3d-overlay" + (phase === "ready" ? " is-interactive" : "")} hidden={phase === "running" || phase === "finished" || (phase === "pit" && !pitMenuOpen)} aria-live="polite">
           <span>🏁 VULA RACING · {driverName}</span>
           <strong>{phase === "ready" ? "PIT GARAGE · RACE PREP" : phase === "grid" ? "FORMATION COMPLETE · GRID" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "pit" ? "PIT STOP" : phase === "crashed" ? "Car disabled" : "Session ready"}</strong>
@@ -1116,7 +1130,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             </div>
             <div className="warmup-pit-brief"><b>ENGINEER</b><span>{tyreChoice} selected. NOS is your only race resource: spend it on straights, then lift to recharge.</span></div>
             <div className="warmup-car-colours" aria-label="Choose car colour"><b>CAR COLOUR</b>{[["#f04478","Pink"],["#27a9e0","Blue"],["#f2c64e","Yellow"],["#f3f2e9","White"],["#35a66f","Green"],["#9a70d6","Purple"]].map(([value,label])=><button key={value} type="button" aria-label={label+" car"} aria-pressed={carColor===value} style={{backgroundColor:value}} onClick={()=>setCarColor(value)} />)}</div>
-            <div className="warmup-pit-session-results"><b>LAST QUALIFYING</b>{qualifyingResult ? <span>{qualifyingResult.valid ? fmt(qualifyingResult.elapsed) : "Invalid lap"} · Grid P{qualifyingResult.gridPosition}</span> : <span>No qualifying result yet · race starts from the back</span>}{raceResult && <span>Last race · {raceResult.position === 1 ? "Winner" : "Kago won"} · {fmt(raceResult.elapsed)}</span>}</div><div className="warmup-pit-session-actions"><button type="button" onClick={startWarmup}>Warm-up practice ↗</button><button type="button" disabled={qualifyingUsed} onClick={startQualifying}>{qualifyingUsed ? "Qualifying completed" : "Start qualifying ↗"}</button><button type="button" onClick={startKagoRace}>Race Kago · {qualifyingUsed && qualifyingResult?.valid ? "Grid P" + qualifyingResult.gridPosition : "Start from back"} ↗</button>{phase === "pit" && <button type="button" onClick={() => setPitMenuOpen(false)}>Collapse pit menu</button>}</div>
+            <div className="warmup-pit-session-results"><b>LAST QUALIFYING</b>{qualifyingResult ? <span>{qualifyingResult.valid ? fmt(qualifyingResult.elapsed) : "Invalid lap"} · Grid P{qualifyingResult.gridPosition}</span> : <span>No qualifying result yet · race starts from the back</span>}{raceResult && <span>Last race · {raceResult.position === 1 ? "Winner" : "Kago won"} · {fmt(raceResult.elapsed)}</span>}</div><div className="warmup-pit-session-actions"><button type="button" onClick={startWarmup}>Warm-up practice ↗</button><button type="button" disabled={qualifyingUsed} onClick={startQualifying}>{qualifyingUsed ? "Qualifying completed" : "Start qualifying ↗"}</button><button type="button" onClick={startKagoRace}>Race Kago · {qualifyingResult?.valid ? "Grid P" + qualifyingResult.gridPosition : "Start from back"} ↗</button>{phase === "pit" && <button type="button" onClick={() => setPitMenuOpen(false)}>Collapse pit menu</button>}</div>
           </> : <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>}
         </div>
         {null}
