@@ -117,3 +117,12 @@ Report source checks, Vercel deployment status, offline persistence and actual d
 - Circuit/fence footprint correction and HUD toast placement correction are merged to `main`.
 - GitHub Actions passed for the circuit/fence change (TypeScript, lint, identity/PWA checks and production build).
 - Trigger a fresh production deployment from this commit after the Vercel daily deployment-rate limit blocked the prior automatic deployment. This commit changes documentation only; it does not change gameplay code.
+
+## HUD layout rebuild — 8 November 2026
+
+- Reworked the HUD hierarchy rather than only relocating the toast: compact dark live-timing strip, integrated opponent/difficulty header, distinct guidance lane, upper-right live map, centred notification lane below the scene, and compact NOS meter above the controls.
+- Removed the visual effect of the older map-width reservation and clipped lower-left toast rules by overriding them at the notification slot with explicit positioning, wrapping and overflow behavior.
+- Responsive layout keeps all five timing values visible in one compact row on narrow phones; the 3D scene, driving inputs, opponent simulation, pit flow, track and save systems are not changed.
+- Bumped both service-worker caches from v52 to v53 so installed PWAs can refresh the new HUD CSS/JS.
+- QA required at 320px portrait, wider portrait and landscape: check every metric remains readable, signal does not overlap the map, toast is centred below the scene without clipping or scene-height movement, NOS sits above controls, and the road remains unobstructed.
+- This is a visual source change only; physical gameplay and installed-PWA QA remain outstanding until checked on-device.
