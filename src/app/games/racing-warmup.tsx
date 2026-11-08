@@ -157,6 +157,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
     setSpeed(0); setLapTime(0); setBestLap(null); setLap(quickStartRef.current ? 3 : 1); setNos(100); setBoostActive(false); setRivalGap(0); setRaceResult(null);
     if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = null; setToast(null);
+    pitMenuPromptedRef.current = false; pitMenuAvailableRef.current = false; pitMenuOpenRef.current = false;
+    setPitMenuAvailable(false); setPitMenuOpen(false);
     setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
   }, []);
   const startRace = useCallback(() => { completedRef.current = false; reset(true); }, [reset]);
