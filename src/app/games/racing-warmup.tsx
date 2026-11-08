@@ -966,7 +966,8 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             race.lap = lapNow;
             setLap(lapNow);
           } else if (sessionModeRef.current === "qualifying" && lapNow >= 2) {
-            const playerOnPole = completedLapValid && (botQualifyingTimeRef.current === null || completedLapTime <= botQualifyingTimeRef.current);
+            const botQualifyingTime = botQualifyingTimeRef.current ?? (botQualifyingElapsedRef.current + trackRef.current!.getLength() * Math.max(0, 1 - race.botProgress) / Math.max(8.5, race.botSpeed));
+            const playerOnPole = completedLapValid && completedLapTime <= botQualifyingTime;
             const result: QualifyingResult = {
               id: "qualifying-" + Date.now(), completedAt: new Date().toISOString(),
               driverName, elapsed: completedLapTime, valid: completedLapValid,
