@@ -170,7 +170,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const startKagoRace = useCallback(() => {
     completedRef.current = false; sessionModeRef.current = "race"; setSessionMode("race"); setPitMenuOpen(false);
     const race = raceRef.current;
-    const playerGridProgress = qualifyingResult?.valid && qualifyingResult.gridPosition === 1 ? 2.02 : 2;
+    const playerGridProgress = qualifyingUsed && qualifyingResult?.valid && qualifyingResult.gridPosition === 1 ? 2.02 : 2;
     const botGridProgress = qualifyingResult?.valid && qualifyingResult.gridPosition === 1 ? 2 : 2.02;
     race.progress = playerGridProgress; race.lap = 3; race.elapsed = 0; race.lapTime = 0; race.lapInvalid = false;
     race.playerPitEntryProgress = playerGridProgress; race.playerPitEntryTrackT = race.trackT;
@@ -185,7 +185,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     race.nos = 100; setLap(3); setLapTime(0); setNos(100); setRaceResult(null);
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
     phaseRef.current = "countdown"; setPhase("countdown"); setCountdown(3);
-    notify(qualifyingResult ? "RACE CONTROL · Your qualifying grid is set. Kago is ready." : "RACE CONTROL · No qualifying time. You start from the back.", "info");
+    notify(qualifyingUsed && qualifyingResult?.valid ? "RACE CONTROL · Your qualifying grid is set. Kago is ready." : "RACE CONTROL · No qualifying time this cycle. You start from the back.", "info");
   }, [qualifyingResult, notify]);
   const pauseRace = useCallback(() => {
     if (phaseRef.current === "running") {
@@ -1115,7 +1115,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             </div>
             <div className="warmup-pit-brief"><b>ENGINEER</b><span>{tyreChoice} selected. NOS is your only race resource: spend it on straights, then lift to recharge.</span></div>
             <div className="warmup-car-colours" aria-label="Choose car colour"><b>CAR COLOUR</b>{[["#f04478","Pink"],["#27a9e0","Blue"],["#f2c64e","Yellow"],["#f3f2e9","White"],["#35a66f","Green"],["#9a70d6","Purple"]].map(([value,label])=><button key={value} type="button" aria-label={label+" car"} aria-pressed={carColor===value} style={{backgroundColor:value}} onClick={()=>setCarColor(value)} />)}</div>
-            <div className="warmup-pit-session-results"><b>LAST QUALIFYING</b>{qualifyingResult ? <span>{qualifyingResult.valid ? fmt(qualifyingResult.elapsed) : "Invalid lap"} · Grid P{qualifyingResult.gridPosition}</span> : <span>No qualifying result yet · race starts from the back</span>}{raceResult && <span>Last race · {raceResult.position === 1 ? "Winner" : "Kago won"} · {fmt(raceResult.elapsed)}</span>}</div><div className="warmup-pit-session-actions"><button type="button" onClick={startWarmup}>Warm-up practice ↗</button><button type="button" disabled={qualifyingUsed} onClick={startQualifying}>{qualifyingUsed ? "Qualifying completed" : "Start qualifying ↗"}</button><button type="button" onClick={startKagoRace}>Race Kago · {qualifyingResult ? "Grid P" + qualifyingResult.gridPosition : "Start from back"} ↗</button>{phase === "pit" && <button type="button" onClick={() => setPitMenuOpen(false)}>Collapse pit menu</button>}</div>
+            <div className="warmup-pit-session-results"><b>LAST QUALIFYING</b>{qualifyingResult ? <span>{qualifyingResult.valid ? fmt(qualifyingResult.elapsed) : "Invalid lap"} · Grid P{qualifyingResult.gridPosition}</span> : <span>No qualifying result yet · race starts from the back</span>}{raceResult && <span>Last race · {raceResult.position === 1 ? "Winner" : "Kago won"} · {fmt(raceResult.elapsed)}</span>}</div><div className="warmup-pit-session-actions"><button type="button" onClick={startWarmup}>Warm-up practice ↗</button><button type="button" disabled={qualifyingUsed} onClick={startQualifying}>{qualifyingUsed ? "Qualifying completed" : "Start qualifying ↗"}</button><button type="button" onClick={startKagoRace}>Race Kago · {qualifyingUsed && qualifyingResult?.valid ? "Grid P" + qualifyingResult.gridPosition : "Start from back"} ↗</button>{phase === "pit" && <button type="button" onClick={() => setPitMenuOpen(false)}>Collapse pit menu</button>}</div>
           </> : <p>{phase === "grid" ? "Warm-up complete. Cars are on the grid." : phase === "countdown" ? "Lights out in..." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete."}</p>}
         </div>
         {null}
