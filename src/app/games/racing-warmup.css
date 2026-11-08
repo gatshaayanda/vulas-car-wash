@@ -534,3 +534,10 @@
 .warmup-pit-paint button{width:30px;height:30px;flex:0 0 30px;border:2px solid #ffffffaa;border-radius:50%;box-shadow:0 2px 5px #0005;cursor:pointer}
 .warmup-pit-paint button.selected{outline:3px solid #d4ff78;outline-offset:3px}
 .warmup-pit-paint button:focus-visible{outline:3px solid #fff;outline-offset:4px}
+
+
+/* Keep the garage briefing compact without changing the ready-to-drive flow. */
+.warmup-pit-toggle{display:flex;align-items:center;justify-content:space-between;gap:14px;width:min(100%,620px);padding:10px 12px;border:1px solid rgba(255,255,255,.28);border-radius:10px;background:rgba(9,20,19,.88);color:#fff;text-align:left;cursor:pointer;pointer-events:auto}
+.warmup-pit-toggle span{min-width:0;overflow-wrap:anywhere;font-size:10px;font-weight:850;letter-spacing:.08em;color:#d4ff78}
+.warmup-pit-toggle strong{flex:0 0 auto;font-size:11px}
+.warmup-pit-toggle:focus-visible{outline:3px solid #fff;outline-offset:3px}
