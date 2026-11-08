@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 import { subscribeSettings } from "@/lib/firebase/vula-data";
-import { createRacingTrack, createRacingPitLane, getTrackTurn } from "./racing-track";
+import { createRacingTrack, createRacingPitLane, getTrackTurn, getVehicleSafeOffset, RACING_FENCE_OFFSET, RACING_TRACK_COLLISION_OFFSET, RACING_PIT_LANE_OFFSET, RACING_PIT_COLLISION_OFFSET } from "./racing-track";
 
 export type Phase = "ready" | "grid" | "countdown" | "running" | "paused" | "pit" | "finished" | "crashed";
 export type Controls = { steer: number; accelerate: boolean; brake: boolean; boost: boolean };
@@ -346,8 +346,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         // One swept collision solver covers the complete connected driving
         // surface. The main circuit and pit connector are candidate pieces of
         // road, not mutually exclusive physics modes selected by pit-state flags.
-        const trackSafetyOffset = 7.15;
-        const pitSafetyOffset = 3.5;
+        const trackSafetyOffset = RACING_TRACK_COLLISION_OFFSET;
+        const pitSafetyOffset = RACING_PIT_COLLISION_OFFSET;
+        const pitFenceClearance = RACING_PIT_LANE_OFFSET - RACING_FENCE_OFFSET;
         const sweepDx = race.worldX - sweepStartX;
         const sweepDz = race.worldZ - sweepStartZ;
         const sweepDistance = Math.hypot(sweepDx, sweepDz);
@@ -407,6 +408,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           const mainSideX = -mainTangentZ, mainSideZ = mainTangentX;
           const mainSignedOffset = mainDx * mainSideX + mainDz * mainSideZ;
           const mainT = mainIndex / sweepSamples;
+          const mainSafeOffset = getVehicleSafeOffset(mainTangentX, mainTangentZ, race.worldYaw, RACING_FENCE_OFFSET, trackSafetyOffset);
           // The only open main-track edges are the two visible pit connectors.
           // This is a narrow geometric opening, not a broad pit-mode exemption.
           const mainConnectorOpening = mainSignedOffset < 0
@@ -414,12 +416,13 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             && mainDistance <= 16;
           const mainPenetration = mainConnectorOpening
             ? Number.POSITIVE_INFINITY
-            : Math.max(mainDistance, Math.abs(mainSignedOffset)) - trackSafetyOffset;
+            : Math.max(mainDistance, Math.abs(mainSignedOffset)) - mainSafeOffset;
 
           const pitDistance = Math.sqrt(pitDistanceSq);
           const pitDx = sampleX - pitX, pitDz = sampleZ - pitZ;
           const pitSideX = -pitTangentZ, pitSideZ = pitTangentX;
           const pitSignedOffset = pitDx * pitSideX + pitDz * pitSideZ;
+          const pitSafeOffset = getVehicleSafeOffset(pitTangentX, pitTangentZ, race.worldYaw, pitFenceClearance, pitSafetyOffset);
           // The circuit-facing pit boundary must be open only through the
           // physical entry taper. Its length matches createRacingPitLane's
           // 12-of-84-sample transition and the visible main-track fence gap.
@@ -429,14 +432,14 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             && mainT >= .905 && mainT <= .94 && mainDistance <= 16;
           const pitPenetration = pitEntryOpening
             ? Number.NEGATIVE_INFINITY
-            : pitSignedOffset > pitSafetyOffset
-              ? pitSignedOffset - pitSafetyOffset
+            : pitSignedOffset > pitSafeOffset
+              ? pitSignedOffset - pitSafeOffset
               : pitDistance <= 8 ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
 
           const usePitBoundary = pitPenetration < mainPenetration;
           const penetration = Math.min(mainPenetration, pitPenetration);
           if (penetration > 0) {
-            const safeOffset = usePitBoundary ? pitSafetyOffset : trackSafetyOffset;
+            const safeOffset = usePitBoundary ? pitSafeOffset : mainSafeOffset;
             const distance = usePitBoundary ? pitDistance : mainDistance;
             const dx = usePitBoundary ? pitDx : mainDx;
             const dz = usePitBoundary ? pitDz : mainDz;
