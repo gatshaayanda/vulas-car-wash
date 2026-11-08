@@ -60,7 +60,7 @@ if (player) {
         <circle ref={playerMarker} cx={mapX(0)} cy={mapY(72)} r="6" className="racing-track-map-player" style={{ fill: carColor, stroke: "#f4f7ee" }} />
       </svg>
       <div className="racing-track-map-legend">
-        <span><i className="player-dot" />YOU</span>
+        <span><i className="player-dot" style={{ backgroundColor: carColor }} />YOU</span>
       </div>
     </aside>
   );
