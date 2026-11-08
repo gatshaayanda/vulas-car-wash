@@ -547,3 +547,41 @@
 .warmup-notification-slot{position:relative;display:flex;align-items:center;justify-content:flex-start;width:100%;min-height:48px;padding:4px 0 0;isolation:isolate}
 .warmup-notification-slot .warmup-toast{position:relative;inset:auto;left:auto;right:auto;top:auto;bottom:auto;transform:none;width:max-content;max-width:100%;max-height:none;overflow:visible;display:block;-webkit-line-clamp:unset;-webkit-box-orient:initial;margin:0;padding:9px 13px;white-space:normal;overflow-wrap:anywhere;line-height:1.4;pointer-events:none}
 @media(max-width:640px){.warmup-notification-slot{min-height:46px;padding-top:4px}.warmup-notification-slot .warmup-toast{max-width:100%;padding:8px 10px;font-size:11px}}
+
+
+/* Live race HUD: timing is part of the moving scene, not a separate panel above it. */
+.warmup-circuit-wrap .warmup-circuit-hud{
+  position:absolute;z-index:30;left:10px;right:10px;bottom:10px;
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;
+  margin:0;padding:0;pointer-events:none;
+}
+.warmup-circuit-wrap .warmup-circuit-hud>div{
+  min-width:0;display:flex;flex-direction:column;justify-content:center;gap:3px;
+  padding:8px 10px;border:1px solid #ffffff38;border-radius:9px;
+  background:rgba(12,27,23,.88);box-shadow:0 3px 12px #07140e40;
+  color:#f7f8f3;overflow:hidden;
+}
+.warmup-circuit-wrap .warmup-circuit-hud span{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:#c4d5c6;font-size:8px;line-height:1.1;letter-spacing:.09em;font-weight:850;
+}
+.warmup-circuit-wrap .warmup-circuit-hud strong{
+  min-width:0;color:#fff;font:800 clamp(13px,1.8vw,19px)/1.05 "Space Grotesk",system-ui,sans-serif;
+  font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.warmup-circuit-wrap .warmup-circuit-hud strong small{
+  color:#c6f36b;font:700 8px/1.1 system-ui,sans-serif;
+}
+.warmup-circuit-wrap .warmup-signal-chip{z-index:20}
+.warmup-circuit-wrap .racing-track-map{z-index:25}
+.warmup-notification-slot{min-height:42px}
+.warmup-nos{margin:6px 0 4px}
+@media(max-width:640px){
+  .warmup-circuit-wrap .warmup-circuit-hud{left:6px;right:6px;bottom:6px;gap:4px}
+  .warmup-circuit-wrap .warmup-circuit-hud>div{gap:3px;padding:7px 5px;border-radius:7px}
+  .warmup-circuit-wrap .warmup-circuit-hud span{font-size:7px;letter-spacing:.035em}
+  .warmup-circuit-wrap .warmup-circuit-hud strong{font-size:clamp(11px,3.1vw,15px)}
+  .warmup-circuit-wrap .warmup-circuit-hud strong small{font-size:7px}
+  .warmup-notification-slot{min-height:38px}
+  .warmup-nos{margin:5px 0 3px;padding:8px 10px}
+}

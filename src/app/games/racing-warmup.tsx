@@ -1085,10 +1085,16 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
     {embedded && <div className="race-inline-heading"><div><p className="vula-eyebrow">VULA RACING · CIRCUIT PRACTICE</p><h2>Find your racing line.</h2><p>One more lap? Smooth corners, clean exits, well-timed NOS.</p></div><button type="button" className="vula-button secondary" onClick={() => { if (phaseRef.current === "running") pauseRace(); setExpanded(false); }}>Close game ×</button></div>}
     <section className="vula-section warmup-game">
       <div className="warmup-opponent-menu"><div><span>RACE OPPONENT</span><strong>Kago · The Attacker</strong><small>Offline AI rival · runs on this circuit</small></div><label>Difficulty<select value={botDifficulty} disabled={phase === "running" || phase === "countdown"} onChange={event => { const next = event.target.value as "Easy" | "Normal" | "Hard"; botDifficultyRef.current = next; setBotDifficulty(next); }}><option>Easy</option><option>Normal</option><option>Hard</option></select></label></div>
-      <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>{lap <= 1 ? "Session" : "Race lap"}</span><strong>{lap === 1 ? "Practice" : lap === 2 ? "Qualifying" : Math.min(lap - 2, 2) + "/2"}</strong></div><div><span>Current lap</span><strong>{fmt(lapTime)}</strong></div><div><span>Best lap</span><strong>{fmt(bestLap)}</strong></div><div><span>{lap >= 3 ? "Rival gap" : "Opponent"}</span><strong>{lap >= 3 ? <>{Math.abs(Math.round(rivalGap))}m <small>{rivalGap >= 0 ? "Kago ahead" : "You ahead"}</small></> : <small>Joins race</small>}</strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} carColor={carColor} />
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
+        <div className="warmup-hud warmup-circuit-hud" aria-label="Live race timing">
+          <div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div>
+          <div><span>{lap <= 1 ? "Session" : "Race lap"}</span><strong>{lap === 1 ? "Practice" : lap === 2 ? "Qualifying" : Math.min(lap - 2, 2) + "/2"}</strong></div>
+          <div><span>Current lap</span><strong>{fmt(lapTime)}</strong></div>
+          <div><span>Best lap</span><strong>{fmt(bestLap)}</strong></div>
+          <div><span>{lap >= 3 ? "Rival gap" : "Opponent"}</span><strong>{lap >= 3 ? <>{Math.abs(Math.round(rivalGap))}m <small>{rivalGap >= 0 ? "Kago ahead" : "You ahead"}</small></> : <small>Joins race</small>}</strong></div>
+        </div>
         {phase === "finished" && raceResult && <div className={"warmup-race-result " + (raceResult.position === 1 ? "victory" : "defeat")} role="status" aria-live="assertive"><span>{raceResult.position === 1 ? "CHEQUERED FLAG" : "RACE FINISHED"}</span><strong>{raceResult.position === 1 ? "YOU BEAT KAGO!" : "YOU FINISHED THE RACE!"}</strong><p>{fmt(raceResult.elapsed)} · 2 scored laps · {raceResult.difficulty}</p><button type="button" onClick={startRace}>RACE AGAIN ↗</button></div>}
         <div className={"warmup-3d-overlay" + (phase === "ready" ? " is-interactive" : "")} hidden={phase === "running" || phase === "finished" || phase === "pit"} aria-live="polite">
           <span>🏁 VULA RACING · LET’S PLAY!</span>
