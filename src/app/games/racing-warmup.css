@@ -702,3 +702,44 @@
 .warmup-circuit-controls .steer-button:disabled{opacity:.45}
 @media(max-width:640px){.warmup-circuit-controls .steering-pad{gap:5px}.warmup-circuit-controls .steer-button{min-height:68px;font-size:27px}}
 @media(max-width:360px){.warmup-circuit-controls .steer-button{min-height:60px;font-size:24px}}
+
+
+/* Final mobile viewport HUD correction: pin the green driving cue to the
+   visible left lane, clear of the minimap and above the 3D canvas. */
+.warmup-circuit-wrap .warmup-signal-chip{
+  position:absolute;
+  z-index:130;
+  top:10px;
+  left:10px;
+  right:calc(var(--map-width,132px) + 24px);
+  bottom:auto;
+  width:auto;
+  max-width:none;
+  min-width:0;
+  margin:0;
+  transform:none;
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  box-sizing:border-box;
+  padding:10px 12px;
+  border-width:2px;
+  border-radius:11px;
+  font-size:clamp(11px,2.5vw,14px);
+  line-height:1.25;
+  text-align:left;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  box-shadow:0 6px 22px #07140e99;
+}
+.warmup-circuit-wrap .warmup-signal-chip span{flex:0 0 10px}
+.warmup-circuit-wrap .racing-track-map{z-index:125}
+@media(max-width:640px){
+  .warmup-circuit-wrap .warmup-signal-chip{
+    top:8px;
+    left:8px;
+    right:calc(var(--map-width,104px) + 16px);
+    padding:9px 10px;
+    font-size:clamp(10px,2.7vw,12px);
+  }
+}

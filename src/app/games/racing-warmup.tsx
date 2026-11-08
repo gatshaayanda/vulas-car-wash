@@ -735,13 +735,18 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           // Garage exit is a real drive to the far end of the pit connector.
           // Release only at the physical merge point, never at a nearby spline
           // projection elsewhere on the circuit.
-          if (race.playerPitProgress >= .985) {
+          if (race.playerPitProgress >= .965) {
             const mergePoint = MAIN_TRACK_COLLISION_SAMPLES[Math.round(.105 * COLLISION_SAMPLE_COUNT)];
             const mergeDistance = Math.hypot(race.worldX - mergePoint.x, race.worldZ - mergePoint.z);
-            if (mergeDistance <= 4.8) {
+            // Require the car to physically reach the merge area, with enough
+            // tolerance to avoid a latched garage-exit state on mobile.
+            if (mergeDistance <= 7.5) {
               race.playerGarageExit = false;
               race.playerOutLap = true;
               race.trackT = .105;
+              setPitFlowOpen(false);
+              setPitMenuOpen(false);
+              pitMenuOpenRef.current = false;
               notify("PIT CREW · Pit exit clear. Rejoin the circuit.", "success");
             }
           }
@@ -762,6 +767,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             const mergeDistance = Math.hypot(race.worldX - mergePoint.x, race.worldZ - mergePoint.z);
             if (mergeDistance <= 4.8) {
               race.playerPitting = false;
+              setPitFlowOpen(false);
+              setPitMenuOpen(false);
+              pitMenuOpenRef.current = false;
               const entryProgress = race.playerPitEntryProgress;
               const entryTrackT = race.playerPitEntryTrackT;
               race.trackT = .105;
@@ -778,6 +786,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
               race.playerPitting = false;
               race.trackT = race.playerPitEntryTrackT;
               race.progress = race.playerPitEntryProgress;
+              setPitFlowOpen(false);
+              setPitMenuOpen(false);
+              pitMenuOpenRef.current = false;
             }
           }
 
@@ -1275,7 +1286,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} carColor={carColor} />
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
-        {(phase === "ready" || (phase === "running" && (raceRef.current.playerGarageExit || (raceRef.current.playerPitting && sessionModeRef.current !== "race")))) && <button type="button" className="warmup-pit-flow-trigger" onClick={() => { setPitFlowStep("activity"); setPitFlowOpen(true); }}>PIT MENU <span>↗</span></button>}
+        {(phase === "ready" || (phase === "running" && ((raceRef.current.playerGarageExit && raceRef.current.playerPitProgress < .94) || (raceRef.current.playerPitting && sessionModeRef.current !== "race")))) && <button type="button" className="warmup-pit-flow-trigger" onClick={() => { setPitFlowStep("activity"); setPitFlowOpen(true); }}>PIT MENU <span>↗</span></button>}
         {pitFlowOpen && <div className="warmup-pit-flow-panel" role="dialog" aria-modal="true" aria-label="Pit menu">
           <div className="warmup-pit-setup-heading"><div><span>VULA RACING · PIT CREW</span><strong>{pitFlowStep === "activity" ? "What are we driving?" : "Set up your car"}</strong></div><button type="button" aria-label="Close pit menu" onClick={() => setPitFlowOpen(false)}>×</button></div>
           {pitFlowStep === "activity" ? <>{sessionModeRef.current === "warmup" && <section className="warmup-practice-tyre-quick"><b>PRACTICE TYRE · FREE CHANGES</b><div className="warmup-pit-setup-tyres">{(["Soft","Hard"] as const).map(tyre => <button key={tyre} type="button" aria-pressed={tyreChoice === tyre} className={tyreChoice === tyre ? "selected" : ""} onClick={() => choosePracticeTyre(tyre)}>{tyre}</button>)}</div></section>}<section className="warmup-pit-activities">
