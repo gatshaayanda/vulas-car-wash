@@ -99,3 +99,14 @@ Report source checks, Vercel deployment status, offline persistence and actual d
 - QA: inspect narrow portrait and landscape; confirm toast appears below the 3D scene and above NOS, wraps without clipping, never covers map/road/controls, and the scene height stays stable with and without a toast. Verify signal chip and map remain in their own lanes. Then test event messages and refresh an installed PWA to confirm v51 assets.
 - Pit-time reopening of setup/paint is recorded as a separate follow-up and is not changed in this HUD-only pass.
 - Source changes only; build, Vercel deployment and physical device gameplay QA must be reported separately.
+
+
+## Circuit fence footprint collision — 8 November 2026
+
+- Compared Vula's circuit against Big Brothers: both use the same 13-point Catmull–Rom centreline, 12-unit road ribbon, fence rails centred 8.4 units from the centreline, and the established 7.15-unit aligned-car collision envelope. Vula retains its additional physical pit connector and separate pit-road boundary.
+- Centralised the shared track/fence/pit dimensions in `racing-track.ts` so the rendered rail positions and authoritative collision solver cannot silently drift apart.
+- Kept the established 7.15-unit main-circuit and 3.5-unit pit-road clearance for a car aligned with the road. The solver now also accounts for the rotated car body's actual length and width: when the car is sideways in a drift, the safe centreline offset tightens enough to keep the front/rear corners from visually crossing the rail. Tangential motion remains available and barrier contact remains recoverable.
+- The change is confined to track-boundary geometry and collision clearance. It does not alter the steering model, acceleration/braking, grip tuning, camera, track centreline, lap timing, Kago movement, saves or pit route state transitions.
+- Bumped the service-worker game and shell caches to v52 so installed PWAs can fetch the updated game code.
+- QA: test both sides of the circuit at shallow and near-perpendicular impact angles, including sustained drift along the fence; confirm the chassis stays on the driving side, slows/rebounds without snapping to another track segment, and can reverse away. Repeat through pit entry, the service lane and pit exit. Test portrait, landscape and a refreshed installed PWA.
+- Source change only until automated checks and a current production deployment are confirmed; do not treat the code merge itself as physical gameplay QA.
