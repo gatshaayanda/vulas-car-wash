@@ -170,9 +170,11 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
   const startKagoRace = useCallback(() => {
     completedRef.current = false; sessionModeRef.current = "race"; setSessionMode("race"); setPitMenuOpen(false);
     const race = raceRef.current;
-    race.progress = 2; race.lap = 3; race.elapsed = 0; race.lapTime = 0; race.lapInvalid = false;
-    race.playerPitEntryProgress = 2; race.playerPitEntryTrackT = race.trackT;
-    race.botProgress = 2; race.botPitDone = false; race.botPitting = false; race.botPitServiced = false;
+    const playerGridProgress = qualifyingResult?.valid && qualifyingResult.gridPosition === 1 ? 2.02 : 2;
+    const botGridProgress = qualifyingResult?.valid && qualifyingResult.gridPosition === 1 ? 2 : 2.02;
+    race.progress = playerGridProgress; race.lap = 3; race.elapsed = 0; race.lapTime = 0; race.lapInvalid = false;
+    race.playerPitEntryProgress = playerGridProgress; race.playerPitEntryTrackT = race.trackT;
+    race.botProgress = botGridProgress; race.botPitDone = false; race.botPitting = false; race.botPitServiced = false;
     race.botPitProgress = 0; race.botPitServiceRemaining = 0; race.botNos = 100; race.botNosCooldown = 0;
     race.nos = 100; setLap(3); setLapTime(0); setNos(100); setRaceResult(null);
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
