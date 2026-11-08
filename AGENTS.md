@@ -404,3 +404,11 @@ This is an existing customer-facing PWA adapted from the approved Iteration 13 f
 - When a racing HUD/runtime update changes its rendered JS or CSS, bump both service-worker caches together. The toast-strip rollout had retained the same cache identifiers as the golden build, allowing installed PWAs to continue serving stale chunks/styles.
 - Current service-worker cache identifiers are `vula-shell-v47` and `vula-game-v47`. Verify both declarations match in `public/sw.js`.
 - Distinguish a READY Vercel deployment from an installed PWA receiving the new assets. For a cache-related regression, bump both cache identifiers and confirm the resulting production deployment before requesting device QA.
+
+
+## Racing pit interaction and HUD safety
+- The pit lane is optional. Never force a pit visit, stop, service action, penalty, speed change, steering change, reposition, teleport, or control takeover.
+- Offer the tyre menu in the physical pit service area while the player remains in full control. Selecting Soft, Medium, or Hard records the choice and acknowledges it; dismissing the menu or driving through without selecting remains valid.
+- Keep all signal chips, toasts, and prompts outside the live racing canvas. The circuit canvas must contain no top-left or bottom-left notification overlays; the track map remains the only persistent canvas overlay.
+- Tyre choice is retained as race setup for future handling differentiation; do not add speculative tyre physics in this interaction change.
+- Any racing runtime JS/CSS change must bump both service-worker shell and game cache versions in `public/sw.js`.
