@@ -1,119 +1,60 @@
-# Vula Racing session QA checklist
+# Vula Racing — current release QA checklist
 
-Use the normal customer entry point: https://vulas-car-wash.vercel.app/ → Vula Racing → New Game.
+Use the production customer entry point: https://vulas-car-wash.vercel.app/ → Vula Racing → New Game. Only test a deployment built from the exact current `main` commit.
 
-## Session loop
+## Release gate
 
-- Warm-up Practice remains open-ended; completing laps never starts qualifying automatically.
-- The player deliberately starts one qualifying session.
-- Qualifying completes once, saves the player's time and grid result to the selected local driver save, and returns to the pit flow.
-- The pit menu can be opened to review the latest qualifying result before starting the Kago race.
-- Starting a race uses the most recent valid qualifying grid. Without a valid qualifying result, the player starts from the back.
-- Completing a race shows the win/loss result and celebration, then automatically returns to the pit garage and opens the pit menu.
-- The previous qualifying result remains available after a race. A newly completed qualifying session replaces it for the next race.
-- The last race result and driver identity remain available after reloading the saved driver.
+- Confirm the Vercel production deployment is `READY` and its source SHA matches the commit being tested.
+- Confirm `npm run verify:identity`, `npm run lint`, `npx tsc --noEmit` and `npm run build` pass. Report each result separately; do not infer a build from a successful Git push.
+- Confirm both service-worker caches are on the same version and the installed PWA can refresh into that version.
+- Physical gameplay, mobile layout and offline launch are device checks; source review or a successful build does not count as those checks.
 
-## Offline and online checks
+## Entry, saves and menu
 
-- Open the game online once, then verify it launches and remains playable offline from the installed/cached app.
-- Treat offline results as device-local only; do not represent them as server-verified leaderboard results or rewards.
-- Verify authenticated online career persistence separately through the existing `/api/racing` flow. This checklist does not imply real-time multiplayer rooms or matchmaking are implemented.
+- New Game creates a separate device-local save slot and opens the playable 3D pit scene, not a blocking full-screen setup.
+- Driver name is attached to the save slot. Continue and Load restore that slot's driver identity, difficulty, best lap and valid latest qualifying record.
+- Existing version-1 local saves without a per-slot driver name remain readable; infer the legacy name from the existing slot label.
+- Pause, save, leave, reload and load an older slot. Confirm the selected slot is restored and no other slot or high-score record is overwritten.
+- High Scores contains only completed local races, clearly labelled device-local and not server-verified.
 
-## Physical gameplay checks
+## Session flow
 
-- Drive the pit entry and exit in warm-up, qualifying and race sessions; confirm the car remains under player control and is never snapped to a pit position.
-- Check the rough corner, visible barriers, map marker colour, toast placement and mobile portrait/landscape layouts.
-- Test both a race win and loss, then repeat using the saved qualifying position.
+- PIT MENU offers exactly Warm-up Laps, Qualifier and Start Race.
+- Warm-up starts from the pit, is solo, and remains open-ended. Completing a lap does not automatically start qualifying.
+- Qualifying starts alone from the grid. Kago may run an invisible benchmark, but no Kago car, name tag, map marker or collision is visible during qualifying.
+- A valid qualifying lap determines pole/second against Kago's benchmark. An invalid or missing qualifying result means the player starts last in a direct race.
+- Direct race and qualifier-to-race transition use the same tight two-car grid just beyond the start/finish line. Kago appears only when the race begins.
+- Main race is exactly two scored laps. Verify both win and loss result paths, result timing and return-to-pit flow.
+- Kago's single strategic pit stop hides his car, name tag, map marker and effects while his own AI progress continues. The in-scene KAGO · IN PITS status appears and the car returns after service.
 
-Report source checks, Vercel deployment status, offline persistence and actual device gameplay QA separately. Do not claim physical or visual QA unless it has been performed in the live game.
+## Tyres, controls and driving
 
-## Recovery record — 8 November 2026
+- Only Soft and Hard are offered; Medium is not present.
+- Soft gives +5% forward acceleration and +8% speed cap for exactly the first scored race lap, beginning at green. It does not affect warm-up or qualifying and does not restart after a pit change.
+- Hard gives 20% more available lateral grip and modestly stronger slip recovery. Drifting remains possible; the car must not be locked to its heading.
+- Qualifying and main-race compounds are separate allocations. The race compound may differ from the qualifying compound.
+- During a race, the player can make one actual compound change at the physical pit service bay. Selecting the fitted compound does not consume the replacement; after a real change, the replacement is locked.
+- Warm-up tyre selection remains changeable in the pit. Paint choices update the player's car and persist locally.
+- Test analogue steering and directional steering. Hold LEFT and RIGHT independently and together; confirm steering returns to neutral on pointer-up, pointer-cancel, lost capture and session reset.
+- Hold GAS and BRAKE; verify each releases correctly if touch is interrupted. Tap NOS on/off, confirm depletion and lift-off recharge. Test keyboard controls too.
+- Verify the in-scene HUD, map, persistent driving cue, notification strip, NOS meter and controls stay in their intended separate lanes and do not cover the moving 3D road.
 
-- Restored the racing gameplay files to the protected, product-owner-approved golden baseline recorded in `AGENTS.md`.
-- Restored files: `racing-warmup.tsx`, `racing-warmup.css`, `racing-main-menu.tsx`, `racing-3d-scene.tsx`, and `racing-track-map.tsx`.
-- This removes the later single-viewport boxed garage/game-shell implementation and returns the pit interface, HUD, scene and driving controls to the approved baseline structure.
-- No steering model, throttle/brake/NOS input semantics, vehicle physics, camera tuning or track geometry was intentionally changed by this recovery.
-- Service-worker/PWA cache updates, app identity, and the protected golden-baseline reference branch were left untouched.
-- Verification status: source restoration recorded; automated CI and Vercel deployment must be checked against the resulting commit. Live mobile gameplay and offline launch remain unverified until tested on-device.
-- QA priority: confirm the game opens into the playable circuit, the car can be driven freely, car colour can be changed in the pit, and the player can complete the existing practice → qualifying → pit review → Kago race → pit return loop.
-- Follow-up control-layout comparison: inspect the approved space-game controls and reproduce only their placement/interaction layout in Vula Racing if needed. Preserve Vula's existing analog steering and driving inputs unless the product owner explicitly approves a control change.
+## Track, pit and opponent
 
+- Drive the physical pit entry and exit; confirm no teleport, forced steering, unexpected speed cap or loss of player control.
+- Check track limits, both barrier sides, shallow and near-perpendicular contact, recovery/reverse, and sustained drift along the fence.
+- Confirm Kago uses independent world-space movement, stays on track, brakes for corners, uses NOS and makes one pit stop. A speed target is not proof of competitive lap pace; compare measured full-lap times and corner speeds across Easy, Normal and Hard.
+- Test Kago/player contact and ensure neither car becomes trapped or permanently disabled.
+- Test portrait and landscape, including narrow mobile screens.
 
-## Deployment retry — 8 November 2026
+## Offline and online boundaries
 
-- Trigger a fresh production deployment from the restored `main` gameplay baseline.
-- This documentation-only chore does not alter racing source, controls, physics, save data, or PWA behaviour.
-- QA must use the deployment built from the current `main` commit, not an older cached deployment.
+- Open the game online once, then launch the installed/cached PWA offline and complete a playable session.
+- Offline race results and high scores remain device-local. They are not queued as trusted server rewards.
+- Verify authenticated online career persistence separately through the existing `/api/racing` flow. This does not imply real-time multiplayer rooms or matchmaking.
+- Do not claim Firebase rules, server persistence, production deployment or offline behavior are live merely because their source files are committed.
 
+## Current implementation notes
 
-## Live circuit map — 8 November 2026
-
-- The map tracks the player's actual world-space position and Kago's independent world-space position.
-- Kago's marker is hidden during solo practice and qualifying, and appears from the scored race grid onward (lap 3+) only after his vehicle state is initialized.
-- The map legend identifies YOU and KAGO; the existing pit entry, exit and service-bay markings remain visible.
-- This is a HUD-only change. It does not alter player or bot physics, controls, camera, track geometry, collision handling, session flow or saves.
-- QA: confirm the player marker follows the car; Kago is absent in practice/qualifying; both markers appear at the race start and move independently; the Kago marker follows his actual car through corners and pit entry/exit.
-
-
-## Fresh deployment trigger — 8 November 2026
-
-- Documentation-only commit to request a new Vercel production build after the prior build-rate-limit response.
-- No gameplay source, controls, physics, camera, track, saves, or PWA assets are changed by this trigger.
-- Confirm the deployment is built from this exact main commit before asking for gameplay QA.
-
-
-## Saved driver identity — 8 November 2026
-
-- Added an editable driver-name field to Race Control. The name is saved in the existing device-local racing data record, without changing the storage key or version, so existing save slots and high scores remain readable.
-- New save slots use the driver's name; completed local high-score entries capture the name at finish. Older records without a name remain valid and display as Driver.
-- The game session bar identifies the active driver. Name persistence is device-local and is not represented as account-wide or server-synced identity.
-- QA: set a name, refresh, confirm it remains; create a new save and verify the slot label; complete a race and verify the high-score entry shows the saved driver; load an older save and confirm it still works.
-- This change is isolated to the racing menu's local data/UI. No driving physics, controls, camera, track, collision, pit movement, race timing or PWA assets are changed.
-
-
-## Garage car paint — 8 November 2026
-
-- Added six paint choices to the existing starting garage: pink, racing red, blue, yellow, white and graphite.
-- The selected paint is applied to the player's procedural 3D car and saved locally under a separate versioned key. Existing race saves and high scores are untouched.
-- If browser storage is unavailable, colour selection still works for the current session and does not block gameplay.
-- QA: choose each colour in the pit garage, confirm the car body changes immediately, refresh/reopen and confirm the last choice is restored; verify wheels, glass, lights and Kago retain their own materials.
-- Visual-only garage addition. No vehicle physics, steering, throttle/brake/NOS inputs, camera, track, collision, pit movement, session timing or PWA cache behavior changed.
-
-
-## Collapsible garage setup — 8 November 2026
-
-- Added an accessible show/hide control to the existing ready-phase garage briefing. Tyre and paint choices, engineer note and checklist can be collapsed to reduce visual clustering before driving.
-- Setup starts expanded so first-time players still see the available choices. The collapsed summary keeps the selected tyre and paint visible; reopening restores the same controls.
-- This is presentation-only. It does not change phase transitions, pit-lane movement, driving controls, physics, camera, track, collision handling, race timing, saves, or PWA caching.
-- QA: on the garage screen, collapse and reopen setup; confirm tyre and paint selections remain unchanged; start driving with setup either open or collapsed and confirm the existing controls and pit exit behave exactly as before.
-- Source review only; automated checks, production deployment and device gameplay QA remain outstanding.
-
-
-## Racing HUD toast placement correction — 8 November 2026
-
-- Follow the HUD decision recorded in AGENTS.md: the 3D scene remains clean; the map stays in the upper-right; the persistent driving signal remains its own top guidance layer; transient event toasts render only in the dedicated notification strip immediately below the 3D scene and above NOS.
-- The notification strip reserves vertical space so a toast does not cover the road or controls or cause the game viewport to jump. Toast text wraps naturally, is not clipped or line-clamped, and retains `role="status"` with `aria-atomic="true"`.
-- Removed the obsolete canvas-overlay toast placement and its map-width reservation/clipping effect. Kept the existing map and signal-chip positioning, game loop and driving controls unchanged.
-- Reverted the newly added collapsible starting-garage presentation for this QA pass. Starting tyre and paint choices remain expanded; the collapsible garage work is deferred until the product owner has approved the HUD.
-- Bumped both service-worker cache identifiers from v50 to v51 so installed PWAs can fetch the updated racing JS/CSS.
-- QA: inspect narrow portrait and landscape; confirm toast appears below the 3D scene and above NOS, wraps without clipping, never covers map/road/controls, and the scene height stays stable with and without a toast. Verify signal chip and map remain in their own lanes. Then test event messages and refresh an installed PWA to confirm v51 assets.
-- Pit-time reopening of setup/paint is recorded as a separate follow-up and is not changed in this HUD-only pass.
-- Source changes only; build, Vercel deployment and physical device gameplay QA must be reported separately.
-
-
-## Circuit fence footprint collision — 8 November 2026
-
-- Compared Vula's circuit against Big Brothers: both use the same 13-point Catmull–Rom centreline, 12-unit road ribbon, fence rails centred 8.4 units from the centreline, and the established 7.15-unit aligned-car collision envelope. Vula retains its additional physical pit connector and separate pit-road boundary.
-- Centralised the shared track/fence/pit dimensions in `racing-track.ts` so the rendered rail positions and authoritative collision solver cannot silently drift apart.
-- Kept the established 7.15-unit main-circuit and 3.5-unit pit-road clearance for a car aligned with the road. The solver now also accounts for the rotated car body's actual length and width: when the car is sideways in a drift, the safe centreline offset tightens enough to keep the front/rear corners from visually crossing the rail. Tangential motion remains available and barrier contact remains recoverable.
-- The change is confined to track-boundary geometry and collision clearance. It does not alter the steering model, acceleration/braking, grip tuning, camera, track centreline, lap timing, Kago movement, saves or pit route state transitions.
-- Bumped the service-worker game and shell caches to v52 so installed PWAs can fetch the updated game code.
-- QA: test both sides of the circuit at shallow and near-perpendicular impact angles, including sustained drift along the fence; confirm the chassis stays on the driving side, slows/rebounds without snapping to another track segment, and can reverse away. Repeat through pit entry, the service lane and pit exit. Test portrait, landscape and a refreshed installed PWA.
-- Source change only until automated checks and a current production deployment are confirmed; do not treat the code merge itself as physical gameplay QA.
-
-
-## Production build retry — 8 November 2026
-
-- Circuit/fence footprint correction and HUD toast placement correction are merged to `main`.
-- GitHub Actions passed for the circuit/fence change (TypeScript, lint, identity/PWA checks and production build).
-- Trigger a fresh production deployment from this commit after the Vercel daily deployment-rate limit blocked the prior automatic deployment. This commit changes documentation only; it does not change gameplay code.
+- The session flow, local saves, tyre allocations, directional steering, 3D scene and HUD are implemented in the current source. This checklist is the acceptance test, not evidence that those paths have passed physical QA.
+- The product owner should only be asked to test after the exact `main` SHA has a successful production build/deployment. Report source review, automated checks, deployment, offline verification and real-device gameplay separately.

@@ -9,7 +9,7 @@ import "./racing-main-menu.css";
 type Difficulty = "Easy" | "Normal" | "Hard";
 type LocalRaceSave = { race: Race; difficulty: Difficulty; savedAt: string };
 type RaceResult = { id: string; completedAt: string; difficulty: Difficulty; elapsed: number; bestLap: number | null; position: 1 | 2; laps: number; pitStopMissed?: boolean; driverName?: string };
-type SaveSlot = { id: string; name: string; createdAt: string; updatedAt: string; state: LocalRaceSave | null };
+type SaveSlot = { id: string; name: string; driverName?: string; createdAt: string; updatedAt: string; state: LocalRaceSave | null };
 type LocalData = { version: 1; activeSlotId: string | null; slots: SaveSlot[]; scores: RaceResult[]; driverName?: string };
 const STORAGE_KEY = "vula-racing-local-v1";
 const emptyData: LocalData = { version: 1, activeSlotId: null, slots: [], scores: [], driverName: "Driver" };
@@ -19,7 +19,7 @@ const readData = (): LocalData => {
     if (!raw) return emptyData;
     const parsed = JSON.parse(raw) as LocalData;
     if (parsed?.version !== 1 || !Array.isArray(parsed.slots) || !Array.isArray(parsed.scores)) return emptyData;
-    const slots = parsed.slots.filter(slot => slot && typeof slot.id === "string" && typeof slot.name === "string" && typeof slot.createdAt === "string" && typeof slot.updatedAt === "string" && (slot.state === null || (slot.state && slot.state.race && Number.isFinite(slot.state.race.elapsed) && Number.isFinite(slot.state.race.progress) && ["Easy", "Normal", "Hard"].includes(slot.state.difficulty))));
+    const slots = parsed.slots.filter(slot => slot && typeof slot.id === "string" && typeof slot.name === "string" && typeof slot.createdAt === "string" && typeof slot.updatedAt === "string" && (slot.state === null || (slot.state && slot.state.race && Number.isFinite(slot.state.race.elapsed) && Number.isFinite(slot.state.race.progress) && ["Easy", "Normal", "Hard"].includes(slot.state.difficulty)))).map(slot => ({ ...slot, driverName: typeof slot.driverName === "string" && slot.driverName.trim() ? slot.driverName.trim().slice(0, 24) : (slot.name.split(" · Race ")[0].trim().slice(0, 24) || "Driver") }));
     const scores = parsed.scores.filter(score => score && typeof score.id === "string" && Number.isFinite(score.elapsed) && (score.position === 1 || score.position === 2) && (score.bestLap === null || Number.isFinite(score.bestLap))).slice(0, 100);
     return { version: 1, activeSlotId: typeof parsed.activeSlotId === "string" ? parsed.activeSlotId : null, slots, scores, driverName: typeof parsed.driverName === "string" && parsed.driverName.trim() ? parsed.driverName.trim().slice(0, 24) : "Driver" };
   } catch { return emptyData; }
@@ -52,7 +52,7 @@ export default function RacingMainMenu({ embedded = false }: { embedded?: boolea
   const newGame = () => {
     if (data.slots.length >= 5) { setNotice("All five save slots are in use. Load a slot before starting another game."); return; }
     const name = normalizedDriverName();
-    const slot: SaveSlot = { id: `slot-${Date.now()}`, name: `${name} · Race ${data.slots.length + 1}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), state: null };
+    const slot: SaveSlot = { id: `slot-${Date.now()}`, name: `${name} · Race ${data.slots.length + 1}`, driverName: name, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), state: null };
     const next = { ...data, driverName: name, activeSlotId: slot.id, slots: [...data.slots, slot].slice(-5) };
     if (!writeData(next)) { setNotice("Could not create a save on this device."); return; }
     setData(next); setDriverName(name); setActiveSlotId(slot.id); setSession(true); setNotice("");
@@ -60,9 +60,18 @@ export default function RacingMainMenu({ embedded = false }: { embedded?: boolea
   const continueGame = () => {
     const slot = data.slots.find(item => item.id === data.activeSlotId) ?? data.slots[data.slots.length - 1];
     if (!slot || !slot.state) { setNotice("There is no saved progress to continue. Start a New Game, then pause and save it."); return; }
-    setActiveSlotId(slot.id); setSession(true); setNotice("");
+    activateSlot(slot);
   };
-  const loadGame = (slot: SaveSlot) => { setActiveSlotId(slot.id); setSession(true); setView("home"); setNotice(""); };
+  const activateSlot = (slot: SaveSlot) => {
+    const name = slot.driverName || slot.name.split(" · Race ")[0].trim() || "Driver";
+    const next = { ...data, activeSlotId: slot.id, driverName: name };
+    if (writeData(next)) setData(next);
+    setDriverName(name);
+    setActiveSlotId(slot.id);
+    setSession(true);
+    setNotice("");
+  };
+  const loadGame = (slot: SaveSlot) => { activateSlot(slot); setView("home"); };
   const saveGame = (state: LocalRaceSave) => {
     if (!activeSlotId) return;
     const next = { ...data, activeSlotId, slots: data.slots.map(slot => slot.id === activeSlotId ? { ...slot, state, updatedAt: new Date().toISOString() } : slot) };
