@@ -40,7 +40,6 @@ export default function RacingMainMenu({ embedded = false }: { embedded?: boolea
   const [driverName, setDriverName] = useState("Driver");
   const [view, setView] = useState<"home" | "slots" | "scores">("home");
   const [session, setSession] = useState(false);
-  const [quickStart, setQuickStart] = useState(false);
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [previewGraphics, setPreviewGraphics] = useState<"procedural" | "kenney">("kenney");
@@ -56,30 +55,21 @@ export default function RacingMainMenu({ embedded = false }: { embedded?: boolea
     const slot: SaveSlot = { id: `slot-${Date.now()}`, name: `${name} · Race ${data.slots.length + 1}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), state: null };
     const next = { ...data, driverName: name, activeSlotId: slot.id, slots: [...data.slots, slot].slice(-5) };
     if (!writeData(next)) { setNotice("Could not create a save on this device."); return; }
-    setData(next); setDriverName(name); setActiveSlotId(slot.id); setQuickStart(false); setSession(true); setNotice("");
-  };
-  const startQuickRace = () => {
-    // Quick Race is a one-tap playable session, not a save-slot operation.
-    // It must work even when all save slots are occupied or storage is blocked.
-    setActiveSlotId(null);
-    setQuickStart(true);
-    setSession(true);
-    setView("home");
-    setNotice("");
+    setData(next); setDriverName(name); setActiveSlotId(slot.id); setSession(true); setNotice("");
   };
   const continueGame = () => {
     const slot = data.slots.find(item => item.id === data.activeSlotId) ?? data.slots[data.slots.length - 1];
     if (!slot || !slot.state) { setNotice("There is no saved progress to continue. Start a New Game, then pause and save it."); return; }
-    setQuickStart(false); setActiveSlotId(slot.id); setSession(true); setNotice("");
+    setActiveSlotId(slot.id); setSession(true); setNotice("");
   };
-  const loadGame = (slot: SaveSlot) => { setQuickStart(false); setActiveSlotId(slot.id); setSession(true); setView("home"); setNotice(""); };
+  const loadGame = (slot: SaveSlot) => { setActiveSlotId(slot.id); setSession(true); setView("home"); setNotice(""); };
   const saveGame = (state: LocalRaceSave) => {
     if (!activeSlotId) return;
     const next = { ...data, activeSlotId, slots: data.slots.map(slot => slot.id === activeSlotId ? { ...slot, state, updatedAt: new Date().toISOString() } : slot) };
     commit(next);
   };
   const completeRace = (result: RaceResult) => { commit({ ...data, driverName: normalizedDriverName(), scores: [{ ...result, driverName: normalizedDriverName() }, ...data.scores.filter(item => item.id !== result.id)].slice(0, 100) }); };
-  if (session) return <Root className={`racing-menu-game${embedded ? " racing-menu-game-embedded" : ""}`}><div className="racing-menu-gamebar"><button type="button" onClick={() => setSession(false)}>← Racing menu</button><span>QUICK RACE · {driverName.toUpperCase()} · KAGO OFFLINE AI</span></div><RacingWarmup initialSave={activeSlot?.state ?? null} quickStart={quickStart} onSave={saveGame} onComplete={completeRace} onExit={() => setSession(false)} /></Root>;
+  if (session) return <Root className={`racing-menu-game${embedded ? " racing-menu-game-embedded" : ""}`}><div className="racing-menu-gamebar"><button type="button" onClick={() => setSession(false)}>← Racing menu</button><span>QUICK RACE · {driverName.toUpperCase()} · KAGO OFFLINE AI</span></div><RacingWarmup initialSave={activeSlot?.state ?? null} quickStart={false} onSave={saveGame} onComplete={completeRace} onExit={() => setSession(false)} /></Root>;
   return <Root className={`racing-main-menu${embedded ? " racing-main-menu-embedded" : ""}`}>
     <div className="racing-menu-topline"><Link href="/" className="racing-menu-brand"><span className="racing-menu-mark">V</span><span>VULA RACING<small>GABORONE CIRCUIT</small></span></Link><span className="racing-menu-status"><i /> OFFLINE</span></div>
     <section className="racing-menu-hero">
@@ -90,7 +80,7 @@ export default function RacingMainMenu({ embedded = false }: { embedded?: boolea
     </section>
     <section className="racing-menu-sessions"><div className="racing-menu-sectionhead"><div><p className="racing-menu-kicker">RACE CONTROL</p><h2>Get on track.</h2></div><span>LOCAL SAVE</span></div>
       <div className="racing-menu-driver"><label htmlFor="racing-driver-name">DRIVER NAME</label><input id="racing-driver-name" value={driverName} maxLength={24} onChange={event => setDriverName(event.target.value)} onBlur={saveDriverName} onKeyDown={event => { if (event.key === "Enter") { event.currentTarget.blur(); } }} placeholder="Enter driver name" /><small>Saved on this device and attached to new race records.</small></div>
-      <div className="racing-menu-actions"><button type="button" onClick={startQuickRace}>Skip to Race <span>🏁</span></button><button type="button" onClick={newGame}>New Game <span>↗</span></button><button type="button" onClick={continueGame}>Continue <span>→</span></button><button type="button" onClick={() => setView("slots")}>Load Game <span>⌄</span></button><button type="button" onClick={() => setView("scores")}>High Scores <span>↗</span></button></div>
+      <div className="racing-menu-actions"><button type="button" onClick={newGame}>New Game <span>↗</span></button><button type="button" onClick={continueGame}>Continue <span>→</span></button><button type="button" onClick={() => setView("slots")}>Load Game <span>⌄</span></button><button type="button" onClick={() => setView("scores")}>High Scores <span>↗</span></button></div>
       {notice && <p className="racing-menu-notice" role="status">{notice}</p>}
       {view === "slots" && <div className="racing-menu-panel"><div className="racing-menu-panelhead"><h3>Saved games</h3><button type="button" onClick={() => setView("home")}>Close ×</button></div>{data.slots.length ? data.slots.map(slot => <article className="racing-menu-slot" key={slot.id}><div><strong>{slot.name}</strong><small>{slot.state ? `Saved ${new Date(slot.updatedAt).toLocaleString()}` : "New race · not yet saved"}</small></div><button type="button" onClick={() => loadGame(slot)}>Load</button></article>) : <p>No saved games on this device yet.</p>}</div>}
       {view === "scores" && <div className="racing-menu-panel"><div className="racing-menu-panelhead"><h3>High scores</h3><button type="button" onClick={() => setView("home")}>Close ×</button></div>{data.scores.length ? <div className="racing-menu-scorelist">{data.scores.map((score,index)=><article key={score.id}><b>#{index+1}</b><div><strong>{score.pitStopMissed ? "DNF · Pit stop missed" : score.position === 1 ? "1st · Beat Kago" : "2nd · Kago won"}</strong><small>{score.driverName || "Driver"} · {new Date(score.completedAt).toLocaleString()} · {score.difficulty} · {score.laps} lap · Race {time(score.elapsed)}</small></div><span>Best {time(score.bestLap)}</span></article>)}</div> : <p>No completed races yet. Finish a Quick Race to create your first score.</p>}</div>}
