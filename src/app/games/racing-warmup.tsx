@@ -514,6 +514,12 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           }
         }
         race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 290 : 255);
+        if (race.playerPitting && race.playerPitProgress >= .49 && race.playerPitProgress <= .55 && race.speed <= 2.2 && phaseRef.current === "running") {
+          settlePlayerCar(race);
+          controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+          phaseRef.current = "pit"; setPhase("pit"); setPitMenuOpen(true);
+          notify("PIT GARAGE · Back in the bay. Review your result or choose the next session.", "info");
+        }
         const finalForwardX = -Math.sin(race.worldYaw);
         const finalForwardZ = -Math.cos(race.worldYaw);
         const finalLateralX = Math.cos(race.worldYaw);
