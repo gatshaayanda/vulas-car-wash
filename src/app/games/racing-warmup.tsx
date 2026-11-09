@@ -310,6 +310,10 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
         race.botWorldYaw = yaw; race.botVelocityX = 0; race.botVelocityZ = 0;
         race.botSpeed = 0; race.botProgress = 2 + botT; race.botInitialized = true;
         race.botLineOffset = -2.45 * playerGridSide;
+        // This is a real grid start: do not inherit newRace()'s pit-garage
+        // exit state or the player progress will be pinned at zero.
+        race.playerGarageExit = false; race.playerOutLap = false;
+        race.playerPitting = false; race.playerPitRequested = false;
         race.botPitDone = false; race.botPitting = false; race.botPitServiced = false;
         race.botPitProgress = 0; race.botPitServiceRemaining = 0;
         race.elapsed = 0; race.lapTime = 0; race.botNos = 100; race.botNosCooldown = 0; race.botBoostActive = false; race.nos = 100;
@@ -812,8 +816,9 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
             
           }
         } else {
+          const previousTrackT = race.trackT;
           race.trackT = nearestT;
-          const crossedStartFinish = nearestT < 0.08 && race.trackT > 0.82 && longitudinalVelocity > 0;
+          const crossedStartFinish = nearestT < 0.08 && previousTrackT > 0.82 && longitudinalVelocity > 0;
           race.progress = crossedStartFinish
             ? Math.floor(previousProgress) + 1 + nearestT
             : Math.floor(previousProgress) + nearestT;
@@ -1021,7 +1026,7 @@ export default function RacingWarmup({ embedded = false, initialSave, onSave, on
           botQualifyingTimeRef.current = botQualifyingElapsedRef.current;
         }
 
-        if (race.botRaceEnabled && race.progress >= 2 && !race.playerPitting && !race.botPitting) {
+        if (race.botRaceEnabled && !race.playerPitting && !race.botPitting && !race.playerGarageExit && !race.playerOutLap) {
         // Player-vs-Kago collision: oriented vehicle footprints are tested in
         // world space using the separating-axis theorem. Resolve the player
         // against Kago's independently moving chassis for this frame, preserving the

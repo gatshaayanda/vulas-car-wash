@@ -466,3 +466,11 @@ This section supersedes every earlier statement that tyres are visual-only or th
 - The player selects only their own race tyre. Kago independently chooses Soft or Hard at race start and switches to the opposite compound at his pit service. Never expose an opponent tyre selector in the player pit menu.
 - Main-race completion is counted from two explicit forward crossings of the start/finish timing line after the grid start. Do not infer the finish from the legacy warm-up/qualifying lap index (3/4/5); keep those session indices separate from the two scored race laps.
 - Preserve warm-up and qualifying lap rules. Do not alter player vehicle physics, AI driving physics, collision response, track geometry, or pit routes for this correction.
+
+
+## Race grid, collision and finish-line regression correction — 2026-11-09
+
+- Main-race grid placement is already on the circuit. Explicitly clear inherited pit-garage exit, out-lap, player-pitting and pit-request flags when starting from the grid; do not let the default newRace() garage state pin race progress at zero.
+- Player-vs-Kago SAT collision runs during the main race once both cars are on circuit, and is not gated by a stale progress threshold. Suppress contact while the player is still on a garage/out-lap route or either car is physically pitting.
+- Start/finish detection must compare the newly projected trackT against the previous frame's trackT captured before overwriting it. Two forward crossings increment the explicit raceLapsCompleted counter and complete the two-lap event.
+- Do not alter vehicle physics, collision response, AI driving, steering, camera, track geometry, pit route, warm-up or qualifying behaviour. Bump both PWA caches together.
